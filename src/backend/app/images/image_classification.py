@@ -1906,6 +1906,129 @@ class ImageClassifier:
             "failed_filenames": failed_filenames,
         }
 
+    @staticmethod
+    async def prune_deassigned_task_images(
+        db: Connection,
+        project_id: uuid.UUID,
+        task_id: uuid.UUID,
+    ) -> dict:
+        """Move de-assigned images back out of a task's ODM input folder.
+
+        ODM reads ``{task_id}/images/`` by path, ignoring DB status. Rejecting an
+        already-moved image only flips ``status`` in the DB, so its file lingers
+        and still gets processed. This reverses the move for any such image back
+        to user-uploads staging (excluded from ODM) and resets ``s3_key`` - fully
+        reversible, since re-accepting re-assigns it and the next move pulls it
+        back in. Commits per image; failures are logged and skipped (non-fatal).
+        """
+        query = """
+            SELECT id, filename, s3_key, thumbnail_url
+            FROM project_images
+            WHERE project_id = %(project_id)s
+              AND task_id = %(task_id)s
+              AND status != %(assigned)s
+              AND s3_key LIKE %(taskdir)s
+            ORDER BY uploaded_at
+        """
+        taskdir_prefix = f"projects/{project_id}/{task_id}/images/"
+
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                query,
+                {
+                    "project_id": str(project_id),
+                    "task_id": str(task_id),
+                    "assigned": ImageStatus.ASSIGNED.value,
+                    "taskdir": f"{taskdir_prefix}%",
+                },
+            )
+            images = await cur.fetchall()
+
+        if not images:
+            return {"pruned_count": 0, "failed_count": 0}
+
+        pruned_count = 0
+        failed_count = 0
+
+        for image in images:
+            filename = image["filename"]
+            source_key = image["s3_key"]
+            basename = source_key.rsplit("/", 1)[-1]
+            dest_key = f"projects/{project_id}/user-uploads/{basename}"
+
+            success = await run_in_threadpool(
+                move_file_within_bucket,
+                settings.S3_BUCKET_NAME,
+                source_key,
+                dest_key,
+            )
+            if not success:
+                dest_exists = await run_in_threadpool(
+                    s3_object_exists,
+                    settings.S3_BUCKET_NAME,
+                    dest_key,
+                )
+                if dest_exists:
+                    log.warning(
+                        "Recovered de-assigned image prune by reconciling DB "
+                        f"because destination already exists: {dest_key}"
+                    )
+                else:
+                    failed_count += 1
+                    log.warning(
+                        f"Failed to prune de-assigned image {filename} out of "
+                        f"task {task_id} folder - it may still reach ODM"
+                    )
+                    continue
+
+            # Move the thumbnail alongside so it isn't left in the task folder.
+            new_thumb_key: str | None = None
+            old_thumb = image.get("thumbnail_url")
+            if old_thumb and old_thumb.startswith(taskdir_prefix):
+                thumb_basename = old_thumb.rsplit("/", 1)[-1]
+                new_thumb_key = (
+                    f"projects/{project_id}/user-uploads/thumbs/{thumb_basename}"
+                )
+                thumb_ok = await run_in_threadpool(
+                    move_file_within_bucket,
+                    settings.S3_BUCKET_NAME,
+                    old_thumb,
+                    new_thumb_key,
+                )
+                if not thumb_ok:
+                    thumb_dest_exists = await run_in_threadpool(
+                        s3_object_exists,
+                        settings.S3_BUCKET_NAME,
+                        new_thumb_key,
+                    )
+                    if not thumb_dest_exists:
+                        # Non-fatal: the image moved, just leave the old thumb ref.
+                        new_thumb_key = None
+
+            update_fields = "SET s3_key = %(new_s3_key)s"
+            update_params: dict[str, Any] = {
+                "new_s3_key": dest_key,
+                "image_id": str(image["id"]),
+            }
+            if new_thumb_key:
+                update_fields += ", thumbnail_url = %(new_thumb)s"
+                update_params["new_thumb"] = new_thumb_key
+
+            async with db.cursor() as update_cur:
+                await update_cur.execute(
+                    f"UPDATE project_images {update_fields} WHERE id = %(image_id)s",
+                    update_params,
+                )
+            await db.commit()
+            pruned_count += 1
+            log.info(f"Pruned de-assigned image {filename} out of task {task_id}")
+
+        log.info(
+            f"Task {task_id}: pruned {pruned_count} de-assigned image(s) from the "
+            f"ODM input folder, {failed_count} failed"
+        )
+        return {"pruned_count": pruned_count, "failed_count": failed_count}
+
     # ─── Project-level (task-centric) methods ─────────────────────────────
 
     @staticmethod

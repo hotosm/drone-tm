@@ -393,6 +393,115 @@ async def test_move_task_images_to_folder_reconciles_when_destination_exists(
 
 
 @pytest.mark.asyncio
+async def test_prune_deassigned_task_images_moves_rejected_out_of_folder(
+    db, create_test_project, auth_user
+):
+    """A rejected image left in the task folder is moved back to staging."""
+    project_id = uuid.UUID(create_test_project)
+    task_id = uuid.uuid4()
+    batch_id = uuid.uuid4()
+    image_id = uuid.uuid4()
+    filename = "rejected-after-ready.jpg"
+    image_id_prefix = str(image_id)[:8]
+    # Simulate an image that was assigned+moved into the folder, then rejected
+    # in the UI (status flipped, but the file was never relocated).
+    task_key = f"projects/{project_id}/{task_id}/images/{image_id_prefix}_{filename}"
+
+    outline_wkb = wkblib.dumps(box(0, 0, 1, 1), hex=True)
+    _upload_test_object(task_key, b"rejected-image-bytes")
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO tasks (id, project_id, project_task_index, outline)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (task_id, project_id, 1, outline_wkb),
+        )
+    await _insert_batch_image(
+        db,
+        project_id=project_id,
+        batch_id=batch_id,
+        uploaded_by=auth_user.id,
+        filename=filename,
+        s3_key=task_key,
+        thumbnail_url="",
+        status="rejected",
+        task_id=task_id,
+        image_id=image_id,
+    )
+    await db.commit()
+
+    result = await ImageClassifier.prune_deassigned_task_images(db, project_id, task_id)
+
+    assert result["pruned_count"] == 1
+    assert result["failed_count"] == 0
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            "SELECT s3_key FROM project_images WHERE id = %s",
+            (image_id,),
+        )
+        new_key = (await cur.fetchone())[0]
+
+    # File relocated out of the ODM input folder, back into staging.
+    assert "user-uploads" in new_key
+    assert not new_key.startswith(f"projects/{project_id}/{task_id}/images/")
+    assert check_file_exists(settings.S3_BUCKET_NAME, new_key)
+    assert not check_file_exists(settings.S3_BUCKET_NAME, task_key)
+
+
+@pytest.mark.asyncio
+async def test_prune_deassigned_task_images_keeps_assigned_images(
+    db, create_test_project, auth_user
+):
+    """An assigned image in the task folder must NOT be pruned."""
+    project_id = uuid.UUID(create_test_project)
+    task_id = uuid.uuid4()
+    batch_id = uuid.uuid4()
+    image_id = uuid.uuid4()
+    filename = "keep-me.jpg"
+    image_id_prefix = str(image_id)[:8]
+    task_key = f"projects/{project_id}/{task_id}/images/{image_id_prefix}_{filename}"
+
+    outline_wkb = wkblib.dumps(box(0, 0, 1, 1), hex=True)
+    _upload_test_object(task_key, b"assigned-image-bytes")
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO tasks (id, project_id, project_task_index, outline)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (task_id, project_id, 1, outline_wkb),
+        )
+    await _insert_batch_image(
+        db,
+        project_id=project_id,
+        batch_id=batch_id,
+        uploaded_by=auth_user.id,
+        filename=filename,
+        s3_key=task_key,
+        thumbnail_url="",
+        status="assigned",
+        task_id=task_id,
+        image_id=image_id,
+    )
+    await db.commit()
+
+    result = await ImageClassifier.prune_deassigned_task_images(db, project_id, task_id)
+
+    assert result["pruned_count"] == 0
+    async with db.cursor() as cur:
+        await cur.execute(
+            "SELECT s3_key FROM project_images WHERE id = %s",
+            (image_id,),
+        )
+        assert (await cur.fetchone())[0] == task_key
+    assert check_file_exists(settings.S3_BUCKET_NAME, task_key)
+
+
+@pytest.mark.asyncio
 async def test_delete_batch_route_waits_for_cleanup(
     client, db, create_test_project, auth_user
 ):

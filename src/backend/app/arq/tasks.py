@@ -9,10 +9,12 @@ import statistics
 import tempfile
 import time
 import urllib.parse
+import uuid
 import xml.etree.ElementTree as ET
 import zipfile
+from enum import Enum
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, NamedTuple
 from uuid import UUID
 
 import aiohttp
@@ -57,7 +59,9 @@ from app.tasks import task_logic
 from app.utils import timestamp
 from arq import ArqRedis, create_pool, cron
 from arq.connections import RedisSettings, log_redis_info
+from arq.jobs import Job, JobStatus
 from fastapi import HTTPException
+from fastapi.concurrency import run_in_threadpool
 from loguru import logger as log
 from PIL import Image
 from psycopg.rows import dict_row
@@ -561,127 +565,26 @@ async def ingest_existing_uploads(
             f"Ingest job {job_id}: enqueued {enqueued} images for project {project_id}"
         )
 
-        # Second pass: reconcile assigned images whose DB path is still user-uploads.
-        # This unblocks get_processable_tasks_with_pending_transfer_count when the
-        # move job was lost (Redis flush, worker down) or partially completed.
-        #
-        # Three outcomes per stuck image:
-        #   A) S3 file exists at user-uploads path  → move job never ran → re-enqueue it
-        #   B) S3 file at expected task dest path   → move ran but DB not updated → fix DB
-        #   C) S3 file not found anywhere           → orphaned DB record → delete it
-        async with db_pool.connection() as db:
-            async with db.cursor(row_factory=dict_row) as cur:
-                await cur.execute(
-                    """
-                    SELECT id, s3_key, task_id, filename, thumbnail_url
-                    FROM project_images
-                    WHERE project_id = %(pid)s
-                      AND status = 'assigned'
-                      AND s3_key LIKE '%%user-uploads%%'
-                    """,
-                    {"pid": project_id},
-                )
-                stuck_images = await cur.fetchall()
-
-        tasks_needing_move: set[str] = set()
-        db_fixes: list[tuple[str, str, str | None]] = []
-        orphan_ids: list[str] = []
-
-        for img in stuck_images:
-            image_id = str(img["id"])
-            s3_key = img["s3_key"]
-            task_id_str = str(img["task_id"])
-            filename = img["filename"]
-            old_thumb = img.get("thumbnail_url")
-            image_id_prefix = image_id[:8]
-            dest_key = (
-                f"projects/{project_id}/{task_id_str}/images/"
-                f"{image_id_prefix}_{filename}"
-            )
-            dest_thumb_key = (
-                f"projects/{project_id}/{task_id_str}/images/thumbs/"
-                f"{image_id_prefix}_{filename}"
-            )
-
-            if s3_object_exists(bucket, s3_key):
-                # Case A: file still in user-uploads; just need to re-trigger the move
-                tasks_needing_move.add(task_id_str)
-            elif s3_object_exists(bucket, dest_key):
-                # Case B: S3 move completed but DB update didn't commit
-                new_thumb: str | None = None
-                if old_thumb and "user-uploads" in old_thumb:
-                    new_thumb = (
-                        dest_thumb_key
-                        if s3_object_exists(bucket, dest_thumb_key)
-                        else None
-                    )
-                db_fixes.append((image_id, dest_key, new_thumb))
-            else:
-                # Case C: file gone from S3 entirely - orphaned record
-                orphan_ids.append(image_id)
-
-        if db_fixes:
-            async with db_pool.connection() as db:
-                for image_id, new_s3_key, new_thumb in db_fixes:
-                    fields = "SET s3_key = %(new_s3_key)s"
-                    params: dict[str, Any] = {
-                        "new_s3_key": new_s3_key,
-                        "image_id": image_id,
-                    }
-                    if new_thumb:
-                        fields += ", thumbnail_url = %(new_thumb)s"
-                        params["new_thumb"] = new_thumb
-                    async with db.cursor() as cur:
-                        await cur.execute(
-                            f"UPDATE project_images {fields} WHERE id = %(image_id)s",
-                            params,
-                        )
-                await db.commit()
-            log.info(
-                f"Ingest job {job_id}: fixed s3_key for {len(db_fixes)} images "
-                f"whose S3 move completed but DB was not updated"
-            )
-
-        if orphan_ids:
-            async with db_pool.connection() as db:
-                async with db.cursor() as cur:
-                    await cur.execute(
-                        "DELETE FROM project_images WHERE id = ANY(%(ids)s::uuid[])",
-                        {"ids": orphan_ids},
-                    )
-                await db.commit()
-            log.info(
-                f"Ingest job {job_id}: deleted {len(orphan_ids)} orphaned image "
-                f"records (assigned status but S3 file not found)"
-            )
-
-        move_enqueued = 0
-        for task_id_str in tasks_needing_move:
-            stable_move_id = f"move-task-images:{task_id_str}"
-            move_job = await redis.enqueue_job(
-                "move_task_images_for_processing",
-                project_id,
-                task_id_str,
-                _queue_name="default_queue",
-                _job_id=stable_move_id,
-            )
-            if move_job is not None:
-                move_enqueued += 1
-
-        if tasks_needing_move:
-            log.info(
-                f"Ingest job {job_id}: re-enqueued move jobs for {move_enqueued} tasks "
-                f"({len(tasks_needing_move) - move_enqueued} already queued or running)"
-            )
+        # Second pass: reconcile assigned images whose DB path is still
+        # user-uploads (move job lost or partially completed). The upload path
+        # has full S3 context, so here we let it prune truly-orphaned rows.
+        reconciled = await reconcile_stuck_task_images(
+            db_pool,
+            redis,
+            project_id,
+            bucket,
+            delete_orphans=True,
+            job_id=job_id,
+        )
 
         return {
             "project_id": project_id,
             "batch_id": batch_id,
             "enqueued": enqueued,
             "reconciled": {
-                "move_jobs_enqueued": move_enqueued,
-                "db_keys_fixed": len(db_fixes),
-                "orphans_deleted": len(orphan_ids),
+                "move_jobs_enqueued": reconciled["move_jobs_enqueued"],
+                "db_keys_fixed": reconciled["db_keys_fixed"],
+                "orphans_deleted": reconciled["orphans_deleted"],
             },
         }
     finally:
@@ -794,13 +697,44 @@ async def classify_project_images(
         raise
 
 
+class MoveEnqueue(str, Enum):
+    """Outcome of trying to enqueue a task move."""
+
+    ENQUEUED = "enqueued"  # a new job was queued
+    ALREADY_RUNNING = "already_running"  # a move is already queued/running
+    FAILED = "failed"  # nothing could be queued
+
+
+class MoveEnqueueResult(NamedTuple):
+    status: MoveEnqueue
+    job_id: str | None
+
+
+# Best-effort per-task lock. It coalesces overlapping moves AND acts as the
+# liveness signal for recovery: a crashed worker leaves ARQ's in_progress marker
+# behind for up to job_timeout (24h), so we treat in_progress WITHOUT this lock
+# as a dead job. The TTL is short so a crash is recoverable within minutes; the
+# move is idempotent, so a lapsed lease during a long move at worst causes safe
+# redundant work. Release is owner-checked, so a lapsed lease never deletes a
+# successor's lock.
+_MOVE_LOCK_TTL_MS = 300_000  # 5 minutes
+_LOCK_RELEASE_LUA = (
+    "if redis.call('get', KEYS[1]) == ARGV[1] "
+    "then return redis.call('del', KEYS[1]) else return 0 end"
+)
+
+
 async def move_task_images_for_processing(
     ctx: dict[Any, Any],
     project_id: str,
     task_id: str,
     **_kwargs: Any,
 ) -> dict[str, Any]:
-    """Move assigned task images from user-uploads to the task folder."""
+    """Move a task's assigned imagery from user-uploads into its ODM folder.
+
+    De-assigned (rejected) imagery is pruned out later by the fail-closed guard
+    in the processing jobs, so this stage only moves images in.
+    """
     job_id = ctx.get("job_id", "unknown")
     log.info(
         f"Starting move_task_images_for_processing (Job ID: {job_id}): "
@@ -810,6 +744,15 @@ async def move_task_images_for_processing(
     db_pool = ctx.get("db_pool")
     if not db_pool:
         raise RuntimeError("Database pool not initialized in ARQ context")
+
+    redis: ArqRedis | None = ctx.get("redis")
+    lock_key = f"lock:move-task:{task_id}"
+    lock_token = uuid.uuid4().hex
+    if redis is not None and not await redis.set(
+        lock_key, lock_token, nx=True, px=_MOVE_LOCK_TTL_MS
+    ):
+        log.info(f"Move for task {task_id} already running; skipping (Job {job_id})")
+        return {"project_id": project_id, "task_id": task_id, "skipped": True}
 
     try:
         async with db_pool.connection() as conn:
@@ -821,8 +764,7 @@ async def move_task_images_for_processing(
 
             if failed > 0:
                 failed_names = result.get("failed_filenames", [])
-                # Images that moved successfully are already committed
-                # individually, so we only report the failures here.
+                # Moved images are already committed individually; report failures.
                 raise RuntimeError(
                     f"Failed to move {failed} of {moved + failed} image(s) "
                     f"to task folder: {', '.join(failed_names[:5])}"
@@ -873,6 +815,302 @@ async def move_task_images_for_processing(
 
         log.error(f"Failed move_task_images_for_processing (Job ID: {job_id}): {e!s}")
         raise
+    finally:
+        if redis is not None:
+            # Owner-checked release; a release failure must not mask the result.
+            try:
+                await redis.eval(_LOCK_RELEASE_LUA, 1, lock_key, lock_token)
+            except Exception as release_err:
+                log.warning(
+                    f"Failed to release move lock for task {task_id}: {release_err}"
+                )
+
+
+async def _enqueue_task_move(
+    redis: ArqRedis, project_id: str, task_id: str
+) -> MoveEnqueueResult:
+    """Enqueue the staging→task move for a task. Shared by every caller.
+
+    The stable job id coalesces duplicate requests. If arq refuses it (queued,
+    running, or a cached result), we only treat it as live when the job is
+    queued/deferred or genuinely in_progress (task lock still held); a stale
+    in_progress marker from a crashed worker, or a cached result, falls back to
+    a fresh id so a stalled transfer can always be recovered. The worker holds a
+    per-task lock, so a redundant enqueue runs at most once.
+    """
+    stable_move_id = f"move-task-images:{task_id}"
+    move_job = await redis.enqueue_job(
+        "move_task_images_for_processing",
+        project_id,
+        task_id,
+        _queue_name="default_queue",
+        _job_id=stable_move_id,
+    )
+    if move_job is not None:
+        return MoveEnqueueResult(MoveEnqueue.ENQUEUED, move_job.job_id)
+
+    # arq 0.26 has no ArqRedis.job(); build the Job handle directly to read status.
+    status = await Job(stable_move_id, redis, _queue_name="default_queue").status()
+    if status in {JobStatus.queued, JobStatus.deferred}:
+        return MoveEnqueueResult(MoveEnqueue.ALREADY_RUNNING, stable_move_id)
+    # in_progress is only trustworthy while a worker still holds the task lock;
+    # a stale marker from a crashed worker (lingers ~24h) or a cached result
+    # falls through to a fresh recovery id.
+    if status == JobStatus.in_progress and (
+        await redis.get(f"lock:move-task:{task_id}") is not None
+    ):
+        return MoveEnqueueResult(MoveEnqueue.ALREADY_RUNNING, stable_move_id)
+
+    retry_job_id = f"{stable_move_id}:{uuid.uuid4().hex}"
+    move_job = await redis.enqueue_job(
+        "move_task_images_for_processing",
+        project_id,
+        task_id,
+        _queue_name="default_queue",
+        _job_id=retry_job_id,
+    )
+    if move_job is not None:
+        return MoveEnqueueResult(MoveEnqueue.ENQUEUED, move_job.job_id)
+    return MoveEnqueueResult(MoveEnqueue.FAILED, None)
+
+
+async def reconcile_stuck_task_images(
+    db_pool: Any,
+    redis: ArqRedis,
+    project_id: str,
+    bucket: str,
+    *,
+    delete_orphans: bool,
+    job_id: str = "unknown",
+) -> dict[str, int]:
+    """Reconcile assigned images whose S3 key is still in user-uploads.
+
+    A lost or interrupted transfer leaves assigned images pointing at staging,
+    which blocks processing. Per stuck image:
+
+      A) file still in user-uploads → move unfinished → re-enqueue the move
+      B) file already at the task dest → move ran, DB not updated → fix the row
+      C) file missing everywhere → phantom record
+
+    ``delete_orphans`` gates Case C: the ingest path (fresh off an S3 scan)
+    prunes phantoms; the nightly backstop passes False and only logs them, so a
+    scheduled sweep can never destroy data.
+
+    Returns counts: stuck, move_jobs_enqueued, db_keys_fixed, orphans_deleted,
+    orphans_flagged.
+    """
+    async with db_pool.connection() as db:
+        async with db.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                """
+                SELECT id, s3_key, task_id, filename, thumbnail_url
+                FROM project_images
+                WHERE project_id = %(pid)s
+                  AND status = 'assigned'
+                  AND s3_key LIKE '%%user-uploads%%'
+                """,
+                {"pid": project_id},
+            )
+            stuck_images = await cur.fetchall()
+
+    if not stuck_images:
+        return {
+            "stuck": 0,
+            "move_jobs_enqueued": 0,
+            "db_keys_fixed": 0,
+            "orphans_deleted": 0,
+            "orphans_flagged": 0,
+        }
+
+    tasks_needing_move: set[str] = set()
+    # Carry (image_id, task_id, original_s3_key, ...) so every write can be a
+    # compare-and-set against the exact snapshot we classified.
+    db_fixes: list[tuple[str, str, str, str, str | None]] = []
+    orphans: list[tuple[str, str, str]] = []
+
+    for img in stuck_images:
+        image_id = str(img["id"])
+        s3_key = img["s3_key"]
+        task_id_str = str(img["task_id"])
+        filename = img["filename"]
+        old_thumb = img.get("thumbnail_url")
+        image_id_prefix = image_id[:8]
+        dest_key = (
+            f"projects/{project_id}/{task_id_str}/images/{image_id_prefix}_{filename}"
+        )
+        dest_thumb_key = (
+            f"projects/{project_id}/{task_id_str}/images/thumbs/"
+            f"{image_id_prefix}_{filename}"
+        )
+
+        # S3 existence checks are blocking, so offload them to keep the worker
+        # event loop free (this sweep can touch a large backlog).
+        if await run_in_threadpool(s3_object_exists, bucket, s3_key):
+            tasks_needing_move.add(task_id_str)  # Case A
+        elif await run_in_threadpool(s3_object_exists, bucket, dest_key):
+            # Case B: file already moved, just fix the DB row.
+            new_thumb: str | None = None
+            if old_thumb and "user-uploads" in old_thumb:
+                thumb_at_dest = await run_in_threadpool(
+                    s3_object_exists, bucket, dest_thumb_key
+                )
+                new_thumb = dest_thumb_key if thumb_at_dest else None
+            db_fixes.append((image_id, task_id_str, s3_key, dest_key, new_thumb))
+        else:
+            orphans.append((image_id, task_id_str, s3_key))  # Case C
+
+    # Every write is a compare-and-set on the full snapshot (id, project, task,
+    # s3_key, assigned) so a concurrent reject/reassign/move always wins.
+    cas = (
+        "id = %(image_id)s AND project_id = %(project_id)s "
+        "AND task_id = %(task_id)s AND s3_key = %(orig_s3_key)s "
+        "AND status = 'assigned'"
+    )
+
+    db_keys_fixed = 0
+    if db_fixes:
+        async with db_pool.connection() as db:
+            for image_id, task_id_str, orig_s3_key, new_s3_key, new_thumb in db_fixes:
+                fields = "SET s3_key = %(new_s3_key)s"
+                params: dict[str, Any] = {
+                    "new_s3_key": new_s3_key,
+                    "image_id": image_id,
+                    "project_id": project_id,
+                    "task_id": task_id_str,
+                    "orig_s3_key": orig_s3_key,
+                }
+                if new_thumb:
+                    fields += ", thumbnail_url = %(new_thumb)s"
+                    params["new_thumb"] = new_thumb
+                async with db.cursor() as cur:
+                    await cur.execute(
+                        f"UPDATE project_images {fields} WHERE {cas}", params
+                    )
+                    db_keys_fixed += cur.rowcount
+            await db.commit()
+        log.info(
+            f"Reconcile ({job_id}) project {project_id}: fixed s3_key for "
+            f"{db_keys_fixed}/{len(db_fixes)} images whose S3 move completed "
+            f"but DB was not updated"
+        )
+
+    orphans_deleted = 0
+    orphans_flagged = 0
+    if orphans:
+        if delete_orphans:
+            async with db_pool.connection() as db:
+                for image_id, task_id_str, orig_s3_key in orphans:
+                    async with db.cursor() as cur:
+                        await cur.execute(
+                            f"DELETE FROM project_images WHERE {cas}",
+                            {
+                                "image_id": image_id,
+                                "project_id": project_id,
+                                "task_id": task_id_str,
+                                "orig_s3_key": orig_s3_key,
+                            },
+                        )
+                        orphans_deleted += cur.rowcount
+                await db.commit()
+            log.info(
+                f"Reconcile ({job_id}) project {project_id}: deleted "
+                f"{orphans_deleted}/{len(orphans)} orphaned image records "
+                f"(assigned but S3 file not found)"
+            )
+        else:
+            orphans_flagged = len(orphans)
+            orphan_ids = [o[0] for o in orphans]
+            log.warning(
+                f"Reconcile ({job_id}) project {project_id}: {orphans_flagged} "
+                f"assigned image(s) point at user-uploads but the S3 file is "
+                f"missing from both staging and the task folder - NOT deleting "
+                f"(backstop sweep). Image ids: {', '.join(orphan_ids[:20])}"
+                + (" (and more)" if len(orphan_ids) > 20 else "")
+            )
+
+    move_enqueued = 0
+    for task_id_str in tasks_needing_move:
+        result = await _enqueue_task_move(redis, project_id, task_id_str)
+        if result.status == MoveEnqueue.ENQUEUED:
+            move_enqueued += 1
+
+    if tasks_needing_move:
+        log.info(
+            f"Reconcile ({job_id}) project {project_id}: re-enqueued move jobs "
+            f"for {move_enqueued} task(s) "
+            f"({len(tasks_needing_move) - move_enqueued} already queued or running)"
+        )
+
+    return {
+        "stuck": len(stuck_images),
+        "move_jobs_enqueued": move_enqueued,
+        "db_keys_fixed": db_keys_fixed,
+        "orphans_deleted": orphans_deleted,
+        "orphans_flagged": orphans_flagged,
+    }
+
+
+async def reconcile_pending_transfers(
+    ctx: dict[Any, Any],
+    **_kwargs: Any,
+) -> dict[str, Any]:
+    """Nightly backstop for transfers stalled mid-move by a deploy/restart/OOM.
+
+    Such a stall strands assigned images in user-uploads, silently blocking
+    processing until someone re-uploads. Sweeps every affected project, resuming
+    the move (Case A) and fixing stale rows (Case B); never deletes phantom rows
+    (Case C), only logs them.
+    """
+    job_id = ctx.get("job_id", "unknown")
+    db_pool = ctx.get("db_pool")
+    redis: ArqRedis = ctx.get("redis")
+    if not db_pool or not redis:
+        log.warning(
+            f"reconcile_pending_transfers ({job_id}): no db_pool/redis; skipping"
+        )
+        return {"projects": 0}
+
+    bucket = settings.S3_BUCKET_NAME
+    async with db_pool.connection() as db, db.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT DISTINCT project_id
+            FROM project_images
+            WHERE status = 'assigned'
+              AND s3_key LIKE '%%user-uploads%%'
+            """
+        )
+        project_ids = [str(row[0]) for row in await cur.fetchall()]
+
+    totals = {
+        "projects": len(project_ids),
+        "stuck": 0,
+        "move_jobs_enqueued": 0,
+        "db_keys_fixed": 0,
+        "orphans_flagged": 0,
+    }
+    for pid in project_ids:
+        try:
+            res = await reconcile_stuck_task_images(
+                db_pool, redis, pid, bucket, delete_orphans=False, job_id=job_id
+            )
+            totals["stuck"] += res["stuck"]
+            totals["move_jobs_enqueued"] += res["move_jobs_enqueued"]
+            totals["db_keys_fixed"] += res["db_keys_fixed"]
+            totals["orphans_flagged"] += res["orphans_flagged"]
+        except Exception as e:
+            log.error(
+                f"reconcile_pending_transfers ({job_id}): project {pid} failed: {e}"
+            )
+
+    log.info(
+        f"reconcile_pending_transfers ({job_id}): swept {totals['projects']} "
+        f"project(s), {totals['stuck']} stuck image(s), "
+        f"{totals['move_jobs_enqueued']} move job(s) re-enqueued, "
+        f"{totals['db_keys_fixed']} DB key(s) fixed, "
+        f"{totals['orphans_flagged']} phantom row(s) flagged"
+    )
+    return totals
 
 
 async def delete_batch_images(
@@ -1825,11 +2063,15 @@ class WorkerSettings:
         generate_3d_tiles,
         reconcile_inflight_odm_tasks,
         reconcile_odm_by_uuid,
+        reconcile_pending_transfers,
     ]
 
     # Backstop reconcile every 30 min (webhook and page-open do the fast path).
+    # Plus a nightly sweep that resumes imagery transfers stalled by a
+    # deploy/restart mid-move (runs at 03:00 UTC, off-peak).
     cron_jobs: ClassVar[list] = [
         cron(reconcile_inflight_odm_tasks, minute={0, 30}, run_at_startup=False),
+        cron(reconcile_pending_transfers, hour=3, minute=0, run_at_startup=False),
     ]
 
     queue_name = "default_queue"

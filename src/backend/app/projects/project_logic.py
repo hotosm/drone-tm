@@ -12,6 +12,7 @@ import geojson
 import pyproj
 import shapely.wkb as wkblib
 from app.config import settings
+from app.images.image_classification import ImageClassifier
 from app.images.image_processing import (
     ScaleOdmSubmitError,
     fetch_scaleodm_task_info,
@@ -429,6 +430,19 @@ async def process_drone_images(
                 proj_row = await cur.fetchone()
             gsd = proj_row["gsd_cm_px"] if proj_row and proj_row["gsd_cm_px"] else 5
 
+            # Final guard: drop imagery rejected after the task was marked ready
+            # so ODM never reads it from the folder. If any file can't be pruned,
+            # fail before submit rather than process rejected imagery.
+            prune = await ImageClassifier.prune_deassigned_task_images(
+                conn, project_id, task_id
+            )
+            await conn.commit()
+            if prune.get("failed_count", 0) > 0:
+                raise RuntimeError(
+                    f"{prune['failed_count']} rejected image(s) could not be "
+                    "removed from the ODM input folder; aborting before submit"
+                )
+
             options = [
                 {"name": "fast-orthophoto", "value": True},
                 # NOTE deletes large intermediate files after processed
@@ -590,6 +604,30 @@ async def process_all_drone_images(
                 options.append({"name": "dsm", "value": True})
             if FinalOutput.DIGITAL_TERRAIN_MODEL in requested_outputs:
                 options.append({"name": "dtm", "value": True})
+
+            # Final guard: the project-wide scan reads each {tid}/images/ folder,
+            # so drop any imagery rejected after each task was marked ready. If a
+            # prune errors or leaves files behind, fail before submit (rolling
+            # back the aborted tx) rather than process rejected imagery.
+            prune_failures = 0
+            for task in tasks:
+                try:
+                    prune = await ImageClassifier.prune_deassigned_task_images(
+                        conn, project_id, uuid.UUID(str(task))
+                    )
+                    await conn.commit()
+                    prune_failures += prune.get("failed_count", 0)
+                except Exception as prune_err:
+                    await conn.rollback()
+                    raise RuntimeError(
+                        f"Pre-ODM prune failed for task {task}; aborting before "
+                        f"submit: {prune_err}"
+                    ) from prune_err
+            if prune_failures > 0:
+                raise RuntimeError(
+                    f"{prune_failures} rejected image(s) could not be removed from "
+                    "task folders; aborting before submit"
+                )
 
             # Project-wide submission: scan under projects/{pid}/ deep enough
             # to include {tid}/images/file (3 levels: {tid}/ → images/ → file).

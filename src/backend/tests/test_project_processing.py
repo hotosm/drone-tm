@@ -889,6 +889,174 @@ async def test_move_task_images_for_processing_rolls_back_on_failure_count(monke
     assert conn.rollback_calls == 0
 
 
+# ── ARQ queue/lock contract (real Dragonfly, worker-free DB) ──────────────────
+# These exercise real enqueue/Job.status()/lock semantics against Dragonfly, not
+# a stub - a fake here is what previously hid the unsupported ArqRedis.job() call.
+
+
+@pytest.mark.asyncio
+async def test_enqueue_task_move_dedups_and_reports_already_running(arq_test_redis):
+    task_id = uuid.uuid4()
+    stable_id = f"move-task-images:{task_id}"
+
+    first = await arq_tasks._enqueue_task_move(arq_test_redis, "proj", str(task_id))
+    assert first.status == arq_tasks.MoveEnqueue.ENQUEUED
+    assert first.job_id == stable_id
+
+    # No worker on this DB, so the job is still queued: the stable id is refused
+    # and Job.status() reports it as in-flight.
+    second = await arq_tasks._enqueue_task_move(arq_test_redis, "proj", str(task_id))
+    assert second.status == arq_tasks.MoveEnqueue.ALREADY_RUNNING
+    assert second.job_id == stable_id
+
+    queued = await arq_test_redis.queued_jobs(queue_name="default_queue")
+    moves = [j for j in queued if j.function == "move_task_images_for_processing"]
+    assert len(moves) == 1  # stable id coalesced the duplicate
+
+
+async def _simulate_in_progress(redis, stable_id):
+    """Recreate the Redis state of a job a worker has picked up (job def key +
+    in_progress marker, no result) so Job.status() reports in_progress and the
+    stable id is refused - exactly what a crashed worker leaves behind."""
+    from arq.constants import in_progress_key_prefix, job_key_prefix
+
+    await redis.set(f"{job_key_prefix}{stable_id}", b"1")
+    await redis.set(f"{in_progress_key_prefix}{stable_id}", b"1")
+
+
+@pytest.mark.asyncio
+async def test_enqueue_recovers_stale_in_progress_without_lock(arq_test_redis):
+    task_id = uuid.uuid4()
+    stable_id = f"move-task-images:{task_id}"
+    # Crashed worker: in_progress marker lingers, but the task lock has expired.
+    await _simulate_in_progress(arq_test_redis, stable_id)
+
+    result = await arq_tasks._enqueue_task_move(arq_test_redis, "proj", str(task_id))
+
+    assert result.status == arq_tasks.MoveEnqueue.ENQUEUED
+    assert result.job_id.startswith(f"{stable_id}:")  # fresh recovery id
+
+
+@pytest.mark.asyncio
+async def test_enqueue_respects_live_in_progress_with_lock(arq_test_redis):
+    task_id = uuid.uuid4()
+    stable_id = f"move-task-images:{task_id}"
+    await _simulate_in_progress(arq_test_redis, stable_id)
+    # A live worker still holds the task lock.
+    await arq_test_redis.set(f"lock:move-task:{task_id}", "live-token", px=60_000)
+
+    result = await arq_tasks._enqueue_task_move(arq_test_redis, "proj", str(task_id))
+
+    assert result.status == arq_tasks.MoveEnqueue.ALREADY_RUNNING
+    assert result.job_id == stable_id
+
+
+@pytest.mark.asyncio
+async def test_move_lock_blocks_second_and_is_owner_safe(
+    arq_test_ctx, arq_test_redis, monkeypatch
+):
+    task_id = uuid.uuid4()
+    lock_key = f"lock:move-task:{task_id}"
+    # Another worker already holds the lock with its own token.
+    await arq_test_redis.set(lock_key, "other-worker-token", px=60_000)
+
+    called = {"move": False}
+
+    async def fake_move(*_a, **_k):
+        called["move"] = True
+        return {"moved_count": 0, "failed_count": 0}
+
+    monkeypatch.setattr(
+        arq_tasks.ImageClassifier, "move_task_images_to_folder", fake_move
+    )
+
+    result = await arq_tasks.move_task_images_for_processing(
+        arq_test_ctx, "proj", str(task_id)
+    )
+
+    assert result.get("skipped") is True
+    assert called["move"] is False
+    # Owner-safe: we neither ran nor released someone else's lock.
+    assert await arq_test_redis.get(lock_key) == b"other-worker-token"
+
+
+@pytest.mark.asyncio
+async def test_move_acquires_and_releases_own_lock(
+    arq_test_ctx, arq_test_redis, monkeypatch
+):
+    task_id = uuid.uuid4()
+    lock_key = f"lock:move-task:{task_id}"
+
+    async def fake_move(*_a, **_k):
+        # Lock is held for the duration of the move.
+        assert await arq_test_redis.get(lock_key) is not None
+        return {"moved_count": 0, "failed_count": 0}
+
+    monkeypatch.setattr(
+        arq_tasks.ImageClassifier, "move_task_images_to_folder", fake_move
+    )
+
+    result = await arq_tasks.move_task_images_for_processing(
+        arq_test_ctx, "proj", str(task_id)
+    )
+
+    assert result["moved_count"] == 0
+    # Owner-checked release drops the lock when the move finishes.
+    assert await arq_test_redis.get(lock_key) is None
+
+
+@pytest.mark.asyncio
+async def test_retry_transfer_endpoint_reports_enqueued_then_already_running(
+    client, app, db, create_test_project, auth_user, arq_test_redis
+):
+    from app.arq.tasks import get_redis_pool
+
+    project_id = uuid.UUID(create_test_project)
+    task_id = uuid.uuid4()
+    app.dependency_overrides[get_redis_pool] = lambda: arq_test_redis
+
+    # One assigned image still in staging -> pending_transfer_count > 0.
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO tasks (id, project_id, project_task_index)
+            VALUES (%s, %s, %s)
+            """,
+            (task_id, project_id, 1),
+        )
+        await cur.execute(
+            """
+            INSERT INTO project_images
+                (id, project_id, filename, s3_key, hash_md5, task_id,
+                 uploaded_by, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 'assigned')
+            """,
+            (
+                uuid.uuid4(),
+                project_id,
+                "img.jpg",
+                f"projects/{project_id}/user-uploads/img.jpg",
+                uuid.uuid4().hex,
+                task_id,
+                auth_user.id,
+            ),
+        )
+    await db.commit()
+
+    url = f"/projects/retry_transfer/{project_id}/{task_id}/"
+    first = await client.post(url)
+    assert first.status_code == 200
+    assert first.json()["enqueued"] is True
+    assert first.json()["status"] == "enqueued"
+
+    second = await client.post(url)
+    assert second.status_code == 200
+    assert second.json()["enqueued"] is False
+    assert second.json()["status"] == "already_running"
+
+    app.dependency_overrides.pop(get_redis_pool, None)
+
+
 # ── sanitization helpers (unchanged) ──────────────────────────────────────────
 
 

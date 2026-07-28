@@ -10,18 +10,27 @@ from typing import Any
 import pytest
 import pytest_asyncio
 from app.config import settings
-from app.db.database import get_db
+from app.db.database import get_db, get_db_connection_pool
 from app.main import get_application
 from app.models.enums import UserRole
 from app.projects.project_schemas import DbProject, ProjectIn
 from app.users.user_deps import login_dependency, login_required
 from app.users.user_schemas import AuthUser, DbUser
+from arq import create_pool
+from arq.connections import RedisSettings
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from psycopg import AsyncConnection
 
 FREETOWN_DATASET_DIR = os.path.join(os.path.dirname(__file__), "freetown_dataset")
+
+# Dedicated Dragonfly DB for queue/lock contract tests: worker-free and safe to
+# flushdb(). Test-only, so it's derived here (db 15 off the app DSN's host/port)
+# rather than added to the app settings. Override with DRAGONFLY_TEST_DSN.
+DRAGONFLY_TEST_DSN = os.environ.get(
+    "DRAGONFLY_TEST_DSN", f"{settings.DRAGONFLY_DSN.rsplit('/', 1)[0]}/15"
+)
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -34,6 +43,32 @@ async def db() -> AsyncConnection:
         yield db_conn
     finally:
         await db_conn.close()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def arq_test_redis():
+    """Real Dragonfly on a dedicated DB with no worker consuming jobs.
+
+    Use this for ARQ queue/lock contract tests (enqueue dedup, Job.status,
+    lock ownership) so behaviour is deterministic and flushdb() is isolated.
+    """
+    redis = await create_pool(RedisSettings.from_dsn(DRAGONFLY_TEST_DSN))
+    await redis.flushdb()
+    try:
+        yield redis
+    finally:
+        await redis.flushdb()
+        await redis.aclose()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def arq_test_ctx(arq_test_redis):
+    """ARQ worker ctx wired to the worker-free test Redis."""
+    db_pool = await get_db_connection_pool()
+    try:
+        yield {"redis": arq_test_redis, "db_pool": db_pool, "job_id": "test-job"}
+    finally:
+        await db_pool.close()
 
 
 @pytest_asyncio.fixture(scope="function")

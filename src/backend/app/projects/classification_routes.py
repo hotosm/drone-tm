@@ -4,7 +4,13 @@ from datetime import datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from app.arq.tasks import get_redis_pool, validate_s3_access
+from app.arq.tasks import (
+    MoveEnqueue,
+    MoveEnqueueResult,
+    _enqueue_task_move,
+    get_redis_pool,
+    validate_s3_access,
+)
 from app.db import database
 from app.images.flight_gap_identification import identify_flight_gaps
 from app.images.image_classification import ImageClassifier
@@ -17,7 +23,6 @@ from app.waypoints.flightplan_output import (
     get_flightplan_output_config,
 )
 from arq import ArqRedis
-from arq.jobs import JobStatus
 from drone_flightplan.drone_type import DroneType
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from loguru import logger as log
@@ -755,49 +760,14 @@ async def mark_task_verified(
                 )
             await db.commit()
 
-        move_job_id = f"move-task-images:{task_id}"
         try:
-            move_job = await redis_pool.enqueue_job(
-                "move_task_images_for_processing",
-                str(project_id),
-                str(task_id),
-                _queue_name="default_queue",
-                _job_id=move_job_id,
-            )
-
-            move_already_queued = False
-            if move_job is None:
-                existing_job = await redis_pool.job(move_job_id)
-                existing_status = (
-                    await existing_job.status()
-                    if existing_job is not None
-                    else JobStatus.not_found
-                )
-                if existing_status in {
-                    JobStatus.queued,
-                    JobStatus.deferred,
-                    JobStatus.in_progress,
-                }:
-                    move_already_queued = True
-                else:
-                    import uuid as _uuid
-
-                    retry_job_id = f"{move_job_id}:{_uuid.uuid4().hex}"
-                    move_job = await redis_pool.enqueue_job(
-                        "move_task_images_for_processing",
-                        str(project_id),
-                        str(task_id),
-                        _queue_name="default_queue",
-                        _job_id=retry_job_id,
-                    )
-                    if move_job is None:
-                        raise RuntimeError(
-                            "Transfer job was not accepted by queue on retry"
-                        )
+            move = await _enqueue_task_move(redis_pool, str(project_id), str(task_id))
         except Exception as enqueue_error:
+            move = MoveEnqueueResult(MoveEnqueue.FAILED, None)
             log.error(
                 f"Failed to queue image transfer for task {task_id}: {enqueue_error}"
             )
+        if move.status == MoveEnqueue.FAILED:
             await _rollback_ready_event()
             raise HTTPException(
                 status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
@@ -805,13 +775,12 @@ async def mark_task_verified(
                     "Task verification could not be completed because imagery transfer "
                     "could not be queued. Please retry."
                 ),
-            ) from enqueue_error
+            )
 
-        enqueued_job_id = move_job.job_id if move_job is not None else move_job_id
-
+        move_already_queued = move.status == MoveEnqueue.ALREADY_RUNNING
         log.info(
             f"Task {task_id} marked as verified (READY_FOR_PROCESSING) by user {user.id}; "
-            f"image transfer job {enqueued_job_id} "
+            f"image transfer job {move.job_id} "
             f"({'already queued' if move_already_queued else 'queued'})"
         )
 
@@ -819,7 +788,7 @@ async def mark_task_verified(
             "message": "Task marked as fully flown",
             "task_id": str(task_id),
             "state": State.READY_FOR_PROCESSING.name,
-            "image_move_job_id": enqueued_job_id,
+            "image_move_job_id": move.job_id,
             "image_move_already_queued": move_already_queued,
         }
 

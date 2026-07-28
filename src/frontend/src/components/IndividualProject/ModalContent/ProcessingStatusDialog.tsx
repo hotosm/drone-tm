@@ -6,7 +6,7 @@ import { toast } from "react-toastify";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useGetProjectsDetailQuery } from "@Api/projects";
 import { useGetAllTaskAssetsInfo } from "@Api/tasks";
-import { postProcessImagery, postReconcileProcessing } from "@Services/tasks";
+import { postProcessImagery, postReconcileProcessing, postRetryTransfer } from "@Services/tasks";
 import { processAllImagery, saveGcpFile } from "@Services/project";
 import {
   getProjectTaskImagerySummary,
@@ -42,6 +42,7 @@ type ProcessingDialogTask = {
   failure_reason?: string | null;
   assets_url?: string | null;
   orthophoto_url?: string | null;
+  pending_transfer_count?: number;
 };
 
 type ProcessingDialogProjectDetail = {
@@ -67,6 +68,8 @@ const ProcessingStatusDialog = () => {
 
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
   const [processingTasks, setProcessingTasks] = useState<Set<string>>(new Set());
+  // Tasks whose transfer-resume request is in flight; drives a brief spinner.
+  const [transferringTasks, setTransferringTasks] = useState<Set<string>>(new Set());
   // When non-null, render the OL COG viewer overlay for this task's
   // signed orthophoto URL. Cleared by clicking the close button, the
   // backdrop, or pressing Escape (handled inside the viewer).
@@ -96,6 +99,7 @@ const ProcessingStatusDialog = () => {
     queryKey: ["projectTaskImagerySummary", projectId],
     queryFn: () => getProjectTaskImagerySummary(projectId),
     enabled: !!projectId,
+    // No polling (ADR 0006): status refreshes on open and via the Refresh button.
   });
 
   // Spatial coverage: actual PostGIS-computed percentage of project area covered
@@ -236,6 +240,38 @@ const ProcessingStatusDialog = () => {
       }
     },
     [processTask, queryClient, projectId],
+  );
+
+  const { mutateAsync: retryTransfer } = useMutation({
+    mutationFn: (taskId: string) => postRetryTransfer(projectId, taskId),
+  });
+
+  const handleRetryTransfer = useCallback(
+    // Kicks off the server-side move and returns; the transfer runs in the
+    // background. The spinner covers only this request - we don't poll (ADR
+    // 0006), so the user hits Refresh to see progress and then Process.
+    async (taskId: string) => {
+      setTransferringTasks((prev) => new Set(prev).add(taskId));
+      try {
+        const { data } = await retryTransfer(taskId);
+        toast.success(data?.message || m.processing_dialog_transfer_resumed());
+      } catch (error) {
+        const detail =
+          axios.isAxiosError(error) &&
+          typeof error.response?.data?.detail === "string" &&
+          error.response.data.detail
+            ? error.response.data.detail
+            : m.processing_dialog_transfer_resume_failed();
+        toast.error(detail);
+      } finally {
+        setTransferringTasks((prev) => {
+          const next = new Set(prev);
+          next.delete(taskId);
+          return next;
+        });
+      }
+    },
+    [retryTransfer, queryClient, projectId],
   );
 
   const handleCopyTaskId = useCallback((taskId: string) => {
@@ -418,6 +454,7 @@ const ProcessingStatusDialog = () => {
             failure_reason: task.failure_reason,
             assets_url: assetInfo?.assets_url,
             orthophoto_url: assetInfo?.orthophoto_url,
+            pending_transfer_count: task.pending_transfer_count,
           };
         })
         .sort((a, b) => a.task_index - b.task_index);
@@ -599,6 +636,11 @@ const ProcessingStatusDialog = () => {
                   processingTasks.has(task.task_id) || task.state === "IMAGE_PROCESSING_STARTED";
                 const displayState = isTaskProcessing ? "IMAGE_PROCESSING_STARTED" : task.state;
                 const stateColor = stateColors[displayState] || "#e5e7eb";
+                // Imagery stuck in staging blocks processing; offer a resume.
+                const transferPending =
+                  !isTaskProcessing && pendingTransferMap.get(task.task_id) === true;
+                const isTransferring = transferringTasks.has(task.task_id);
+                const pendingTransferCount = task.pending_transfer_count ?? 0;
 
                 return (
                   <tr
@@ -657,6 +699,15 @@ const ProcessingStatusDialog = () => {
                         {task.state === "IMAGE_PROCESSING_FAILED" && task.failure_reason && (
                           <p className="naxatw-max-w-[320px] naxatw-text-xs naxatw-text-red-700">
                             {task.failure_reason}
+                          </p>
+                        )}
+                        {transferPending && (
+                          <p className="naxatw-max-w-[320px] naxatw-text-xs naxatw-text-amber-700">
+                            {isTransferring
+                              ? m.processing_dialog_transfer_in_progress()
+                              : m.processing_dialog_transfer_incomplete({
+                                  count: pendingTransferCount,
+                                })}
                           </p>
                         )}
                       </div>
@@ -745,6 +796,25 @@ const ProcessingStatusDialog = () => {
                               }}
                             >
                               {getProcessButtonLabel(task)}
+                            </Button>
+                          ) : null}
+                          {transferPending ? (
+                            <Button
+                              variant="ghost"
+                              className="naxatw-h-7 naxatw-border naxatw-border-amber-500 naxatw-px-2 naxatw-text-xs naxatw-text-amber-700 hover:naxatw-bg-amber-50 disabled:naxatw-opacity-60"
+                              leftIcon={isTransferring ? "sync" : "cloud_upload"}
+                              iconClassname={
+                                isTransferring
+                                  ? "!naxatw-text-sm naxatw-animate-spin"
+                                  : "!naxatw-text-sm"
+                              }
+                              disabled={isTransferring}
+                              title={m.processing_dialog_transfer_resume_title()}
+                              onClick={() => handleRetryTransfer(task.task_id)}
+                            >
+                              {isTransferring
+                                ? m.processing_dialog_transfer_resuming()
+                                : m.processing_dialog_transfer_resume()}
                             </Button>
                           ) : null}
                         </div>

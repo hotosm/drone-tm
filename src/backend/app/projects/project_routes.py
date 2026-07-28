@@ -5,7 +5,7 @@ from typing import Annotated
 from uuid import UUID
 
 import geojson
-from app.arq.tasks import get_redis_pool
+from app.arq.tasks import MoveEnqueue, _enqueue_task_move, get_redis_pool
 from app.config import settings
 from app.db import database
 from app.images.image_classification import ImageClassifier
@@ -540,6 +540,50 @@ async def process_imagery(
     )
 
     return {"message": "Processing started", "job_id": job.job_id}
+
+
+@router.post("/retry_transfer/{project_id}/{task_id}/", tags=["Image Processing"])
+async def retry_imagery_transfer(
+    task_id: uuid.UUID,
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+    user_data: Annotated[AuthUser, Depends(login_required)],
+    db: Annotated[Connection, Depends(database.get_db)],
+    redis_pool: ArqRedis = Depends(get_redis_pool),
+):
+    """Resume a stalled imagery transfer so the user needn't wait for the
+    nightly sweep. Re-enqueues the staging→task move; idempotent (an in-flight
+    move is left running and reported as such).
+    """
+    pending_transfer_count = await ImageClassifier.get_task_pending_transfer_count(
+        db, project.id, task_id
+    )
+    if pending_transfer_count == 0:
+        return {
+            "message": "No imagery is pending transfer for this task.",
+            "pending_transfer_count": 0,
+            "enqueued": False,
+        }
+
+    result = await _enqueue_task_move(redis_pool, str(project.id), str(task_id))
+    if result.status == MoveEnqueue.FAILED:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail="Could not queue the imagery transfer. Please try again.",
+        )
+    return {
+        "message": (
+            f"Resuming transfer of {pending_transfer_count} image(s). "
+            "Use Refresh to check progress."
+            if result.status == MoveEnqueue.ENQUEUED
+            else "A transfer for this task is already in progress."
+        ),
+        "pending_transfer_count": pending_transfer_count,
+        "enqueued": result.status == MoveEnqueue.ENQUEUED,
+        "status": result.status.value,
+        "job_id": result.job_id,
+    }
 
 
 @router.post("/process_all_imagery/{project_id}/", tags=["Image Processing"])
