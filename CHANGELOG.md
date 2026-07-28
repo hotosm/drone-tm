@@ -1,3 +1,22 @@
+## 2026.8.0 (2026-07-29)
+
+### Feat
+
+- **frontend**: update UI for better consistency across tools - adhere to hotosm/ui-design (#860)
+- add vendored drone-mesh project as new 3D viewer (#859)
+- significantly improve the resiliency of the s3 image transfer logic
+- integrate the drone-mesh project via the drone-tm ui
+- **frontend**: add small task uuid copy button for easier processing debugging
+
+### Fix
+
+- **backend**: fix up typing issues picked up by ruff, instead of ignoring
+
+### Refactor
+
+- **frontend**: move additional flight param settings behind an Advanced Options toggle
+- move drone-mesh into the correct dir... oops! run pre-commit
+
 ## 2026.7.1 (2026-07-23)
 
 ### Feat
