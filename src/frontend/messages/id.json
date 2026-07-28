@@ -208,7 +208,7 @@
   "create_basic_name_exists": "Proyek dengan nama ini sudah ada",
   "create_basic_description_label": "Deskripsi proyek",
   "create_basic_description_placeholder": "Deskripsi Proyek",
-  "create_basic_advanced_config_toggle": "Konfigurasi lanjutan (opsional)",
+  "create_advanced_options_toggle": "Opsi lanjutan",
   "create_aoi_project_area": "Area Proyek",
   "create_aoi_project_area_desc": "Batasan suatu proyek.",
   "create_aoi_no_fly_zone": "Zona larangan terbang",

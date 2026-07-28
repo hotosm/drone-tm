@@ -31,7 +31,7 @@ export default function AdvancedConfig({ formProps }: { formProps: UseFormPropsT
         >
           <path fillRule="evenodd" d="M6 4l8 6-8 6V4z" clipRule="evenodd" />
         </svg>
-        {m.create_basic_advanced_config_toggle()}
+        {m.create_advanced_options_toggle()}
       </summary>
       <FlexColumn gap={5} className="naxatw-px-4 naxatw-py-4">
         <FormControl>

@@ -208,7 +208,7 @@
   "create_basic_name_exists": "Ya existe un proyecto con ese nombre",
   "create_basic_description_label": "Descripción del proyecto",
   "create_basic_description_placeholder": "Descripción del proyecto",
-  "create_basic_advanced_config_toggle": "Configuración avanzada (opcional)",
+  "create_advanced_options_toggle": "Opciones avanzadas",
   "create_aoi_project_area": "Área del proyecto",
   "create_aoi_project_area_desc": "Límite de un proyecto.",
   "create_aoi_no_fly_zone": "Zona de exclusión aérea",

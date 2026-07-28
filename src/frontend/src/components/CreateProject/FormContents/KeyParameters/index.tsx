@@ -346,9 +346,19 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
             </div>
           </section>
 
-          <section>
-            <p className={sectionHeadingClass}>{m.create_params_section_terrain()}</p>
-            <div className="naxatw-space-y-4">
+          <details className="naxatw-rounded naxatw-border naxatw-border-[#D7D7D7] naxatw-bg-[#FAFAFA] [&[open]>summary>svg]:naxatw-rotate-90">
+            <summary className="naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-px-4 naxatw-py-3 naxatw-text-body-btn naxatw-select-none">
+              <svg
+                className="naxatw-h-4 naxatw-w-4 naxatw-transition-transform"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path fillRule="evenodd" d="M6 4l8 6-8 6V4z" clipRule="evenodd" />
+              </svg>
+              {m.create_advanced_options_toggle()}
+            </summary>
+            <div className="naxatw-space-y-4 naxatw-px-4 naxatw-py-4">
               <div className="naxatw-rounded-md naxatw-border naxatw-border-[#E0E0E0] naxatw-bg-white naxatw-p-4">
                 <FlexRow className="naxatw-items-center naxatw-justify-between naxatw-gap-3">
                   <p className="naxatw-text-body-btn">{m.create_params_follow_terrain()}</p>
@@ -415,7 +425,7 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                 </FormControl>
               )}
             </div>
-          </section>
+          </details>
         </div>
       ) : (
         <>
