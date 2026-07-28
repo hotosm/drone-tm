@@ -65,7 +65,7 @@ export default function ProjectCard({
       <div className="naxatw-absolute naxatw-bottom-2 naxatw-left-0 naxatw-w-full naxatw-px-3 naxatw-py-1">
         <div className="naxatw-flex naxatw-items-end naxatw-justify-start naxatw-px-1">
           <p className="naxatw-font-semibold naxatw-text-red">{completedTask}</p> <p>/</p>
-          <p>{totalTasks}</p> <p className="naxatw-pl-2">{m.projects_tasks_completed_label()}</p>
+          <p>{totalTasks}</p> <p className="naxatw-pl-2 naxatw-text-sm">{m.projects_tasks_completed_label()}</p>
         </div>
         <div className="naxatw-h-1 naxatw-w-full naxatw-overflow-hidden naxatw-rounded-xl naxatw-bg-gray-200">
           <div

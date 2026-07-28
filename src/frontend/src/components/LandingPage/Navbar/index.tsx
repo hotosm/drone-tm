@@ -1,6 +1,6 @@
 import { FlexRow } from "@Components/common/Layouts";
 import { Link } from "react-router-dom";
-import LanguageSwitcher from "@Components/common/LanguageSwitcher";
+import LanguageSwitcherLanding from "@Components/common/LanguageSwitcherLanding";
 import { getRuntimeConfig } from "@/runtimeConfig";
 import { m } from "@/paraglide/messages";
 
@@ -64,7 +64,7 @@ export default function Navbar() {
               {m.landing_navbar_supported_drones()}
             </p>
           </a>
-          <LanguageSwitcher />
+          <LanguageSwitcherLanding />
         </FlexRow>
       </FlexRow>
     </header>

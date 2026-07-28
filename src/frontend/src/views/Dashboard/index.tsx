@@ -10,6 +10,7 @@ import {
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
 import { useState } from "react";
 import { m } from "@/paraglide/messages";
+import { FlexRow } from "@/components/common/Layouts";
 
 const getContent = (activeTab: string, title: string) => {
   if (activeTab === "request_logs") return <RequestLogs />;
@@ -45,8 +46,10 @@ const Dashboard = () => {
   });
 
   return (
-    <section className="naxatw-flex naxatw-h-screen-nav naxatw-flex-col naxatw-px-3 md:naxatw-px-16">
-      <h5 className="naxatw-py-4 naxatw-font-bold">{m.dashboard_profile_heading()}</h5>
+    <section className="naxatw-flex naxatw-h-screen-nav naxatw-flex-col naxatw-px-3 naxatw-pt-2 lg:naxatw-px-16">
+      <FlexRow className="naxatw-py-5">
+        <h5 className="naxatw-font-bold">{m.dashboard_profile_heading()}</h5>
+      </FlexRow>
       <div className="naxatw-grid naxatw-h-full naxatw-w-full naxatw-grid-cols-10 naxatw-gap-5">
         <div className="naxatw-col-span-10 naxatw-py-4 md:naxatw-col-span-3">
           <DashboardSidebar />
