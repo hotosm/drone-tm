@@ -1017,13 +1017,27 @@ async def test_retry_transfer_endpoint_reports_enqueued_then_already_running(
     app.dependency_overrides[get_redis_pool] = lambda: arq_test_redis
 
     # One assigned image still in staging -> pending_transfer_count > 0.
+    task_outline = json.dumps(
+        {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [0.0, 0.0],
+                    [0.0, 0.01],
+                    [0.01, 0.01],
+                    [0.01, 0.0],
+                    [0.0, 0.0],
+                ]
+            ],
+        }
+    )
     async with db.cursor() as cur:
         await cur.execute(
             """
-            INSERT INTO tasks (id, project_id, project_task_index)
-            VALUES (%s, %s, %s)
+            INSERT INTO tasks (id, project_id, project_task_index, outline)
+            VALUES (%s, %s, %s, ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326))
             """,
-            (task_id, project_id, 1),
+            (task_id, project_id, 1, task_outline),
         )
         await cur.execute(
             """
