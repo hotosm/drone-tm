@@ -15,7 +15,7 @@ THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
 THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
 // Build (index-preserving) bounds trees for every mesh under a root. Safe to
-// call again — computeBoundsTree replaces any existing tree.
+// call again - computeBoundsTree replaces any existing tree.
 export function buildBoundsTrees(root) {
   if (!root) return;
   root.traverse((child) => {

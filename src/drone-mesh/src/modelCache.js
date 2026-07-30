@@ -1,7 +1,7 @@
 // Persist downloaded model GLBs in IndexedDB so a dev reload (HMR after a code
 // change) doesn't re-download the 10 MB low-res + 61 MB high-res every time.
 // IndexedDB (not the Cache Storage API) because it works in NON-secure contexts
-// too — the dev test URL is plain http over Tailscale, where `caches` is absent.
+// too - the dev test URL is plain http over Tailscale, where `caches` is absent.
 // Values are stored as Blobs: iOS Safari handles large binary in IndexedDB far
 // more reliably as a Blob (file-backed) than as a raw ArrayBuffer (which it
 // structured-clones into memory and can reject/evict). Entries carry a
@@ -69,7 +69,7 @@ export async function cachedArrayBuffer(url, onProgress, ttlMs = TTL_MS, onStatu
   };
   // Cache everything except ephemeral object URLs (drag-drop blob:/data:).
   // This deliberately INCLUDES same-origin relative paths like
-  // "/resources/models/coconut-low.glb" — the local dev copy, which the old
+  // "/resources/models/coconut-low.glb" - the local dev copy, which the old
   // http(s)-only guard silently skipped (so it never cached locally).
   const cacheable = !/^(blob:|data:)/i.test(url);
   let db = null;

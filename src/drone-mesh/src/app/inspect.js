@@ -47,7 +47,7 @@ export const inspectMixin = {
     });
     const cls = LABEL_CLASSES.find((c) => c.id === info.classId);
     const h = info.heightAbove;
-    document.getElementById("insp-geom").textContent = info.geomClass || "—";
+    document.getElementById("insp-geom").textContent = info.geomClass || "-";
     document.getElementById("insp-terrain").textContent =
       h == null
         ? "n/a"

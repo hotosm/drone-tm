@@ -101,7 +101,7 @@ export class LabelingController {
     this.ui.deleteBtn.addEventListener("click", () => {
       if (app.editingLabelId && app.labels && confirm("Delete this label?")) {
         const id = app.editingLabelId;
-        app.editingLabelId = null; // overlay is going away — skip restore
+        app.editingLabelId = null; // overlay is going away - skip restore
         app.labels.remove(id);
         app.selectionCtl.cancelPendingSelection();
         this.renderLabelList();
@@ -115,7 +115,7 @@ export class LabelingController {
       if (!app.editingLabelId || !app.labels) return;
       if (!confirm("Delete this label?")) return;
       const id = app.editingLabelId;
-      app.editingLabelId = null; // gone — no overlay to restore
+      app.editingLabelId = null; // gone - no overlay to restore
       app.pending = null;
       app.reviewCtl.pendingDirty = false;
       if (app.selector) app.selector.clearHighlight();
@@ -247,7 +247,7 @@ export class LabelingController {
   }
 
   // The status card is now just a count + coverage + view filters (the big
-  // per-label list is gone — it's noise during tagging). Mode toggle owns the
+  // per-label list is gone - it's noise during tagging). Mode toggle owns the
   // Explore/Review switch, so no Review button here.
   renderLabelList() {
     const app = this.app;

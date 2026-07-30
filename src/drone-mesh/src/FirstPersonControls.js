@@ -43,7 +43,7 @@ export class FirstPersonControls {
 
     // Collision: host assigns the current mesh; navigation is then clamped so
     // the camera can't cross geometry in the direction of travel (retreating
-    // is always free — the ray only looks the way you're going).
+    // is always free - the ray only looks the way you're going).
     this.collider = null;
     this.collideRay = new THREE.Raycaster();
     this.collideMargin = 0.7; // scene units to keep off surfaces (> near plane 0.3)
@@ -190,7 +190,7 @@ export class FirstPersonControls {
     const n = this.touches.size;
 
     if (n === 1) {
-      // one finger = look (unless a tag tool owns it — then it's painting)
+      // one finger = look (unless a tag tool owns it - then it's painting)
       const touch = event.changedTouches[0];
       const st = this.touches.get(touch.identifier);
       if (!st) return;
@@ -228,7 +228,7 @@ export class FirstPersonControls {
       this.camera.getWorldDirection(forward);
       // pinch: dolly along view direction (collision-clamped)
       this.moveBy(forward.clone().multiplyScalar((dist - this.lastPinchDistance) * 0.06));
-      // two-finger drag: pan (grab-the-world — strafe on X, lift on Y)
+      // two-finger drag: pan (grab-the-world - strafe on X, lift on Y)
       const panX = cx - this.lastTwoFingerCenter.x;
       const panY = cy - this.lastTwoFingerCenter.y;
       const right = new THREE.Vector3().crossVectors(forward, this.camera.up).normalize();

@@ -1,12 +1,12 @@
 import * as THREE from "three";
 
 // Bare-earth terrain approximation (a DTM) derived from the photogrammetry
-// mesh (which is a DSM — surface *including* buildings and trees). We grid the
+// mesh (which is a DSM - surface *including* buildings and trees). We grid the
 // XZ footprint, take a LOW percentile of surface height in each cell (bare
 // ground shows through around/between structures), fill cells that saw no
 // geometry, then smooth into a surface that follows the landscape's slopes and
 // curves. Querying height-ABOVE-terrain then separates ground from elevated
-// structures independent of absolute elevation — so ground high on a hill no
+// structures independent of absolute elevation - so ground high on a hill no
 // longer reads as "roof" the way a single global floor datum made it.
 //
 // Caveat for dense settlements: where a cell has no visible bare ground the
@@ -16,7 +16,7 @@ import * as THREE from "three";
 
 // Progressive morphological filter params. maxWindow caps how large a
 // structure we'll strip (in cells); maxSlope is the steepest real terrain we
-// protect (rise per unit run) — lower removes buildings more aggressively but
+// protect (rise per unit run) - lower removes buildings more aggressively but
 // risks shaving narrow hills; baseThresh is the smallest bump treated as a
 // structure at the finest scale.
 const DEFAULTS = {
@@ -30,7 +30,7 @@ const DEFAULTS = {
 
 export class Terrain {
   constructor(h, minX, minZ, cellW, cellD, n, yMin, yMax) {
-    this.h = h; // Float32Array(n*n) — terrain height per cell
+    this.h = h; // Float32Array(n*n) - terrain height per cell
     this.minX = minX;
     this.minZ = minZ;
     this.cellW = cellW;
@@ -84,7 +84,7 @@ export class Terrain {
       filled[i] = 1;
       if (val < gMin) gMin = val;
     }
-    if (!isFinite(gMin)) gMin = 0; // no geometry at all — degenerate mesh
+    if (!isFinite(gMin)) gMin = 0; // no geometry at all - degenerate mesh
 
     // Fill empty cells by iterative neighbour averaging (spreads inward from
     // known cells); anything still unreachable falls back to the global min.
@@ -132,7 +132,7 @@ export class Terrain {
     // opened surface exceeds an elevation threshold is a STRUCTURE and gets
     // lowered to ground. The threshold grows with window size (slope * the
     // horizontal distance the window now spans), so genuine terrain rise is
-    // allowed while abrupt building jumps are stripped — at any footprint up to
+    // allowed while abrupt building jumps are stripped - at any footprint up to
     // maxWindow. Reaching ground under a big building's centre (that a single
     // small window can't) is exactly what a growing window buys us.
     const windowOp = (src, R, pick) => {

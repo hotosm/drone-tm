@@ -6,14 +6,14 @@ import { Terrain } from "./Terrain.js";
 // using the same flood fill as manual selection, classify each region with
 // geometric priors (normal class + height above site) plus a colour check
 // for vegetation, and store them as "flagged" (red) proposals. Humans then
-// verify in review mode — the verify-don't-paint workflow.
+// verify in review mode - the verify-don't-paint workflow.
 //
 // Results persist through LabelManager like any other label (that IS the
 // cache: one run, restored on every reload). Re-run after detection tweaks
 // by clearing source==="auto" labels first.
 
 const MIN_FACES = 4; // regions smaller than this are noise (tree fragments)
-const MIN_AREA = 0.25; // scene units² — filters slivers that pass the face gate
+const MIN_AREA = 0.25; // scene units² - filters slivers that pass the face gate
 const MAX_AUTO_LABELS = 400; // draw-call / storage sanity cap
 const COLOR_SAMPLE_FACES = 40;
 
@@ -41,7 +41,7 @@ function isGreenish(c) {
   return c && c[1] > c[0] * 1.12 && c[1] > c[2] * 1.12;
 }
 
-// Mean height of a region's faces above the local terrain (nDSM). Sampled —
+// Mean height of a region's faces above the local terrain (nDSM). Sampled -
 // a couple hundred faces is plenty to tell ground from an elevated roof.
 function meanHeightAbove(terrain, selected) {
   const v = new THREE.Vector3();
@@ -72,7 +72,7 @@ function meanHeightAbove(terrain, selected) {
 // Height above local terrain that counts as "up off the ground". Expressed as
 // a fraction of the mesh's vertical extent so it adapts to scale. NOTE: extent
 // is dominated by terrain RELIEF (hillsides), not building height, so this is
-// deliberately small — low single-storey buildings sit only a little above the
+// deliberately small - low single-storey buildings sit only a little above the
 // local ground. Tune here (or pass groundClearance to autoTag). Shared by
 // auto-tag and the explore inspector so they never disagree.
 export const GROUND_CLEARANCE_FRACTION = 0.025;
@@ -83,9 +83,9 @@ export function defaultClearance(terrain) {
 // The single classification decision, shared by auto-tag and the explore
 // inspector so what you see when tapping a surface is exactly what auto-tag
 // would assign. Returns the class plus the reasoning behind it.
-//   geomClass  — normal-derived surface class (roof-flat / wall / slope / …)
-//   heightAbove — mean height above local terrain (nDSM), or null if no terrain
-//   greenish   — colour says vegetation
+//   geomClass  - normal-derived surface class (roof-flat / wall / slope / …)
+//   heightAbove - mean height above local terrain (nDSM), or null if no terrain
+//   greenish   - colour says vegetation
 export function classifyRegion({ selector, labels, terrain, targetClass, selected, clearance }) {
   let classId = labels.suggestFor({ targetClass, selected });
   const heightAbove = terrain ? meanHeightAbove(terrain, selected) : null;
@@ -119,7 +119,7 @@ export async function autoTag({
   const terrain = Terrain.build(root);
   const clearance = groundClearance != null ? groundClearance : defaultClearance(terrain);
 
-  // visited[mesh][face] — seeded from existing labels so human work is
+  // visited[mesh][face] - seeded from existing labels so human work is
   // never overwritten and re-runs don't duplicate confirmed surfaces.
   const visited = new Map();
   for (const m of tiles) {
@@ -149,7 +149,7 @@ export async function autoTag({
 
       const result = selector.select({ object: mesh, faceIndex: f }, root);
       if (!result || !result.totalSelected) {
-        arr[f] = 1; // unclassifiable seed — never revisit
+        arr[f] = 1; // unclassifiable seed - never revisit
         continue;
       }
 

@@ -28,7 +28,7 @@ export class Diagnostics {
     try {
       localStorage.setItem(KEY, JSON.stringify(this.log.slice(-MAX)));
     } catch (e) {
-      /* storage full / private mode — diagnostics are best-effort */
+      /* storage full / private mode - diagnostics are best-effort */
     }
   }
 
@@ -64,7 +64,7 @@ export class Diagnostics {
   noteContextLost() {
     this.record("webgl", "context lost (GPU memory pressure likely)");
     this.toast(
-      "⚠️ Graphics memory ran out — the view was reset. If this repeats, tag in smaller sessions.",
+      "⚠️ Graphics memory ran out - the view was reset. If this repeats, tag in smaller sessions.",
     );
   }
 
@@ -72,12 +72,12 @@ export class Diagnostics {
     if (!this.log.length) return;
     const last = this.log[this.log.length - 1];
     if (last.kind === "pagehide") return; // previous session exited cleanly
-    // previous session ended abruptly — name the likely culprit
+    // previous session ended abruptly - name the likely culprit
     const culprit = [...this.log]
       .reverse()
       .find((e) => e.kind === "error" || e.kind === "webgl" || e.kind === "promise");
     const detail = culprit ? `${culprit.kind}: ${culprit.msg}` : "likely out of memory";
-    this.toast(`Recovered from an unexpected reload — ${detail}`);
+    this.toast(`Recovered from an unexpected reload - ${detail}`);
   }
 
   toast(msg) {

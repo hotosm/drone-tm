@@ -16,7 +16,7 @@ assert(!pointInPolygon([15, 5], sq), "right of square outside");
 assert(!pointInPolygon([-1, 5], sq), "left of square outside");
 assert(!pointInPolygon([5, 20], sq), "above square outside");
 
-// concave lasso (C shape) — a point in the notch is OUTSIDE
+// concave lasso (C shape) - a point in the notch is OUTSIDE
 const cshape = [0, 0, 10, 0, 10, 3, 3, 3, 3, 7, 10, 7, 10, 10, 0, 10];
 assert(pointInPolygon([1, 5], cshape), "inside the C spine");
 assert(!pointInPolygon([7, 5], cshape), "in the C notch is outside");

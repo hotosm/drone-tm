@@ -276,7 +276,7 @@ export class SelectionController {
       this.app.pending.selected,
       this.app.currentMesh,
     );
-    if (!shrunk.size) return; // never shrink to nothing — undo is for that
+    if (!shrunk.size) return; // never shrink to nothing - undo is for that
     this.app.pending.selected = shrunk;
     this.refreshPending();
   }

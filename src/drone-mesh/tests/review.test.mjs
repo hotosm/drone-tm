@@ -122,7 +122,7 @@ assert(review.stats.confirmed === 1 && review.stats.reclassed === 1, "stats tall
 review.exit();
 assert(streamer.reviewOrbit === false, "exit returns streamer to explore proximity");
 
-// no-streamer fallback (reset visibility first — streamer scenario above
+// no-streamer fallback (reset visibility first - streamer scenario above
 // legitimately hid low meshes behind their promoted fakes)
 streamer.active = false;
 near.visible = true;

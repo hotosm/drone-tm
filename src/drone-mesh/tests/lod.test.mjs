@@ -111,7 +111,7 @@ function makeStreamer(opts = {}) {
     (s.cellPages[k] || (s.cellPages[k] = new Set())).add(page);
   };
   put(4, 4, 0); // world (0,0):  d from camera ≈ 2      → native (inside load radius 6)
-  put(5, 4, 1); // world (10,0): d ≈ 10.2 — inside keep band, but NOTHING loads there
+  put(5, 4, 1); // world (10,0): d ≈ 10.2 - inside keep band, but NOTHING loads there
   put(8, 4, 2); // world (40,0): d ≈ 40                 → base (deferred)
 
   s.camera.position.set(0, 2, 0); // low, standing next to page 0's faces
@@ -128,7 +128,7 @@ function makeStreamer(opts = {}) {
     "resident page inside keep band is kept as-is (zero work, no demote)",
   );
 
-  // ALTITUDE IS DISTANCE: climb high and nothing qualifies — that is the
+  // ALTITUDE IS DISTANCE: climb high and nothing qualifies - that is the
   // "deferred until needed" contract.
   s.camera.position.set(0, 40, 0);
   for (const t of s.tiles) t.size = 0;

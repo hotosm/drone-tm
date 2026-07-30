@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-// Class taxonomy. This is load-bearing for the client's ML endgame — the
+// Class taxonomy. This is load-bearing for the client's ML endgame - the
 // labels this app produces are training data, so the classes need client
 // buy-in. Keep it a single editable list; `osm` documents the OpenStreetMap
 // tags each class is expected to map onto at export time.
@@ -29,7 +29,7 @@ export const CONFIDENCE_LEVELS = [
 
 // Overlays sit just above the surface to avoid z-fighting, below the active
 // selection highlight (renderOrder 999 in SurfaceSelector).
-// The fill sits ON the surface — z-fighting is handled by polygonOffset (a
+// The fill sits ON the surface - z-fighting is handled by polygonOffset (a
 // depth-buffer bias, no world displacement), NOT by pushing geometry along
 // the normal. A world offset balloons the overlay off bumpy/steep meshes and
 // cracks open seams where adjacent faces point different ways. The outline is
@@ -43,13 +43,13 @@ const OVERLAY_EMPHASIS_OPACITY = 0.62; // item under review
 // Suggested class for a horizontal-up surface: below this fraction of the
 // site's height range it reads as ground, above it as a flat roof. A normal
 // test alone can't tell those apart. The real fix is the DTM/DSM that ships
-// with the photogrammetry run — this is a stopgap prior.
+// with the photogrammetry run - this is a stopgap prior.
 const GROUND_HEIGHT_FRACTION = 0.12;
 
 const STORAGE_VERSION = 1;
 
 // Face-index arrays are stored delta-encoded (sorted, then differences).
-// Flood-filled faces are near-contiguous, so deltas are mostly tiny ints —
+// Flood-filled faces are near-contiguous, so deltas are mostly tiny ints -
 // roughly 3x smaller in JSON and never larger than the raw list.
 function deltaEncode(sortedInts) {
   const out = new Array(sortedInts.length);
@@ -72,7 +72,7 @@ function deltaDecode(deltas) {
 }
 
 // Quantum for merging overlay boundary-edge endpoints across UV seams and
-// tile borders (world scene units, ~4mm) — matches the selector's stitch
+// tile borders (world scene units, ~4mm) - matches the selector's stitch
 // scale so a physically continuous label reads as one clean outline.
 const OUTLINE_Q = 0.004;
 
@@ -96,8 +96,8 @@ function buildFacesMesh(tileMeshes, tiles, colorHex) {
   const addEdge = (p1, p2) => {
     const k1 = `${q(p1[0])},${q(p1[1])},${q(p1[2])}`;
     const k2 = `${q(p2[0])},${q(p2[1])},${q(p2[2])}`;
-    // dedup by RAW position (before lift) so shared edges — incl. across
-    // seams/tiles — merge; store the lifted endpoints for drawing
+    // dedup by RAW position (before lift) so shared edges - incl. across
+    // seams/tiles - merge; store the lifted endpoints for drawing
     const key = k1 < k2 ? `${k1}|${k2}` : `${k2}|${k1}`;
     const e = edges.get(key);
     if (e) e.count++;
@@ -183,7 +183,7 @@ function buildFacesMesh(tileMeshes, tiles, colorHex) {
   return mesh;
 }
 
-// Sum of world-space triangle areas (scene units² — the mesh is normalized to
+// Sum of world-space triangle areas (scene units² - the mesh is normalized to
 // a 50-unit box on load, so this is relative until maps carry georeferencing).
 export function worldArea(mesh, faces) {
   const posAttr = mesh.geometry.getAttribute("position");
@@ -265,7 +265,7 @@ export class LabelManager {
   }
 
   // Area-weighted labeled fraction (scene units²). Total mesh area is
-  // computed once and cached; overlapping labels can nudge past 100 — clamp.
+  // computed once and cached; overlapping labels can nudge past 100 - clamp.
   coverage() {
     if (this._totalArea == null) {
       let total = 0;
@@ -300,7 +300,7 @@ export class LabelManager {
     if (t === "wall") return "building-wall";
     if (t === "roof-pitched") return "building-roof";
     if (t === "slope") return "ground";
-    if (t === "floor") return "other"; // downward-facing — rare, let the human decide
+    if (t === "floor") return "other"; // downward-facing - rare, let the human decide
     // "roof-flat" is any horizontal-up surface; height above the site floor
     // disambiguates open ground from an actual flat roof.
     const frac = this.meanHeightFraction(pending.selected);
@@ -362,7 +362,7 @@ export class LabelManager {
   }
 
   // Drop all machine proposals (used before an auto-tag re-run). Human
-  // labels — any source !== "auto" — are untouched.
+  // labels - any source !== "auto" - are untouched.
   removeAuto() {
     const auto = this.labels.filter((l) => l.source === "auto");
     for (const label of auto) {
@@ -400,7 +400,7 @@ export class LabelManager {
   }
 
   // Which label (if any) owns this face? Decodes only the hit tile's delta
-  // list per label — cheap enough to run per click.
+  // list per label - cheap enough to run per click.
   findLabelAt(mesh, faceIdx) {
     const t = this.tileIndex.get(mesh);
     if (t == null) return null;
@@ -434,7 +434,7 @@ export class LabelManager {
     return map;
   }
 
-  // Replace a label's geometry (and optionally class/confidence) in place —
+  // Replace a label's geometry (and optionally class/confidence) in place -
   // the click-to-edit flow. Repaints the overlay and persists.
   update(id, { selected, classId, confidence }) {
     const label = this.labels.find((l) => l.id === id);
@@ -588,7 +588,7 @@ export class LabelManager {
       console.warn("label persist failed", err);
       if (!this._quotaWarned) {
         this._quotaWarned = true;
-        alert("Label storage is full — labels still work and export, but won't survive a reload.");
+        alert("Label storage is full - labels still work and export, but won't survive a reload.");
       }
     }
   }

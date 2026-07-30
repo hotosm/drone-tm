@@ -219,7 +219,7 @@ export class MeshLoader {
   async loadGLTF(url, onProgress, onStatus) {
     console.log("Starting GLTF load from URL:", url);
     // Fetch bytes through the IndexedDB cache (survives HMR reloads), then
-    // parse — the GLB is self-contained (Draco decoder is set on the loader),
+    // parse - the GLB is self-contained (Draco decoder is set on the loader),
     // so no resource path is needed.
     const buffer = await cachedArrayBuffer(url, onProgress, undefined, onStatus);
     return new Promise((resolve, reject) => {

@@ -126,7 +126,7 @@ import { makeApp, wholeQuad, assert } from "./harness.mjs";
 
   app.labelingCtl.pickClass("building-roof");
   app.labelingCtl.saveLabel();
-  assert(labels.list.length === 1, "editing updates in place — no duplicate label");
+  assert(labels.list.length === 1, "editing updates in place - no duplicate label");
   assert(labels.list[0].class === "building-roof", "the edit saved the new class");
   assert(app.editingLabelId === null, "edit state clears after save");
 }

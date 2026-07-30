@@ -63,7 +63,7 @@ export class ReviewController {
       app.controls.orbitTarget = null;
       app.controls.syncFromCamera();
     }
-    // Don't force the previous item's overlay back on — ReviewMode.show() has
+    // Don't force the previous item's overlay back on - ReviewMode.show() has
     // already set overlay visibility for the new item (only the current one),
     // and re-showing here leaves the just-skipped item highlighted in its tag
     // colour. Review's setOverlaysVisible / exit restore is the authority.
@@ -165,7 +165,7 @@ export class ReviewController {
         onReclass: (classId) => this.handleReviewReclass(classId),
       });
     }
-    // Refresh refs — labels is rebuilt per map, streamer arrives after load.
+    // Refresh refs - labels is rebuilt per map, streamer arrives after load.
     app.review.labels = app.labels;
     app.review.streamer = app.streamer;
 

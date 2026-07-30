@@ -1,7 +1,7 @@
 import * as THREE from "three";
 
 // Debug/visualisation overlays (enabled by ?debug / ?viz). Mixed onto
-// MeshExplorer.prototype — these methods run with the app as `this`. Split out
+// MeshExplorer.prototype - these methods run with the app as `this`. Split out
 // of main.js as instrumentation, not product surface: the LOD HUD text, the
 // per-tile state tint, and the ground-plane load-zone rings.
 export const hudMixin = {
@@ -60,7 +60,7 @@ export const hudMixin = {
           mat.userData._origColor = mat.color.getHex();
         }
       }
-      // Tint ONLY the enhanced overlay (renders where clusters reveal —
+      // Tint ONLY the enhanced overlay (renders where clusters reveal -
       // strictly local). Never tint the base mesh: it is the whole-map
       // scatter, and tinting it flashed every decode across the entire map.
       const tint = t.state === "high" ? (t.size >= s.nativeSize ? 0x55ff55 : 0xffee44) : null;
@@ -77,7 +77,7 @@ export const hudMixin = {
 
   // ?viz: wireframe rings on the ground showing the actual 3D-distance load
   // zone (green = native reach, yellow = ring reach). Because the thresholds
-  // are true 3D distances, the ground-plane rings shrink as you climb —
+  // are true 3D distances, the ground-plane rings shrink as you climb -
   // at high altitude they vanish: nothing is close, nothing loads.
   updateVizRings() {
     const s = this.streamer;

@@ -262,7 +262,7 @@ export class PaintTools {
         if (!pointInPolygon([sx, sy], g.points)) continue;
         // Occlusion, EXACT: raycast this candidate's own screen pixel and keep
         // it only if the frontmost surface there really is THIS face (or a
-        // co-planar neighbour at the same depth — covers sub-pixel rounding on
+        // co-planar neighbour at the same depth - covers sub-pixel rounding on
         // a flat surface). Anything behind the frontmost hit (a face tucked
         // behind a wall/roof along the sight line) is dropped. The lasso acts
         // on what you can see, not everything down the ray.

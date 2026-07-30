@@ -5,13 +5,13 @@ import { LABEL_CLASSES } from "./Labels.js";
 // framed by an orbit camera and answers with a verb: Correct / Wrong class /
 // Flag / Skip.
 //
-// LOD strategy: the entire base mesh stays visible (it's geometry-cheap — the
+// LOD strategy: the entire base mesh stays visible (it's geometry-cheap - the
 // "low-res" GLB carries full geometry with small textures, so distant context
 // costs almost nothing), and only the item's own tiles get high-res textures.
 // The next item's tiles are prefetched so advancing feels instant.
 //
 // Queue items come from LabelManager today (human-seeded labels); the same
-// UI reviews auto-generated proposals later — only the source changes.
+// UI reviews auto-generated proposals later - only the source changes.
 
 const ELEVATION = THREE.MathUtils.degToRad(38); // viewing angle above horizon
 const FRAME_MARGIN = 1.6; // >1 leaves surroundings in frame around the item
@@ -197,7 +197,7 @@ export class ReviewMode {
   }
 
   // Streaming: enhance whatever is framed on screen (pick-driven, same as
-  // explore) rather than pinning only the item's own atlas pages — so the
+  // explore) rather than pinning only the item's own atlas pages - so the
   // item AND its surrounding context sharpen, not just the label's tiles.
   applyFocus() {
     if (!this.streamer) return; // base mesh alone until the high-res GLB lands

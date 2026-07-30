@@ -1,5 +1,5 @@
 // Headless controller-test harness. The MeshExplorer glue lives in mixins that
-// run against an app instance touching the real DOM (index.html) — it can't be
+// run against an app instance touching the real DOM (index.html) - it can't be
 // exercised by the plain-geometry suites. Here we load index.html into jsdom
 // and build a FAKE app: real SurfaceSelector + LabelManager over a small
 // BufferGeometry fixture, stubbed renderer/camera/controls, and the real
@@ -35,7 +35,7 @@ export const assert = (cond, msg) => {
   console.log(`ok: ${msg}`);
 };
 
-// One flat quad (two triangles), +Y normal — classifies roof-flat.
+// One flat quad (two triangles), +Y normal - classifies roof-flat.
 function makeQuad() {
   const geom = new THREE.BufferGeometry();
   geom.setAttribute(
@@ -118,7 +118,7 @@ export function makeApp({ mode = "explore", editTool = "tap" } = {}) {
     inspectMixin,
   );
 
-  // Chrome is a controller (owns tool/intent), not a mixin — create before the
+  // Chrome is a controller (owns tool/intent), not a mixin - create before the
   // UI wiring, which calls this.chrome.setupToolbar().
   app.chrome = new ChromeController(app);
   app.chrome.editTool = editTool;

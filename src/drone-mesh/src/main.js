@@ -32,21 +32,21 @@ import { SelectionController } from "./app/SelectionController.js";
 // the camera/gaze promote (native inner radius, ring outer), everything else
 // stays base until approached, demoting when left behind. Caps are sized for
 // "how many pages a neighbourhood touches", not tile counts.
-// ONE strategy for every device: deferred single-tier loading — nothing
+// ONE strategy for every device: deferred single-tier loading - nothing
 // speculative, native-quality textures only near the camera. Hardware
 // evidence changes COVERAGE (caps = how many pages may be resident), never
 // the strategy and never the quality ceiling. Caps are the safety net; the
 // 3D-distance reach is what actually bounds residency.
 // keepDist = retention radius: how far you can back away before resident
 // textures evict. Validated hardware keeps most of a session's visited area
-// warm (the texture is already paid for — retention is the cheap luxury);
+// warm (the texture is already paid for - retention is the cheap luxury);
 // lite devices evict aggressively.
 // Lite native is 1024, not 2048: one locale of scattered atlas pages needs
 // ~20-40 pages resident, and cheap devices can afford that ONLY at 1024
 // (≈5.6 MB/page vs 22). Full local coverage at good quality beats patchy
-// coverage at max quality — the earlier 6-page cap starved neighbourhoods.
+// coverage at max quality - the earlier 6-page cap starved neighbourhoods.
 // Touch memory is reclaimed mostly by the STATIC savers (256² base layer +
-// 1.5 pixel ratio, both below) rather than by starving the stream — so the
+// 1.5 pixel ratio, both below) rather than by starving the stream - so the
 // resident-page budget stays generous enough that what you look at actually
 // sharpens. ~32×1024² ≈ 240 MB streamed + ~45 MB base sits well under iOS's
 // kill threshold.
@@ -97,7 +97,7 @@ class MeshExplorer {
 
     // Selection refinement state: undo history (snapshots of the pending face
     // map, capped) and the label being edited in place. The editing model's
-    // two axes — intent (add/remove) × tool (navigate/tap/brush/lasso) — are
+    // two axes - intent (add/remove) × tool (navigate/tap/brush/lasso) - are
     // owned by ChromeController now; read via this.chrome.editIntent/.editTool.
     this.paint = null;
     this.pendingHistory = [];
@@ -121,16 +121,16 @@ class MeshExplorer {
     this.animate();
 
     // URL surface, deliberately tiny:
-    //   (nothing) — the experience. Local files auto-detected, else CDN.
-    //   ?debug    — HUD + state tinting + load-zone rings, all of it.
-    //   ?full     — ground truth: whole GLB, no pipeline.
+    //   (nothing) - the experience. Local files auto-detected, else CDN.
+    //   ?debug    - HUD + state tinting + load-zone rings, all of it.
+    //   ?full     - ground truth: whole GLB, no pipeline.
     // (?tex/?ring/?tiles/?lite/?hq/?local remain as undocumented tuning.)
     const params = new URLSearchParams(location.search);
     const dbg = params.has("debug") || params.has("viz");
     this.debugLOD = dbg;
     this.debugViz = dbg;
 
-    // LITE IS THE DEFAULT — for every device, always. The rich profile is
+    // LITE IS THE DEFAULT - for every device, always. The rich profile is
     // opt-IN via progressive enhancement: granted only on POSITIVE hardware
     // evidence (reported memory or a recognisably capable GPU), never on
     // touch devices (thermals), never on unknown hardware. Overrides:
@@ -159,7 +159,7 @@ class MeshExplorer {
     // Uniform (atlas) maps hold ALL pages at ringSize, so ringSize IS the
     // close-up quality. Desktop = native 2048 unconditionally (~2.9 GB
     // textures, Blender parity; measured source: 107×2048 + 23×1024).
-    // Weaker machines can pass ?ring=1024 — no silent downgrades.
+    // Weaker machines can pass ?ring=1024 - no silent downgrades.
     this.streamProfile = {
       ...base,
       nativeSize: parseInt(params.get("tex"), 10) || base.nativeSize,
@@ -319,7 +319,7 @@ class MeshExplorer {
   // --- auto-tagging ------------------------------------------------------------
 
   // Segment + classify the whole map; results become red "flagged" proposals
-  // feeding the review queue. Stored labels are the cache — reloads restore
+  // feeding the review queue. Stored labels are the cache - reloads restore
   // them instantly; re-running clears previous auto labels first.
   async runAutoTag() {
     if (!this.labels || !this.selector || this.mode !== "explore" || this.autoTagging) return;
@@ -369,8 +369,8 @@ class MeshExplorer {
     if (isTouchDevice) {
       infoDiv.innerHTML = `
         <strong>Controls</strong><br>
-        1 finger — orbit / look<br>
-        2 fingers — pinch to zoom, drag to pan<br>
+        1 finger - orbit / look<br>
+        2 fingers - pinch to zoom, drag to pan<br>
         Pick a tool below to tag. <b>Move</b> = camera only.
       `;
     } else {
@@ -392,7 +392,7 @@ class MeshExplorer {
   animate() {
     requestAnimationFrame(() => this.animate());
 
-    // Frame-time telemetry for the ?debug HUD — measure BEFORE any work so
+    // Frame-time telemetry for the ?debug HUD - measure BEFORE any work so
     // stalls anywhere in the app show up, not just in this loop.
     if (this.debugLOD) {
       const now = performance.now();

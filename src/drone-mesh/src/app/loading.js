@@ -199,7 +199,7 @@ export const loadingMixin = {
 
     if (params.has("full")) {
       // GROUND-TRUTH MODE: no streamer, no texture stripping, no decode
-      // pipeline. GLTFLoader ingests the full high-res GLB with textures —
+      // pipeline. GLTFLoader ingests the full high-res GLB with textures -
       // the identical path Blender uses. This is, by definition, the maximum
       // quality this file contains. Desktop-class memory required (~2.9 GB).
       this.loadRawHighRes(highUrl);
@@ -217,7 +217,7 @@ export const loadingMixin = {
       console.log("[drone-mesh] RAW mode: full GLB with native textures, no streaming pipeline");
 
       // Selection/labeling still work, but against the raw mesh's own face
-      // indexing — keep its labels in a separate storage bucket so they can't
+      // indexing - keep its labels in a separate storage bucket so they can't
       // corrupt the canonical (progressive-mode) label set.
       this.selector = new SurfaceSelector(this.scene);
       this.labels = new LabelManager({
@@ -258,7 +258,7 @@ export const loadingMixin = {
       this.hideLoading();
       console.log("Low-res mesh loaded and displayed");
 
-      // Selection + labels operate on the low-res mesh (stable geometry —
+      // Selection + labels operate on the low-res mesh (stable geometry -
       // high-res streaming only swaps textures/visibility, so face indices
       // stay valid for stored labels).
       this.selector = new SurfaceSelector(this.scene);
@@ -274,7 +274,7 @@ export const loadingMixin = {
 
       // NO automatic pre-warm: the adjacency build (incl. one long synchronous
       // global-graph merge) was stealing frames right after load, while users
-      // fly. First selection click pays it instead — user is stationary then.
+      // fly. First selection click pays it instead - user is stationary then.
 
       // Stream high-res textures by proximity. The 61 MB high-res GLB is fetched
       // once and stripped of its textures so nothing is decoded up front; only
@@ -308,7 +308,7 @@ export const loadingMixin = {
 
       // Textures now stream continuously by proximity/frustum (see the animate
       // loop + HighResStreamer). The opening view sharpens the same silent way a
-      // fly-through does — no separate warmup indicator.
+      // fly-through does - no separate warmup indicator.
       this.isLoadingHighRes = false;
     } catch (error) {
       this.hideLoading();
@@ -341,7 +341,7 @@ export const loadingMixin = {
         }
       }
     } catch (e) {
-      /* CORS-tainted or unsupported — leave as-is */
+      /* CORS-tainted or unsupported - leave as-is */
     }
   },
 
@@ -386,7 +386,7 @@ export const loadingMixin = {
     logTiming("Scaling and positioning");
 
     // Optimize materials for large meshes. On touch, downscale the ALWAYS-
-    // resident base textures (130 tiles) — at 512² they're ~180 MB, the
+    // resident base textures (130 tiles) - at 512² they're ~180 MB, the
     // single biggest static memory cost and a prime cause of the iOS
     // tab-kill. 256² cuts that ~4× and detail near the camera still comes
     // from the high-res streamer.

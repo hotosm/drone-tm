@@ -13,12 +13,12 @@ const SEL_EDGE_PX = 5; // outline thickness in device px
 const UP = new THREE.Vector3(0, 1, 0);
 
 // Quantum used to bucket world-space vertex positions when matching
-// boundary vertices across tiles. ~5mm in scene units — comfortably below
+// boundary vertices across tiles. ~5mm in scene units - comfortably below
 // any real feature size, generous enough to bridge tiny floating-point drift
 // from photogrammetry tilers that re-mesh per tile.
 const WORLD_POS_QUANTUM = 0.005;
 
-// Hard cap on faces collected per selection — prevents pathological flood
+// Hard cap on faces collected per selection - prevents pathological flood
 // across an entire flat ground plane.
 const MAX_FACES = 80000;
 
@@ -32,7 +32,7 @@ const NORMAL_TOLERANCE_DEG = 25;
 // (same tin roof, different slope). Distance is Euclidean RGB, 0-255 scale.
 //
 // DISABLED by default (Jul 2026): works nicely on roofs, but large roads
-// bleed across their verges/embankments — dust-coloured tarmac vs
+// bleed across their verges/embankments - dust-coloured tarmac vs
 // dust-coloured ground gives the colour gate nothing to refuse. Re-enable
 // once the gate compares against local neighbourhood colour instead of the
 // selection-wide mean (or is restricted to pitched-roof seeds).
@@ -40,7 +40,7 @@ const ENABLE_RIDGE_CROSSING = false;
 const COLOR_TOLERANCE = 42;
 
 // Each colour-admitted slope becomes a new plane cluster. Bounded so a
-// colour coincidence can't chain across the whole map — this is what keeps
+// colour coincidence can't chain across the whole map - this is what keeps
 // the merging "cautious".
 const MAX_PLANE_CLUSTERS = 8;
 
@@ -221,7 +221,7 @@ export class SurfaceSelector {
 
     const s = COLOR_SAMPLE_SIZE;
     // glTF UV origin is top-left (textures load with flipY=false), matching
-    // canvas ImageData row order — no flip needed.
+    // canvas ImageData row order - no flip needed.
     const x = Math.min(s - 1, Math.floor(u * s));
     const y = Math.min(s - 1, Math.floor(v * s));
     const i = (y * s + x) * 4;
@@ -241,7 +241,7 @@ export class SurfaceSelector {
       ctx.drawImage(img, 0, 0, s, s);
       return { data: ctx.getImageData(0, 0, s, s).data };
     } catch (err) {
-      return null; // e.g. CORS-tainted canvas — colour assist just disables
+      return null; // e.g. CORS-tainted canvas - colour assist just disables
     }
   }
 
@@ -258,7 +258,7 @@ export class SurfaceSelector {
     const tolDot = Math.cos((NORMAL_TOLERANCE_DEG * Math.PI) / 180);
 
     // Plane clusters: the seed plane, plus any adjoining slope admitted via
-    // the colour gate (e.g. the far side of a pitched roof — geometry says
+    // the colour gate (e.g. the far side of a pitched roof - geometry says
     // "different plane", texture says "same tin sheet").
     const clusters = [targetNormal];
     const colorSum = [0, 0, 0];
@@ -326,7 +326,7 @@ export class SurfaceSelector {
         clusters.length < MAX_PLANE_CLUSTERS &&
         colorDist(col) <= COLOR_TOLERANCE
       ) {
-        // Ridge crossing: same colour, new plane — admit cautiously.
+        // Ridge crossing: same colour, new plane - admit cautiously.
         clusters.push(candidateNormal.clone());
         accepted = true;
       }
@@ -377,7 +377,7 @@ export class SurfaceSelector {
   // edge of an adjacent tile, or a duplicate-vertex UV seam inside the SAME
   // tile. Photogrammetry texturing (ODM et al.) splits vertices along texture
   // chart borders, so a physically continuous roof is often several
-  // disconnected islands even within one tile — both cases look the same:
+  // disconnected islands even within one tile - both cases look the same:
   // an open edge whose endpoints coincide in world space with another edge's.
   _enqueueCrossTile(mesh, localV1, localV2, queue, tmpV) {
     const posAttr = mesh.geometry.getAttribute("position");
@@ -392,7 +392,7 @@ export class SurfaceSelector {
     if (!others1 || !others2) return;
 
     // Bucket key2's hits by mesh so we can pair them up cheaply. Same-mesh
-    // entries stay in — they are how intra-tile UV seams get stitched. The
+    // entries stay in - they are how intra-tile UV seams get stitched. The
     // edge also pairs with itself, but those faces are already in the seen
     // set, so the flood fill absorbs the redundancy.
     const meshToV2 = new Map();
@@ -447,8 +447,8 @@ export class SurfaceSelector {
     // Cancel interior edges even across tile seams whose duplicate vertices
     // don't perfectly coincide: ODM reconstructs the same ground at slightly
     // different heights per tile, so cross-tile seam verts sit centimetres
-    // apart. Cluster boundary verts by proximity — an order of magnitude
-    // looser than the flood's bridging quantum — with a neighbour check so a
+    // apart. Cluster boundary verts by proximity - an order of magnitude
+    // looser than the flood's bridging quantum - with a neighbour check so a
     // pair straddling a cell border still merges. Interior verts keep their
     // per-mesh index (already shared by both faces within a tile).
     const MERGE_Q = WORLD_POS_QUANTUM * 12; // vs the flood's 5 mm quantum
@@ -674,7 +674,7 @@ export class SurfaceSelector {
 
   // Grow the selection by one adjacency ring: every edge-neighbour (incl.
   // across tile borders and UV seams) joins. Deliberately unconstrained by
-  // class/normal — grow is the user's manual override for undershoot.
+  // class/normal - grow is the user's manual override for undershoot.
   growSelection(selectedMap, root) {
     this.ensureGlobalGraph(root);
     const out = new Map();
@@ -719,7 +719,7 @@ export class SurfaceSelector {
 
   // Shrink by one ring: keep only faces whose every edge-neighbour (bridged
   // neighbours included) is also selected. Faces on a physically open mesh
-  // edge count as boundary and shrink away — standard erosion semantics.
+  // edge count as boundary and shrink away - standard erosion semantics.
   shrinkSelection(selectedMap, root) {
     this.ensureGlobalGraph(root);
     const has = (mesh, f) => {

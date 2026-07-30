@@ -8,7 +8,7 @@ export class ChromeController {
   constructor(app) {
     this.app = app;
     // navigate = camera only (no tagging); tap/brush/lasso = tagging tools.
-    // Default navigate so a tap never tags by accident — user opts in.
+    // Default navigate so a tap never tags by accident - user opts in.
     this.editTool = "navigate";
     // Intent axis: add / remove (the erase modifier).
     this.editIntent = "add";
@@ -32,7 +32,7 @@ export class ChromeController {
     }
     // Never fully lock the camera while painting: single finger / mouse paints,
     // but TWO fingers still navigate (and PaintTools ignores multi-touch). So
-    // paint tools coexist with nav — you don't have to switch to Move to pan.
+    // paint tools coexist with nav - you don't have to switch to Move to pan.
     if (this.app.mode === "review") {
       if (this.app.orbit) {
         this.app.orbit.enabled = true;

@@ -24,7 +24,7 @@ const CHUNK_BIN = 0x004e4942;
 // wider ring gets RING resolution, everything else stays on the resident
 // base textures. Radii scale with the map's tile pitch; resident tiles use
 // enlarged radii (hysteresis) so ring boundaries don't flap while flying.
-// Native uploads are therefore few and land exactly where the user looks —
+// Native uploads are therefore few and land exactly where the user looks -
 // high quality AND smooth navigation, not one or the other.
 // Margins are measured from the gaze point / camera to each tile's SAMPLED
 // GEOMETRY (a few dozen face centroids per tile). ODM "tiles" are
@@ -41,7 +41,7 @@ const HYSTERESIS = 1.35; // resident tiles cling to their tier this much longer
 // into an XZ grid, so each cell knows exactly which PAGES have geometry in
 // it. "Deferred until needed" then works even though pages themselves are
 // scattered: pages with faces near the camera/gaze promote; everything else
-// stays at base until approached. No sampling gaps — every face is indexed.
+// stays at base until approached. No sampling gaps - every face is indexed.
 const INDEX_GRID = 28; // cells per axis over the map footprint
 // TRUE 3D distance thresholds (scene units, altitude included), SINGLE tier:
 // nothing speculative ever loads. Pages promote to native only inside the
@@ -50,7 +50,7 @@ const INDEX_GRID = 28; // cells per axis over the map footprint
 // everything = nothing loads. Trade-off accepted by design: crossing the
 // boundary pops 512 → native with no pre-staged middle step.
 // Tuned for STREET-LEVEL proximity (1-3 units from a wall). Deliberately
-// tight: at any altitude that frames a whole district, nothing qualifies —
+// tight: at any altitude that frames a whole district, nothing qualifies -
 // absolute distances read as "near" far too easily from elevated views.
 // (The principled future version is screen-space error, as in 3D Tiles.)
 // Load/reveal radii are sized for NORMAL viewing distance (you inspect a
@@ -62,7 +62,7 @@ const ATLAS_UNLOAD_DIST = 30; // keep-resident boundary (retention)
 
 // Display is gated FINER than loading: each page's geometry is split at load
 // into locale clusters (zone-grid buckets of faces). A resident page only
-// REVEALS clusters that are near the camera AND inside the view frustum —
+// REVEALS clusters that are near the camera AND inside the view frustum -
 // its far-away sibling fragments keep showing base, so enhancement never
 // appears in scattered pockets across the map.
 const ZONE_GRID = 12; // cluster zones per axis over the map footprint
@@ -98,14 +98,14 @@ export class HighResStreamer {
     this.tilePitch = 5; // measured in load(); fallback for injected tiles
 
     // exposed for the ?viz load-zone rings; unloadDist widens on validated
-    // hardware (retention is the cheap luxury — textures already paid for).
+    // hardware (retention is the cheap luxury - textures already paid for).
     // rangeScale is a LIVE debug multiplier over load/reveal radii ([ and ]
     // keys in ?debug) so the right feel can be dialled in-app, not guessed.
     this.rangeScale = 1;
     this.unloadDist = keepDist || ATLAS_UNLOAD_DIST;
 
     // Whether tiles are spatially localized. ODM atlas pages are usually NOT
-    // — each "tile" scatters faces across the entire map (measured: every
+    // - each "tile" scatters faces across the entire map (measured: every
     // tile bbox spans the whole site), which makes any spatial tile
     // selection meaningless. In that case the only correct strategy is
     // uniform residency at a budgeted size; the gaze bubble applies only to
@@ -126,8 +126,8 @@ export class HighResStreamer {
     // hitches during the initial sharpen-up.
     this.uploadQueue = [];
 
-    // Motion gating: during fast fly-through the streamer idles completely —
-    // no decode, no upload — so navigation is never interrupted by texture
+    // Motion gating: during fast fly-through the streamer idles completely -
+    // no decode, no upload - so navigation is never interrupted by texture
     // work. Detail streams in once the camera settles. Hysteresis (HI/LO)
     // stops the gate flickering at walking pace. camSpeed is fed per-frame.
     this.camSpeed = 0;
@@ -136,7 +136,7 @@ export class HighResStreamer {
 
     // Shared 1×1 placeholder so every page material is compiled WITH a map
     // slot from the start. Swapping in the real texture then never triggers a
-    // shader recompile — those first-time null→map recompiles were a second,
+    // shader recompile - those first-time null→map recompiles were a second,
     // subtler source of fly-through hitching (one per page, ever).
     this.placeholderTex = new THREE.DataTexture(new Uint8Array([200, 200, 200, 255]), 1, 1);
     this.placeholderTex.needsUpdate = true;
@@ -145,12 +145,12 @@ export class HighResStreamer {
     // replace camera proximity as the "wanted" strategy: focus = the item
     // under review, prefetch = the next item (decoded early so advancing is
     // instant, but kept hidden by scope). scope (Set of tile indices) limits
-    // which tiles render at all — null means everything, explore behavior.
+    // which tiles render at all - null means everything, explore behavior.
     this.focusTiles = null;
     this.prefetchTiles = null;
     this.scope = null;
     // Review orbit: enhance what's framed on screen exactly like explore
-    // (pick-driven), but reveal promoted clusters by frustum alone — the
+    // (pick-driven), but reveal promoted clusters by frustum alone - the
     // orbit distance to a framed item often exceeds explore's reveal radius,
     // and off-screen fragments stay hidden by the frustum test regardless.
     this.reviewOrbit = false;
@@ -204,7 +204,7 @@ export class HighResStreamer {
       });
     }
 
-    // World-space face centroids sampled evenly across a tile's index — the
+    // World-space face centroids sampled evenly across a tile's index - the
     // tile's true spatial footprint, robust to scattered atlas charts.
     const sampleFaceCentroids = (mesh, count) => {
       const pos = mesh.geometry.getAttribute("position");
@@ -247,7 +247,7 @@ export class HighResStreamer {
       };
     });
 
-    // Median nearest-neighbour spacing of tile centers — the gaze-bubble
+    // Median nearest-neighbour spacing of tile centers - the gaze-bubble
     // radii scale with this, so behavior is consistent across map tilings.
     const sample = Math.min(this.tiles.length, 30);
     const dists = [];
@@ -500,7 +500,7 @@ export class HighResStreamer {
 
   // GPU pick pass: render the low-res tiles into a tiny target, each tile
   // flat-coloured by its index, and read back which tiles own the on-screen
-  // pixels. This is exactly "the triangles in front of me" — occlusion-
+  // pixels. This is exactly "the triangles in front of me" - occlusion-
   // correct, no spatial heuristic. Returns Map(tileIndex → pixel count) or
   // null if picking isn't available.
   pickVisibleTiles() {
@@ -559,7 +559,7 @@ export class HighResStreamer {
   // most-covered first, up to budget. Falls back to nearest-distance if the
   // pick pass is unavailable.
   computeTargetsFromIndex() {
-    // Skip the pick (a GPU readback stall) during fast fly-through — we're not
+    // Skip the pick (a GPU readback stall) during fast fly-through - we're not
     // uploading anyway; targets refresh the moment the camera settles. Review
     // orbit is exempt: it's not a fly-through, and the inter-item tween must
     // not suppress the pick or items arrive stuck at low-res.
@@ -611,7 +611,7 @@ export class HighResStreamer {
 
     // Rank pages by their NEAREST in-view cell distance and load closest
     // first. The page owning the surface right in front of you has the
-    // smallest distance, so it always wins the budget — summed "presence"
+    // smallest distance, so it always wins the budget - summed "presence"
     // was wrong (a page with many mid-distance fragments beat the near one).
     // dAll (nearest cell any direction) governs retention only.
     const dVisMap = new Map(); // page -> nearest in-view cell distance
@@ -687,7 +687,7 @@ export class HighResStreamer {
           }
         }
       };
-      take(this.focusTiles); // current item first — prefetch fills leftover budget
+      take(this.focusTiles); // current item first - prefetch fills leftover budget
       take(this.prefetchTiles);
       return;
     }
@@ -712,7 +712,7 @@ export class HighResStreamer {
     this._dir = this._dir || new THREE.Vector3();
     this._focus = this._focus || new THREE.Vector3();
     this.camera.getWorldDirection(this._dir);
-    const LOOKAHEAD_MAX = 160; // scene units — near-horizon gazes don't chase infinity
+    const LOOKAHEAD_MAX = 160; // scene units - near-horizon gazes don't chase infinity
     let ahead = this._dir.y < -0.02 ? cam.y / -this._dir.y : LOOKAHEAD_MAX;
     ahead = Math.min(Math.max(ahead, 0), LOOKAHEAD_MAX);
     this._focus.copy(this._dir).multiplyScalar(ahead).add(cam);
@@ -763,12 +763,12 @@ export class HighResStreamer {
     this.computeTargets();
 
     // Targets + demotion + reveal always run (cheap, keep memory bounded and
-    // the view correct). Only the EXPENSIVE work — decode + upload — is gated
+    // the view correct). Only the EXPENSIVE work - decode + upload - is gated
     // on motion, so a fly-through never pays texture cost mid-flight. The gate
     // is IGNORED in review (focus or orbit): review is not a fly-through and
     // the inter-item camera tween must not suppress its streaming.
     if (!this.motionHold || this.focusTiles || this.reviewOrbit) {
-      // Upgrades wanted, most-visible first — the 3-wide decode queue fills
+      // Upgrades wanted, most-visible first - the 3-wide decode queue fills
       // with what the user is looking at. Resident tiles above their target
       // (native drifting into the ring) are left alone: no downgrade churn;
       // they demote fully when they leave the ring.
@@ -855,7 +855,7 @@ export class HighResStreamer {
 
   // Called once per rendered frame from the main loop: upload at most one
   // decoded texture per frame so sharpening never stalls the camera. Skipped
-  // entirely while the camera is moving fast (motion gate) — texture uploads
+  // entirely while the camera is moving fast (motion gate) - texture uploads
   // are the single most expensive main-thread op and must never land mid-fly.
   drainUploads() {
     if (this.motionHold && !this.focusTiles && !this.reviewOrbit) return;
@@ -866,7 +866,7 @@ export class HighResStreamer {
         // demoted while decoding/queued
         if (t.state === "loading") t.state = "low";
         this.closeImage(image);
-        continue; // didn't upload anything — keep looking
+        continue; // didn't upload anything - keep looking
       }
       if (t.texture) {
         // in-place upgrade: free the old texture + its backing image
@@ -882,7 +882,7 @@ export class HighResStreamer {
       tex.generateMipmaps = true;
       tex.anisotropy = this.maxAnisotropy || 1;
       tex.needsUpdate = true;
-      // After clustering, material is an ARRAY [pageMat, hidden] — assign to
+      // After clustering, material is an ARRAY [pageMat, hidden] - assign to
       // the actual page material, never the array (a plain `.map =` on the
       // array is a silent no-op that renders clusters untextured). The
       // material already has the placeholder map, so swapping in the real
@@ -934,7 +934,7 @@ export class HighResStreamer {
     this.decodeCount++;
     const longest = Math.max(bitmap.width, bitmap.height);
     const s = longest > maxSize ? maxSize / longest : 1;
-    if (s === 1) return bitmap; // native size — upload the bitmap directly
+    if (s === 1) return bitmap; // native size - upload the bitmap directly
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(bitmap.width * s));
     canvas.height = Math.max(1, Math.round(bitmap.height * s));

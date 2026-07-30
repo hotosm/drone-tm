@@ -1,7 +1,7 @@
 // Terrain (DTM) approximation: a sloped ground with a raised platform on top.
 // heightAt should track the ground under the platform (not the platform), and
 // heightAbove should read ~0 on the ground but the platform's full height on it
-// — which is exactly what separates ground from roofs regardless of elevation.
+// - which is exactly what separates ground from roofs regardless of elevation.
 import * as THREE from "three";
 import { Terrain } from "../src/Terrain.js";
 
@@ -87,7 +87,7 @@ assert(
   "terrain follows the slope (low x < high x)",
 );
 
-// Height ABOVE terrain: ~0 on open ground, ~PLATFORM_H on the platform — the
+// Height ABOVE terrain: ~0 on open ground, ~PLATFORM_H on the platform - the
 // separation that distinguishes ground from an elevated roof.
 const aboveGround = terrain.heightAbove(6, 6 * SLOPE, 20);
 assert(
@@ -146,7 +146,7 @@ function occludedRoof(size, hMin, hMax, H) {
 
 const ROOF_H = 5;
 const scene2 = new THREE.Group();
-scene2.add(occludedRoof(40, 14, 26, ROOF_H)); // a WIDE roof — a small fixed window can't reach its centre
+scene2.add(occludedRoof(40, 14, 26, ROOF_H)); // a WIDE roof - a small fixed window can't reach its centre
 scene2.updateMatrixWorld(true);
 const noFilter = Terrain.build(scene2, { maxWindow: 0, smoothPasses: 8 }); // percentile + blur only
 const filtered = Terrain.build(scene2); // progressive filter (defaults)
@@ -167,7 +167,7 @@ assert(
 
 // --- broad raised ground (plateau) must be PRESERVED, not stripped ---
 // A wide flat rise is genuine high terrain, not a building. If the filter
-// shaved it, high landscape would read as roof — the original bug. Only the
+// shaved it, high landscape would read as roof - the original bug. Only the
 // broad interior is tested (a sharp plateau EDGE is geometrically a cliff and
 // legitimately ambiguous with a building wall).
 function plateauScene(size, pMin, pMax, H) {
