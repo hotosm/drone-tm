@@ -45,8 +45,24 @@ Frontend deployed to S3 + CloudFront CDN. A Helm Job (ArgoCD sync wave 15) handl
 
 1. Sync built frontend to a versioned S3 path (`<appVersion>/`)
 2. Find or create a CloudFront distribution (idempotent)
-3. Update the distribution origin path to the new version
-4. Invalidate the CloudFront cache
+3. Ensure the sub-app router CloudFront Function (idempotent, see below)
+4. Update the distribution origin path to the new version
+5. Invalidate the CloudFront cache
+
+#### Routing (SPA fallback + sub-app router)
+
+The distribution combines two rules:
+
+- **SPA fallback** - `403`/`404` responses return `/index.html` (`200`), so
+  client-side routes such as `/projects/123` load the app instead of 404ing.
+- **Sub-app router** - a CloudFront Function (viewer-request) resolves bundled
+  sub-apps that ship their own `index.html`. Without it the SPA fallback would
+  serve the *main* app for these paths:
+  - `/mesh` → `301` to `/mesh/` (so the viewer's relative asset URLs resolve)
+  - `/mesh/` → `/mesh/index.html`
+
+  They don't conflict: the function runs first and only touches sub-app paths;
+  everything else falls through to the SPA fallback.
 
 #### DNS Architecture
 
@@ -230,7 +246,9 @@ cat > policy.json << EOF
         "cloudfront:GetDistribution", "cloudfront:GetDistributionConfig",
         "cloudfront:UpdateDistribution", "cloudfront:CreateInvalidation",
         "cloudfront:ListDistributions", "cloudfront:CreateDistribution",
-        "cloudfront:CreateOriginAccessControl", "cloudfront:ListOriginAccessControls"
+        "cloudfront:CreateOriginAccessControl", "cloudfront:ListOriginAccessControls",
+        "cloudfront:DescribeFunction", "cloudfront:CreateFunction",
+        "cloudfront:UpdateFunction", "cloudfront:PublishFunction"
       ],
       "Resource": "*"
     }

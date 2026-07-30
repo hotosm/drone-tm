@@ -65,9 +65,11 @@ spec:
                 --delete \
                 --cache-control "public, max-age=31536000, immutable"
 
-              # index.html and config.js must not be cached long (mutable on each deploy).
-              declare -A CONTENT_TYPES=( [index.html]="text/html" [config.js]="application/javascript" )
-              for f in index.html config.js; do
+              # Entry-point HTML and config.js are mutable across deploys (stable
+              # names pointing at new hashed assets), so they need a short TTL -
+              # including the bundled sub-app entry points (e.g. mesh/index.html).
+              declare -A CONTENT_TYPES=( [index.html]="text/html" [config.js]="application/javascript" [mesh/index.html]="text/html" )
+              for f in index.html config.js mesh/index.html; do
                 if aws s3 ls "s3://${BUCKET}/${VERSION}/${f}" 2>/dev/null; then
                   aws s3 cp "s3://${BUCKET}/${VERSION}/${f}" "s3://${BUCKET}/${VERSION}/${f}" \
                     --cache-control "public, max-age=60" \
@@ -75,6 +77,45 @@ spec:
                     --metadata-directive REPLACE
                 fi
               done
+
+              # ── 1b. Ensure the sub-app router CloudFront Function ───────────
+              # Routes bundled sub-apps to their own index.html; without it the
+              # SPA 403/404 fallback below serves the main app for /mesh.
+              #   /mesh   -> 301 to /mesh/   (fixes the viewer's relative assets)
+              #   /mesh/  -> /mesh/index.html
+              FUNC_NAME="${RELEASE}-router"
+              cat > /tmp/router.js <<'EOF'
+              function handler(event) {
+                var request = event.request;
+                var uri = request.uri;
+                if (uri === '/mesh') {
+                  return {
+                    statusCode: 301,
+                    statusDescription: 'Moved Permanently',
+                    headers: { 'location': { value: '/mesh/' } },
+                  };
+                }
+                if (uri === '/mesh/') {
+                  request.uri = '/mesh/index.html';
+                }
+                return request;
+              }
+              EOF
+              FUNC_CFG='{"Comment":"drone-tm sub-app router","Runtime":"cloudfront-js-2.0"}'
+              if aws cloudfront describe-function --name "${FUNC_NAME}" >/dev/null 2>&1; then
+                FETAG=$(aws cloudfront describe-function --name "${FUNC_NAME}" --query "ETag" --output text)
+                aws cloudfront update-function --name "${FUNC_NAME}" --if-match "${FETAG}" \
+                  --function-config "${FUNC_CFG}" --function-code fileb:///tmp/router.js
+              else
+                aws cloudfront create-function --name "${FUNC_NAME}" \
+                  --function-config "${FUNC_CFG}" --function-code fileb:///tmp/router.js
+              fi
+              # Publish DEVELOPMENT -> LIVE so the distribution can use it.
+              FETAG=$(aws cloudfront describe-function --name "${FUNC_NAME}" --query "ETag" --output text)
+              aws cloudfront publish-function --name "${FUNC_NAME}" --if-match "${FETAG}"
+              FUNC_ARN=$(aws cloudfront describe-function --name "${FUNC_NAME}" \
+                --query "FunctionSummary.FunctionMetadata.FunctionARN" --output text)
+              echo "CloudFront router function ${FUNC_ARN}"
 
               # ── 2. Find or create CloudFront distribution ───────────────────
               echo "Looking up CloudFront distribution for ${BUCKET}..."
@@ -126,6 +167,10 @@ spec:
                       'ViewerProtocolPolicy': 'redirect-to-https',
                       'CachePolicyId': '658327ea-f89d-4fab-a63d-7e88639e58f6',
                       'Compress': True,
+                      'FunctionAssociations': {
+                          'Quantity': 1,
+                          'Items': [{'EventType': 'viewer-request', 'FunctionARN': '${FUNC_ARN}'}],
+                      },
                   },
                   'CustomErrorResponses': {
                       'Quantity': 2,
@@ -188,6 +233,12 @@ spec:
               import json, sys
               config = json.load(sys.stdin)
               config['Origins']['Items'][0]['OriginPath'] = '/${VERSION}'
+              # Set/replace only our viewer-request association, preserving any
+              # other event type (e.g. a viewer-response function) already set.
+              fa = config['DefaultCacheBehavior'].get('FunctionAssociations') or {}
+              items = [i for i in fa.get('Items', []) if i.get('EventType') != 'viewer-request']
+              items.append({'EventType': 'viewer-request', 'FunctionARN': '${FUNC_ARN}'})
+              config['DefaultCacheBehavior']['FunctionAssociations'] = {'Quantity': len(items), 'Items': items}
               print(json.dumps(config))
               ")
               aws cloudfront update-distribution --id "${DIST_ID}" --if-match "${ETAG}" --distribution-config "${UPDATED_CONFIG}"
