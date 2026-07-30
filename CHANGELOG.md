@@ -1,3 +1,9 @@
+## 2026.8.1 (2026-07-30)
+
+### Refactor
+
+- remove em dashes from cloud-mesh code
+
 ## 2026.8.0 (2026-07-29)
 
 ### Feat
