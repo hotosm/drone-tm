@@ -1,3 +1,9 @@
+## 2026.8.3 (2026-07-31)
+
+### Fix
+
+- **backend**: tweaks to ODM flags used to better handle very large datasets
+
 ## 2026.8.2 (2026-07-31)
 
 ### Fix
