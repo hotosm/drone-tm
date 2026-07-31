@@ -18,7 +18,13 @@ from app.images.image_processing import (
     fetch_scaleodm_task_info,
     submit_scaleodm_task,
 )
-from app.models.enums import FinalOutput, ImageProcessingStatus, OAMUploadStatus, State
+from app.models.enums import (
+    FinalOutput,
+    ImageProcessingStatus,
+    ImageStatus,
+    OAMUploadStatus,
+    State,
+)
 from app.projects import project_schemas
 from app.s3 import (
     add_obj_to_bucket,
@@ -56,6 +62,16 @@ from psycopg.rows import dict_row
 from shapely.errors import GEOSException
 from shapely.geometry import shape
 from shapely.ops import transform
+
+# Position cameras from GPS instead of adding them one at a time. Safe for any
+# drone dataset since the photos are always GPS tagged, so we always set it.
+AERIAL_SFM_OPTIONS = [{"name": "sfm-algorithm", "value": "triangulation"}]
+
+# ODM's defaults suit small datasets. On big aerial sets the sparse
+# reconstruction runs single threaded and can take days. Past this many images
+# we turn on extra flags. They also rely on GPS, which drone photos always have.
+LARGE_DATASET_IMAGE_THRESHOLD = 800
+MATCHER_NEIGHBORS = 24
 
 
 async def get_centroids(db: Connection):
@@ -456,6 +472,14 @@ async def process_drone_images(
                 {"name": "cog", "value": True},
             ]
 
+            # fast-orthophoto skips the dense stage but sparse reconstruction
+            # still runs, so triangulation always helps. A single task can also
+            # be large enough for the extra flags.
+            options.extend(AERIAL_SFM_OPTIONS)
+            image_count = await count_assigned_images(conn, task_id=task_id)
+            options.extend(large_dataset_odm_options(image_count))
+            log.info(f"Task {task_id}: {image_count} images to process")
+
             read_s3_path = f"s3://{settings.S3_BUCKET_NAME}/projects/{project_id}/{task_id}/images/"
             write_s3_path = (
                 f"s3://{settings.S3_BUCKET_NAME}/projects/{project_id}/{task_id}/odm/"
@@ -566,6 +590,40 @@ async def update_processing_status(
     await db.commit()
 
 
+def large_dataset_odm_options(image_count: int) -> list[dict[str, Any]]:
+    """Extra ODM flags that only pay off on large datasets. Empty below the threshold."""
+    if image_count < LARGE_DATASET_IMAGE_THRESHOLD:
+        return []
+    return [
+        # Only match each photo to its nearest neighbours, not every other photo.
+        {"name": "matcher-neighbors", "value": MATCHER_NEIGHBORS},
+        # Adjust locally per image and globally every 100, not fully each time.
+        {"name": "use-hybrid-bundle-adjustment", "value": True},
+    ]
+
+
+async def count_assigned_images(
+    conn,
+    project_id: uuid.UUID | None = None,
+    task_id: uuid.UUID | None = None,
+) -> int:
+    """Count the images ODM will process (assigned = matched to a task, passed QC).
+
+    Pass task_id for a single task, or project_id for a whole project.
+    """
+    # Column is chosen here, never from user input, so it is safe to format in.
+    column = "task_id" if task_id is not None else "project_id"
+    value = task_id if task_id is not None else project_id
+    async with conn.cursor(row_factory=dict_row) as cur:
+        await cur.execute(
+            f"SELECT COUNT(*) AS count FROM project_images "
+            f"WHERE {column} = %(value)s AND status = %(status)s",
+            {"value": value, "status": ImageStatus.ASSIGNED.value},
+        )
+        row = await cur.fetchone()
+    return row["count"] if row else 0
+
+
 async def process_all_drone_images(
     ctx: dict[Any, Any],
     project_id: uuid.UUID,
@@ -604,6 +662,12 @@ async def process_all_drone_images(
                 options.append({"name": "dsm", "value": True})
             if FinalOutput.DIGITAL_TERRAIN_MODEL in requested_outputs:
                 options.append({"name": "dtm", "value": True})
+
+            # Triangulation always, plus extra flags for big projects.
+            options.extend(AERIAL_SFM_OPTIONS)
+            image_count = await count_assigned_images(conn, project_id=project_id)
+            options.extend(large_dataset_odm_options(image_count))
+            log.info(f"Project {project_id}: {image_count} images to process")
 
             # Final guard: the project-wide scan reads each {tid}/images/ folder,
             # so drop any imagery rejected after each task was marked ready. If a

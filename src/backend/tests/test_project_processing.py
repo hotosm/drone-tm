@@ -234,6 +234,51 @@ async def test_process_drone_images_submits_standard_mode(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_process_drone_images_applies_large_dataset_tuning(monkeypatch):
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    # Same dict answers the gsd lookup and the image COUNT. Count is above the
+    # threshold, so a big single task gets the faster SfM flags too.
+    conn = _FakeConn(
+        cursor_fetchone={
+            "gsd_cm_px": 5,
+            "count": project_logic.LARGE_DATASET_IMAGE_THRESHOLD,
+        }
+    )
+    ctx = {"job_id": "job-1", "db_pool": _FakePool(conn)}
+    submit_calls = []
+
+    async def fake_update_task_state_system(*args, **kwargs):
+        return {"project_id": project_id, "task_id": task_id}
+
+    async def fake_submit(**kwargs):
+        submit_calls.append(kwargs)
+        return "fake-odm-uuid"
+
+    async def fake_prune(*args, **kwargs):
+        return {"failed_count": 0}
+
+    monkeypatch.setattr(project_logic, "submit_scaleodm_task", fake_submit)
+    monkeypatch.setattr(
+        project_logic, "update_task_field", fake_update_task_state_system
+    )
+    monkeypatch.setattr(
+        project_logic.ImageClassifier, "prune_deassigned_task_images", fake_prune
+    )
+    from app.tasks import task_logic
+
+    monkeypatch.setattr(
+        task_logic, "update_task_state_system", fake_update_task_state_system
+    )
+
+    await project_logic.process_drone_images(ctx, project_id, task_id, "user-123")
+
+    names = {opt["name"] for opt in submit_calls[0]["options"]}
+    assert "sfm-algorithm" in names
+    assert "matcher-neighbors" in names
+
+
+@pytest.mark.asyncio
 async def test_process_drone_images_marks_task_failed_when_odm_rejects(monkeypatch):
     project_id = uuid.uuid4()
     task_id = uuid.uuid4()
@@ -450,6 +495,67 @@ async def test_process_all_drone_images_uses_project_wide_scan_depth(monkeypatch
     assert submitted["read_s3_path"].endswith(f"/projects/{project_id}/")
     assert submitted["write_s3_path"].endswith(f"/projects/{project_id}/odm/")
     assert submitted["name"] == f"DTM-Project-{project_id}"
+
+
+@pytest.mark.asyncio
+async def test_process_all_drone_images_applies_large_dataset_tuning(monkeypatch):
+    project_id = uuid.uuid4()
+    # One dict serves both fetchone() calls (gsd/final_output lookup, then the
+    # image COUNT). Count is above the threshold, so tuning should switch on.
+    conn = _FakeConn(
+        cursor_fetchone={
+            "final_output": [],
+            "gsd_cm_px": 5,
+            "count": project_logic.LARGE_DATASET_IMAGE_THRESHOLD,
+        }
+    )
+    ctx = {"job_id": "proj-1", "db_pool": _FakePool(conn)}
+    submit_calls = []
+
+    async def fake_submit(**kwargs):
+        submit_calls.append(kwargs)
+        return "fake-project-odm-uuid"
+
+    monkeypatch.setattr(project_logic, "submit_scaleodm_task", fake_submit)
+
+    await project_logic.process_all_drone_images(
+        ctx, project_id, [uuid.uuid4()], "user-123"
+    )
+
+    names = {opt["name"]: opt["value"] for opt in submit_calls[0]["options"]}
+    assert names["sfm-algorithm"] == "triangulation"
+    assert names["matcher-neighbors"] == project_logic.MATCHER_NEIGHBORS
+    assert names["use-hybrid-bundle-adjustment"] is True
+
+
+@pytest.mark.asyncio
+async def test_process_all_drone_images_skips_tuning_for_small_sets(monkeypatch):
+    project_id = uuid.uuid4()
+    conn = _FakeConn(
+        cursor_fetchone={
+            "final_output": [],
+            "gsd_cm_px": 5,
+            "count": project_logic.LARGE_DATASET_IMAGE_THRESHOLD - 1,
+        }
+    )
+    ctx = {"job_id": "proj-1", "db_pool": _FakePool(conn)}
+    submit_calls = []
+
+    async def fake_submit(**kwargs):
+        submit_calls.append(kwargs)
+        return "fake-project-odm-uuid"
+
+    monkeypatch.setattr(project_logic, "submit_scaleodm_task", fake_submit)
+
+    await project_logic.process_all_drone_images(
+        ctx, project_id, [uuid.uuid4()], "user-123"
+    )
+
+    names = {opt["name"]: opt["value"] for opt in submit_calls[0]["options"]}
+    # Triangulation is always set; the scaling flags stay off below the threshold.
+    assert names["sfm-algorithm"] == "triangulation"
+    assert "matcher-neighbors" not in names
+    assert "use-hybrid-bundle-adjustment" not in names
 
 
 # ── task-level ODM output reconciliation ──────────────────────────────────────
