@@ -2,127 +2,92 @@
 
 ## Context and Problem Statement
 
-Users trigger drone image processing from the DroneTM UI. The work runs in
+Users start drone image processing from the DroneTM UI. The work runs in
 ScaleODM (Kubernetes-native, NodeODM-compatible, backed by Argo Workflows,
-S3-native). Two problems hurt the experience:
+S3-native). Two things break the experience:
 
-1. When imagery is bad (too few images, poor overlap, images that do not
-   align), ScaleODM fails the job but DroneTM never learns why, or even that it
-   failed. The user gets no signal to fix or re-capture.
-2. The processing status often never updates, and the spinner can spin forever.
+1. When imagery is bad (too few images, poor overlap, images that do not align),
+   ScaleODM fails the job but DroneTM never learns it failed, or why. The user
+   gets no signal to re-capture.
+2. Status often never updates, so the spinner can spin forever.
 
-Both share one cause. DroneTM's only signal is whether the output orthophoto
-has appeared in S3, which detects success only. When a job fails, no output is
-written, so the task stays "processing" forever and the UI spins. Reconciling
-also only happens when the browser asks, so even success is delayed until a
-manual refresh.
+Both have the same cause. DroneTM's only signal was whether the output
+orthophoto had shown up in S3, which only detects success. A failed job writes
+no output, so the task stays "processing" forever. Reconciling also only ran
+when the browser asked, so even success waited for a manual refresh.
 
 Constraints:
 
-- No browser polling; it hurts page performance.
-- Status should update when the page opens, and a refresh button should update
-  it correctly.
-- Any background job must be bounded; it cannot scan every processing job ever
-  created.
-- DroneTM has no API-key infrastructure to authenticate an inbound webhook.
-- Either system may change.
+- No browser polling; it slows the page down.
+- Status should update on page open, and the refresh button should work.
+- Any background job must be bounded; it cannot scan every job ever created.
+- We have no API keys to authenticate an inbound webhook.
+- Either system may change on its own.
 
 ## Considered Options
 
-### 1. Browser polling
-
-The page polls for status on a timer.
-
-- Pro: simple.
-- Con: violates the no-polling constraint, hammers heavy endpoints, and cost
-  grows with the number of viewers.
-
-### 2. Webhook as the source of truth
-
-ScaleODM pushes status and DroneTM trusts and stores it.
-
-- Pro: instant, no polling.
-- Con: delivery is never guaranteed, so a dropped call leaves status wrong
-  forever. Needs authentication we do not have.
-
-### 3. Unbounded reconciler
-
-A job periodically reconciles all processing tasks.
-
-- Pro: self-healing, no reliance on delivery.
-- Con: does not scale; scanning all history is too expensive.
-
-### 4. S3 output only (the current behaviour)
-
-- Pro: cheap, needs no ScaleODM credentials.
-- Con: blind to failure, which is the real problem, and only runs on a manual
-  browser call.
-
-### 5. Push trigger, read-repair, and a bounded backstop (chosen)
-
-One reconcile routine, called by several triggers, that checks the cheapest
-source first and only asks ScaleODM when it must.
-
-- Pro: no single point of failure, bounded cost, no polling, and it can finally
-  reach a failed state.
-- Con: more moving parts, so it needs a rule to stay bounded.
+1. **Browser polling.** Simple, but breaks the no-polling rule, hammers heavy
+   endpoints, and gets worse with more viewers.
+2. **Webhook as source of truth.** Instant, but a dropped call leaves status
+   wrong forever, and it needs authentication we do not have.
+3. **Unbounded reconciler.** Self-healing, but scanning all history is too
+   expensive.
+4. **S3 output only (the old behaviour).** Cheap, but blind to failure, which is
+   the real problem, and only runs on a manual browser call.
+5. **Hybrid: one reconcile routine, several triggers.** More moving parts, but no
+   single point of failure, bounded cost, no polling, and it can finally reach a
+   failed state.
 
 ## Decision Outcome
 
-Chosen: option 5.
+We chose the hybrid (option 5).
 
-The key idea is that the webhook is a trigger, not a source of truth. It only
-means "re-check this task now". The real status is always derived by the
-reconcile routine, so a missing, late, or spoofed webhook can only cause a cheap
-re-check, never wrong status. This is also why the webhook needs no real
-authentication.
+No trigger is reliable alone: webhooks get dropped, page-open only fires while
+someone is watching, and a plain cron either scans too much or lags. Using all
+three together covers the gaps.
 
-One reconcile routine derives status cheapest-first:
+### What we implemented
 
-1. If the output orthophoto is in S3, the task succeeded. This needs no ScaleODM
-   call.
-2. Otherwise ask ScaleODM for the task status, purely to tell "failed" from
-   "still running". A terminal failure moves the task to failed and records the
-   reason.
+One routine, `reconcile_project_processing`, decides the truth. Anything that
+wants status re-checked just calls it. It looks at the cheapest source first:
+if the output orthophoto is in S3 (and newer than the current run, so a rerun
+is not mistaken for old output) the job succeeded, no ScaleODM call needed;
+otherwise it asks ScaleODM `/task/info` whether the job failed or is still
+running. If ScaleODM is unreachable, it waits rather than assume failure. It is
+safe to run any number of times, so callers never coordinate.
 
-The routine is idempotent, so every trigger can call it safely:
+Three tiers call that routine, each catching what the one before it misses:
 
-- Webhook: ScaleODM notifies DroneTM on terminal transitions only, and DroneTM
-  re-checks that one task. This is the fast path.
-- Page open and manual refresh: the server reconciles that project, giving
-  update-on-open with a single call and no polling.
-- Cron: a low-frequency backstop that reconciles only work still in flight.
+1. **Webhook (fast):** ScaleODM pings us when a job finishes and we re-check
+   that project. We ignore the status it sends, so a missing, late, or fake
+   webhook only wastes a re-check, never sets a wrong status. That is why it
+   needs no real auth (an optional shared token exists, but nothing depends on
+   it).
+2. **Page open and refresh button (on demand):** the server reconciles that
+   project when a user looks at it. Update-on-open with one call, no polling.
+3. **Cron (backstop):** every 30 minutes it re-checks jobs still running, for
+   when nobody is looking and the webhook was missed. It stays bounded by only
+   touching jobs with a stored ScaleODM task id (`odm_task_uuid`, set when a job
+   starts and cleared when it ends), not all history. If ScaleODM stops
+   reporting a job, we fail it after a grace window (currently 7 days), so the
+   set always empties out.
 
-Bounding the cron: a task is "in flight" only while it has a stored ScaleODM
-task id, which is set on submit and cleared on any terminal transition. The
-cron therefore only looks at jobs processing right now, limited by cluster
-capacity rather than history. A job ScaleODM can no longer find is failed after
-a grace window, so the set always drains.
+## Consequences
 
-Why the cron exists at all: page-open only reconciles while someone is
-watching, and webhooks can be dropped. The cron guarantees status still reaches
-the truth when nobody is looking, turning the system from best-effort into
-failsafe. It is optional if we accept that status is only correct while a user
-views the page.
+Good:
 
-### Consequences
+- Failed jobs now reach a final state, so the spinner stops and the reason shows.
+- No browser polling. The page updates on open and on refresh, work done
+  server-side.
+- No single point of failure. The webhook is fast; the cron and page-open catch
+  what it misses.
+- Background cost stays limited to jobs actually running.
 
-Positive:
+Costs:
 
-- ✅ A failed job now reaches a terminal state, so the spinner stops and the
-  reason is shown.
-- ✅ No browser polling. The page updates on open and on manual refresh, with the
-  heavy work done server-side.
-- ✅ No single point of failure. The webhook is the fast path; the cron and
-  page-open reconcile heal anything it misses.
-- ✅ The background cost is bounded to jobs that are actually processing.
-
-Negative:
-
-- ❌ More moving parts than a single mechanism, kept manageable by routing every
-  trigger through one idempotent routine.
-- ❌ The webhook is best-effort and unauthenticated by default. Acceptable because
-  it only triggers a re-check and carries no privileged action; network
-  isolation is the real control.
-- ❌ Reconcile makes one ScaleODM call per in-flight task when S3 has no output
-  yet. Small in practice, since only genuinely unfinished tasks reach that step.
+- More moving parts, kept sane by routing every trigger through one routine.
+- The webhook is best-effort and unauthenticated by default. Fine, because it
+  only triggers a re-check and does nothing privileged; network isolation is the
+  real control.
+- One ScaleODM call per in-flight task when S3 has no output yet. Small in
+  practice, since only unfinished jobs get that far.
