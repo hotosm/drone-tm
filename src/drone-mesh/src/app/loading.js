@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { SurfaceSelector } from "../SurfaceSelector.js";
 import { LabelManager } from "../Labels.js";
 import { HighResStreamer } from "../HighResStreamer.js";
+import { loadCappedBaseMesh } from "../glb.js";
 import { buildBoundsTrees, disposeBoundsTrees } from "./bvh.js";
 
 // Mesh acquisition + setup: the loading overlay, source selection (local vs
@@ -171,12 +172,23 @@ export const loadingMixin = {
   // Pick mesh sources (local copies auto-detected, else CDN) and dispatch to
   // the requested mode. No ?local needed on dev machines with the files.
   async startLoading(params) {
-    // Remote single-GLB mode: `?glb=<url>` loads a textured mesh e.g. via presigned S3 URL.
-    // NOTE: the whole .glb must be loaded, so this only works for smaller areas.
+    // Remote single-GLB mode: `?glb=<url>` loads a textured mesh e.g. via
+    // presigned S3 URL. This is the drone-tm "View 3D" entry point (ODM
+    // `--gltf` output). The whole GLB is fetched once (cached), but its
+    // textures are NOT decoded up front - that would be several GB of RGBA and
+    // is exactly what leaves memory-limited devices with white holes / missing
+    // tiles. Instead we build a capped base layer and stream high-res tiles by
+    // proximity (see loadStreamedGLB). `?glb=...&raw` forces the old full-
+    // decode path for A/B comparison / debugging on desktop-class machines.
     const glbUrl = params.get("glb");
     if (glbUrl) {
-      console.log("[drone-mesh] source: remote GLB via ?glb=");
-      this.loadRawHighRes(glbUrl);
+      if (params.has("raw")) {
+        console.log("[drone-mesh] source: remote GLB via ?glb= (RAW full-decode, forced)");
+        this.loadRawHighRes(glbUrl);
+      } else {
+        console.log("[drone-mesh] source: remote GLB via ?glb= (streamed, memory-bounded)");
+        this.loadStreamedGLB(glbUrl);
+      }
       return;
     }
 
@@ -232,6 +244,82 @@ export const loadingMixin = {
       this.hideLoading();
       console.error("raw load failed", err);
       alert(`Failed to load full model: ${err.message}`);
+    }
+  },
+
+  // Single-GLB streaming: the drone-tm "View 3D" path. One self-contained ODM
+  // GLB serves as BOTH the always-resident base (textures decoded once at a
+  // small cap) AND the high-res source (the streamer strips its textures and
+  // decodes tiles on demand near the camera). Same memory envelope as the
+  // low+high demo, but from a single file - no second dataset, no server-side
+  // downres. See docs/adr/0007-3d-viewer.md for the rationale.
+  async loadStreamedGLB(url) {
+    try {
+      this.showLoading("Loading model...");
+
+      // Base cap: the always-resident layer for all tiles. Kept modest so the
+      // whole map's base textures fit comfortably (e.g. ~120 tiles @ 512 is
+      // ~130 MB RGBA); the streamer supplies native detail where you look.
+      const touch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+      const baseCap = touch ? 256 : 512;
+
+      const base = await loadCappedBaseMesh(
+        this.meshLoader.loaders.gltf,
+        url,
+        baseCap,
+        (progress) => this.updateLoadingProgress(progress),
+        (status) => {
+          const el = document.getElementById("loading-text");
+          if (el) el.textContent = `Loading model - cache: ${status}`;
+        },
+      );
+
+      await this.setupMesh(base);
+      this.hideLoading();
+      console.log("[drone-mesh] single-GLB base layer ready; starting texture streaming");
+
+      // Selection + labels operate on the base mesh (stable geometry - high-res
+      // streaming only swaps textures/visibility, so face indices stay valid).
+      this.selector = new SurfaceSelector(this.scene);
+      this.labels = new LabelManager({
+        scene: this.scene,
+        root: this.currentMesh,
+        mapKey: url,
+      });
+      this.labels.restore();
+      this.chrome.showToolbar(true);
+      this.labelingCtl.renderLabelList();
+
+      // Stream high-res textures from the SAME GLB. The file is already in the
+      // IndexedDB cache from the base build, so the streamer re-parses it
+      // without re-downloading; it strips the textures so nothing is decoded up
+      // front, then decodes/uploads only the nearest tiles (memory-bounded).
+      this.isLoadingHighRes = true;
+      this.streamer = new HighResStreamer({
+        scene: this.scene,
+        camera: this.camera,
+        renderer: this.renderer,
+        gltfLoader: this.meshLoader.loaders.gltf,
+        nativeSize: this.streamProfile.nativeSize,
+        ringSize: this.streamProfile.ringSize,
+        nativeCap: this.streamProfile.nativeCap,
+        totalCap: this.streamProfile.totalCap,
+        keepDist: this.streamProfile.keepDist,
+        maxAnisotropy: Math.min(8, this.renderer.capabilities.getMaxAnisotropy()),
+      });
+      const tileCount = await this.streamer.load(url, this.currentMesh);
+      console.log(`High-res streaming active: ${tileCount} tiles`);
+
+      if (this.review) {
+        this.review.streamer = this.streamer;
+        const item = this.review.cur();
+        if (this.review.active && item) this.review.applyFocus(item);
+      }
+      this.isLoadingHighRes = false;
+    } catch (error) {
+      this.hideLoading();
+      console.error("Error loading streamed GLB:", error);
+      alert(`Failed to load model: ${error.message}`);
     }
   },
 
