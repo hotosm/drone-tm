@@ -1,3 +1,9 @@
+## 2026.8.2 (2026-07-31)
+
+### Fix
+
+- **drone-mesh**: fix loading a single high res glb, with client-side downsampling
+
 ## 2026.8.1 (2026-07-30)
 
 ### Refactor
