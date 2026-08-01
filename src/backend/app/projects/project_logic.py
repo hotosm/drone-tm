@@ -63,9 +63,12 @@ from shapely.errors import GEOSException
 from shapely.geometry import shape
 from shapely.ops import transform
 
-# Position cameras from GPS instead of adding them one at a time. Safe for any
-# drone dataset since the photos are always GPS tagged, so we always set it.
-AERIAL_SFM_OPTIONS = [{"name": "sfm-algorithm", "value": "triangulation"}]
+# No SfM algorithm flag for now, so ODM uses its default incremental
+# reconstruction. Triangulation (ODX fork / OpenSfM 1.0 only) is kept commented
+# below; re-enable it when we switch over, once the dense-stage crashes are fixed.
+AERIAL_SFM_OPTIONS: list[dict[str, Any]] = [
+    # {"name": "sfm-algorithm", "value": "triangulation"},
+]
 
 # ODM's defaults suit small datasets. On big aerial sets the sparse
 # reconstruction runs single threaded and can take days. Past this many images

@@ -274,7 +274,8 @@ async def test_process_drone_images_applies_large_dataset_tuning(monkeypatch):
     await project_logic.process_drone_images(ctx, project_id, task_id, "user-123")
 
     names = {opt["name"] for opt in submit_calls[0]["options"]}
-    assert "sfm-algorithm" in names
+    # No sfm-algorithm flag is sent, so ODM uses its incremental default.
+    assert "sfm-algorithm" not in names
     assert "matcher-neighbors" in names
 
 
@@ -523,7 +524,8 @@ async def test_process_all_drone_images_applies_large_dataset_tuning(monkeypatch
     )
 
     names = {opt["name"]: opt["value"] for opt in submit_calls[0]["options"]}
-    assert names["sfm-algorithm"] == "triangulation"
+    # No sfm-algorithm flag sent (ODM defaults to incremental); scaling flags on.
+    assert "sfm-algorithm" not in names
     assert names["matcher-neighbors"] == project_logic.MATCHER_NEIGHBORS
     assert names["use-hybrid-bundle-adjustment"] is True
 
@@ -552,8 +554,9 @@ async def test_process_all_drone_images_skips_tuning_for_small_sets(monkeypatch)
     )
 
     names = {opt["name"]: opt["value"] for opt in submit_calls[0]["options"]}
-    # Triangulation is always set; the scaling flags stay off below the threshold.
-    assert names["sfm-algorithm"] == "triangulation"
+    # No always-on SfM flag, and scaling flags stay off below the threshold, so
+    # this small set gets no SfM tuning at all.
+    assert "sfm-algorithm" not in names
     assert "matcher-neighbors" not in names
     assert "use-hybrid-bundle-adjustment" not in names
 
