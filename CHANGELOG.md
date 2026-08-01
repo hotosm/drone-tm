@@ -1,3 +1,9 @@
+## 2026.8.4 (2026-08-01)
+
+### Fix
+
+- **backend**: do not use opensfm v1 until dense reconstruction crashes fixed
+
 ## 2026.8.3 (2026-07-31)
 
 ### Fix
