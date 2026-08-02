@@ -70,11 +70,15 @@ AERIAL_SFM_OPTIONS: list[dict[str, Any]] = [
     # {"name": "sfm-algorithm", "value": "triangulation"},
 ]
 
-# ODM's defaults suit small datasets. On big aerial sets the sparse
-# reconstruction runs single threaded and can take days. Past this many images
-# we turn on extra flags. They also rely on GPS, which drone photos always have.
-LARGE_DATASET_IMAGE_THRESHOLD = 800
+# We only ever process GPS-tagged nadir drone imagery flown in a grid, so we can
+# turn on flags ODM keeps off by default. ODM ships them off because it also has
+# to handle handheld / unordered / non-GPS photo sets where they'd break matching
+# - none of which applies to us.
 MATCHER_NEIGHBORS = 24
+
+# Past this many images, refining every photo against the whole set each step
+# gets too slow, so we switch to hybrid bundle adjustment (see below).
+LARGE_DATASET_IMAGE_THRESHOLD = 800
 
 
 async def get_centroids(db: Connection):
@@ -475,10 +479,10 @@ async def process_drone_images(
                 {"name": "cog", "value": True},
             ]
 
-            # fast-orthophoto skips the dense stage but sparse reconstruction
-            # still runs, so triangulation always helps. A single task can also
-            # be large enough for the extra flags.
+            # Grid-safe flags apply to every task; the size-gated ones kick in
+            # once a single task is large enough.
             options.extend(AERIAL_SFM_OPTIONS)
+            options.extend(gps_grid_odm_options())
             image_count = await count_assigned_images(conn, task_id=task_id)
             options.extend(large_dataset_odm_options(image_count))
             log.info(f"Task {task_id}: {image_count} images to process")
@@ -593,14 +597,33 @@ async def update_processing_status(
     await db.commit()
 
 
+def gps_grid_odm_options() -> list[dict[str, Any]]:
+    """ODM flags that are safe on any dataset we process (GPS-tagged nadir grids)."""
+    return [
+        # Only match each photo against its nearest GPS neighbours instead of
+        # every other photo. Matching everything lets similar-looking but distant
+        # photos (fields, water, rooftops) match by mistake, which can place a
+        # camera far from where it belongs and stretch the reconstruction well
+        # past the real survey area - a big output extent is a common cause of
+        # out-of-memory failures. Also much faster. With fewer photos than this it
+        # just matches them all.
+        {"name": "matcher-neighbors", "value": MATCHER_NEIGHBORS},
+        # Clip the reconstruction to the camera footprint. Stops stray far-away
+        # geometry (sky, background, treelines) from inflating the output extent
+        # and risking an out-of-memory failure. Does nothing on clean nadir data,
+        # so it's safe to leave on.
+        {"name": "auto-boundary", "value": True},
+    ]
+
+
 def large_dataset_odm_options(image_count: int) -> list[dict[str, Any]]:
-    """Extra ODM flags that only pay off on large datasets. Empty below the threshold."""
+    """Flags worth turning on only once a dataset is large enough to need them."""
     if image_count < LARGE_DATASET_IMAGE_THRESHOLD:
         return []
     return [
-        # Only match each photo to its nearest neighbours, not every other photo.
-        {"name": "matcher-neighbors", "value": MATCHER_NEIGHBORS},
-        # Adjust locally per image and globally every 100, not fully each time.
+        # Refine each photo locally and the full set only periodically, rather
+        # than re-solving everything every step. Faster on big sets, slightly less
+        # accurate, so only past the threshold.
         {"name": "use-hybrid-bundle-adjustment", "value": True},
     ]
 
@@ -666,8 +689,10 @@ async def process_all_drone_images(
             if FinalOutput.DIGITAL_TERRAIN_MODEL in requested_outputs:
                 options.append({"name": "dtm", "value": True})
 
-            # Triangulation always, plus extra flags for big projects.
+            # Grid-safe flags apply to every project; the size-gated ones kick in
+            # once the project is large enough.
             options.extend(AERIAL_SFM_OPTIONS)
+            options.extend(gps_grid_odm_options())
             image_count = await count_assigned_images(conn, project_id=project_id)
             options.extend(large_dataset_odm_options(image_count))
             log.info(f"Project {project_id}: {image_count} images to process")

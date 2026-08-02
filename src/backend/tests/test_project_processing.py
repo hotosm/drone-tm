@@ -554,10 +554,11 @@ async def test_process_all_drone_images_skips_tuning_for_small_sets(monkeypatch)
     )
 
     names = {opt["name"]: opt["value"] for opt in submit_calls[0]["options"]}
-    # No always-on SfM flag, and scaling flags stay off below the threshold, so
-    # this small set gets no SfM tuning at all.
+    # No sfm-algorithm flag (ODM uses its incremental default). GPS-grid matching
+    # is domain-safe and applies at every size, but the size-gated scaling flag
+    # (hybrid BA) stays off below the threshold.
     assert "sfm-algorithm" not in names
-    assert "matcher-neighbors" not in names
+    assert names["matcher-neighbors"] == project_logic.MATCHER_NEIGHBORS
     assert "use-hybrid-bundle-adjustment" not in names
 
 
