@@ -1,3 +1,9 @@
+## 2026.8.5 (2026-08-02)
+
+### Fix
+
+- **backend**: add a couple of extra flags default for ODM processing
+
 ## 2026.8.4 (2026-08-01)
 
 ### Fix
