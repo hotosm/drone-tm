@@ -117,13 +117,43 @@ uv tool install pre-commit
 pre-commit install
 ```
 
-### Commit Sign-Off Policy
+### How We Handle Contributions
 
-- In order to commit to this repository, please read and accept our
-  [commit sign-off policy](https://developercertificate.org)
-- This is simply to verify that you are the author of the commits you make.
-- If possible, please add to your commit footer the `Signed-off-by` info:
-  `Signed-off-by: John Doe <joe.doe@example.com>`
+We keep this deliberately lightweight. There are two small things we ask,
+and neither one takes any rights away from you: **you always keep the
+copyright to the code you write.**
+
+**1. A one-time contribution agreement.**
+
+The first time you open a pull request, our bot will ask you to leave a
+short comment confirming you have read and agree to these contribution
+guidelines. You only need to do this once per repository.
+
+Despite being handled by a tool called a "CLA assistant", this is **not**
+a Contributor License Agreement in the usual sense: it does **not** assign
+your copyright to us, and it does **not** give anyone the right to
+re-license your work. It exists only to:
+
+- Confirm you have read and will follow these guidelines.
+- Add a small barrier against automated bot / AI accounts, which we do
+  not accept contributions from.
+
+**2. A sign-off on each commit (the DCO).**
+
+We use the [Developer Certificate of Origin](https://developercertificate.org),
+a simple, widely-used statement that you wrote the code (or otherwise have
+the right to submit it) and are happy for it to be included under the
+project's open license. You agree to it by adding a `Signed-off-by` line
+to your commit footer:
+
+```
+Signed-off-by: John Doe <joe.doe@example.com>
+```
+
+Git can add this for you automatically if you commit with `git commit -s`.
+
+Together these keep the project's history clear about who wrote what,
+while making sure the code stays open and owned by the people who built it.
 
 ## Our Development Practices
 

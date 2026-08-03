@@ -16,7 +16,7 @@ repos:
         entry: end-of-file-fixer
         language: python
         types: [text]
-        exclude: ^cla\.json$
+        exclude: ^signed-contributors\.json$
         stages: [pre-commit, pre-push, manual]
 
       - id: detect-aws-credentials
@@ -134,7 +134,7 @@ repos:
         additional_dependencies: ["oxfmt@0.35.0"]
         args:
           [
-            "!cla.json",
+            "!signed-contributors.json",
             "!src/qfield-plugin/**",
             "!src/pnpm-lock.yaml",
             "!src/pnpm-workspace.yaml",
