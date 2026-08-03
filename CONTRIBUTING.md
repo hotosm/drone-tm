@@ -119,41 +119,21 @@ pre-commit install
 
 ### How We Handle Contributions
 
-We keep this deliberately lightweight. There are two small things we ask,
-and neither one takes any rights away from you: **you always keep the
-copyright to the code you write.**
+Two small things, and neither one takes any rights away from you —
+**you always keep the copyright to the code you write:**
 
-**1. A one-time contribution agreement.**
+1. **A one-time contribution agreement.** The first time you open a pull
+   request, a bot asks you to comment confirming you have read and agree to
+   these guidelines. This is **not** a copyright assignment or a re-licensing
+   CLA — it just confirms you've read this document, and helps keep out
+   automated bot / AI accounts, which we do not accept.
+2. **A sign-off on each commit (the DCO).** Add a `Signed-off-by` line to your
+   commits (`git commit -s`) to certify you wrote the code.
 
-The first time you open a pull request, our bot will ask you to leave a
-short comment confirming you have read and agree to these contribution
-guidelines. You only need to do this once per repository.
+For the full explanation, see the HOT contributor guide:
 
-Despite being handled by a tool called a "CLA assistant", this is **not**
-a Contributor License Agreement in the usual sense: it does **not** assign
-your copyright to us, and it does **not** give anyone the right to
-re-license your work. It exists only to:
-
-- Confirm you have read and will follow these guidelines.
-- Add a small barrier against automated bot / AI accounts, which we do
-  not accept contributions from.
-
-**2. A sign-off on each commit (the DCO).**
-
-We use the [Developer Certificate of Origin](https://developercertificate.org),
-a simple, widely-used statement that you wrote the code (or otherwise have
-the right to submit it) and are happy for it to be included under the
-project's open license. You agree to it by adding a `Signed-off-by` line
-to your commit footer:
-
-```
-Signed-off-by: John Doe <joe.doe@example.com>
-```
-
-Git can add this for you automatically if you commit with `git commit -s`.
-
-Together these keep the project's history clear about who wrote what,
-while making sure the code stays open and owned by the people who built it.
+- [How contributions are handled](https://docs.hotosm.org/become-a-contributor/#how-contributions-are-handled)
+- [Commit sign-off (DCO)](https://docs.hotosm.org/dev-guide/repo-management/git/#commit-sign-off-dco)
 
 ## Our Development Practices
 
