@@ -1,3 +1,9 @@
+## 2026.8.6 (2026-08-04)
+
+### Fix
+
+- **qfield**: improve the qfield project loading experience via staging page
+
 ## 2026.8.5 (2026-08-02)
 
 ### Fix
