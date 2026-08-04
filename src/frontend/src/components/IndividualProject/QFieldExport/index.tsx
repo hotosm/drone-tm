@@ -81,7 +81,13 @@ function QFieldExportDialog({ show, onClose, projectId }: QFieldExportDialogProp
     }
   };
 
-  const qfieldUrl = downloadUrl ? `qfield://local?import=${downloadUrl}` : null;
+  // Encode the DroneTM interstitial page rather than the raw qfield:// scheme,
+  // so users without QField installed get instructions + an install link
+  // instead of a silent no-op. The import URL goes in the fragment (#) to keep
+  // it out of server access logs and Referer headers.
+  const qfieldUrl = downloadUrl
+    ? `${window.location.origin}/qfield-open#import=${encodeURIComponent(downloadUrl)}`
+    : null;
 
   const qrSvg = useMemo(() => {
     if (!qfieldUrl) return null;

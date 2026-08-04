@@ -119,13 +119,13 @@ pre-commit install
 
 ### How We Handle Contributions
 
-Two small things, and neither one takes any rights away from you —
+Two small things, and neither one takes any rights away from you -
 **you always keep the copyright to the code you write:**
 
 1. **A one-time contribution agreement.** The first time you open a pull
    request, a bot asks you to comment confirming you have read and agree to
    these guidelines. This is **not** a copyright assignment or a re-licensing
-   CLA — it just confirms you've read this document, and helps keep out
+   CLA - it just confirms you've read this document, and helps keep out
    automated bot / AI accounts, which we do not accept.
 2. **A sign-off on each commit (the DCO).** Add a `Signed-off-by` line to your
    commits (`git commit -s`) to certify you wrote the code.

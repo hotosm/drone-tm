@@ -18,6 +18,7 @@ const Tutorials = lazy(() => import("@Views/Tutorial"));
 const ImportPage = lazy(() => import("@Views/Import"));
 const View3DModel = lazy(() => import("@Views/View3DModel"));
 const ViewOrthophoto = lazy(() => import("@Views/ViewOrthophoto"));
+const QFieldOpen = lazy(() => import("@Views/QFieldOpen"));
 
 const appRoutes: IRoute[] = [
   ...userRoutes,
@@ -25,6 +26,15 @@ const appRoutes: IRoute[] = [
     path: "/",
     name: "Landing Page",
     component: LandingPage,
+    authenticated: false,
+  },
+  {
+    // Public interstitial reached by scanning the QField QR code. Attempts to
+    // open the project in QField and, if the app is missing, points the user
+    // to install it. Must stay unauthenticated - field users have no session.
+    path: "/qfield-open",
+    name: "Open in QField",
+    component: QFieldOpen,
     authenticated: false,
   },
   {
