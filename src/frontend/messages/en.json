@@ -836,7 +836,7 @@
   "qfield_open_requirement": "You need the QField app installed on your phone for this to work.",
   "qfield_open_step_install": "Install the QField app if you don't have it yet.",
   "qfield_open_step_tap": "Tap \"Open in QField\" below.",
-  "qfield_open_step_auto": "Confirm the import in QField — it will then download and open the project.",
+  "qfield_open_step_auto": "Confirm the import in QField - it will then download and open the project.",
   "qfield_open_button": "Open in QField",
   "qfield_open_no_app": "Don't have QField yet?",
   "qfield_open_install_link": "Install QField",
