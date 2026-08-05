@@ -1,3 +1,9 @@
+## 2026.8.7 (2026-08-05)
+
+### Fix
+
+- **frontend**: improve map legend colours + ordering for user clarity
+
 ## 2026.8.6 (2026-08-04)
 
 ### Fix
