@@ -146,9 +146,9 @@ to the drone's own app - no third-party software needed.
 |:------|:-----:|:---------:|:------|
 | DJI Mini 5 Pro | ✅ | ✅ | Waypoint files, flown in the DJI Fly app |
 | DJI Mini 4 Pro | ✅ | ✅ | Waypoint files, flown in the DJI Fly app |
-| DJI Mini 3 Pro | ✅ | ✅ | Waypoint files, flown in the DJI Fly app |
+| DJI Mini 3 Pro | ✅ | ✅ | Waypoint files, flown in the DJI Fly app. Also supports Litchi |
 | Potensic Atom 2 | ✅ | ✅ | Waypoint files, flown in the Potensic app |
-| DJI Mini 3 (+ 3 Pro) | ✅ | ❔ | Via Litchi only |
+| DJI Mini 3 | ✅ | ❔ | Via Litchi only |
 | DJI Mini SE (version 1 only) | ✅ | ❔ | Via Litchi only |
 | DJI Mini 2 | ✅ | ❔ | Via Litchi only |
 | Potensic Atom 1 | ✅ | ❔ | Works but has no terrain following capability |
