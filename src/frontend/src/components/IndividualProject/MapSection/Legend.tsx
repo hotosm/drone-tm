@@ -21,6 +21,12 @@ const Legend = () => {
         </div>
         {showLegendItems && (
           <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
+            {/* Task status, ordered by progression of completeness */}
+            {/* UNLOCKED */}
+            <div className="naxatw-flex naxatw-gap-2">
+              <div className="naxatw-h-5 naxatw-w-5 naxatw-border naxatw-border-[#68707F]" />
+              <p className="naxatw-text-sm">{m.legend_available()}</p>
+            </div>
             {/* AWAITING_APPROVAL */}
             <div className="naxatw-flex naxatw-gap-2">
               <div className="naxatw-h-5 naxatw-w-5 naxatw-bg-[#F3C5C5]" />
@@ -35,7 +41,7 @@ const Legend = () => {
             </div>
             {/* FULLY_FLOWN */}
             <div className="naxatw-flex naxatw-gap-2">
-              <div className="naxatw-h-5 naxatw-w-5 naxatw-bg-[#176149]" />
+              <div className="naxatw-h-5 naxatw-w-5 naxatw-bg-[#ACD2C4]" />
               <p className="naxatw-text-sm">{m.legend_fully_flown()}</p>
             </div>
             {/* READY_FOR_PROCESSING */}
@@ -55,14 +61,13 @@ const Legend = () => {
             </div>
             {/* IMAGE_PROCESSING_FINISHED */}
             <div className="naxatw-flex naxatw-gap-2">
-              <div className="naxatw-h-5 naxatw-w-5 naxatw-bg-[#ACD2C4]" />
+              <div className="naxatw-h-5 naxatw-w-5 naxatw-bg-[#176149]" />
               <p className="naxatw-text-sm">{m.legend_completed()}</p>
             </div>
-            {/* UNLOCKED */}
-            <div className="naxatw-flex naxatw-gap-2">
-              <div className="naxatw-h-5 naxatw-w-5 naxatw-border naxatw-border-[#68707F]" />
-              <p className="naxatw-text-sm">{m.legend_available()}</p>
-            </div>
+
+            {/* Separator dividing task status from generic map annotations */}
+            <div className="naxatw-my-1 naxatw-border-t naxatw-border-gray-300" />
+
             {/* Mentioned / assigned to you */}
             <div className="naxatw-flex naxatw-gap-2">
               <div className="naxatw-h-5 naxatw-w-5 naxatw-border-2 naxatw-border-dashed naxatw-border-[#FFD700]" />

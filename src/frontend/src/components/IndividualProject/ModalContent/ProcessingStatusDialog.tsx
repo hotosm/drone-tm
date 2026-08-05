@@ -28,7 +28,7 @@ const TaskOrthoCogViewer = lazy(() => import("./TaskOrthoCogViewer"));
 const stateColors: Record<string, string> = {
   READY_FOR_PROCESSING: "#9ec7ff",
   IMAGE_PROCESSING_STARTED: "#9C77B2",
-  IMAGE_PROCESSING_FINISHED: "#ACD2C4",
+  IMAGE_PROCESSING_FINISHED: "#176149",
   IMAGE_PROCESSING_FAILED: "#D73F3F",
   LOCKED: "#98BBC8",
   HAS_ISSUES: "#D73F3F",

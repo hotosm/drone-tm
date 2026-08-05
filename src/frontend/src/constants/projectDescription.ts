@@ -22,7 +22,7 @@ export const getLayerOptionsByStatus = (status: string) => {
     FULLY_FLOWN: {
       type: "fill",
       paint: {
-        "fill-color": "#176149",
+        "fill-color": "#ACD2C4",
         "fill-outline-color": "#484848",
         "fill-opacity": 0.5,
       },
@@ -38,7 +38,7 @@ export const getLayerOptionsByStatus = (status: string) => {
     IMAGE_PROCESSING_FINISHED: {
       type: "fill",
       paint: {
-        "fill-color": "#ACD2C4",
+        "fill-color": "#176149",
         "fill-outline-color": "#484848",
         "fill-opacity": 0.7,
       },

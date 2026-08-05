@@ -267,7 +267,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
           case "LOCKED":
             return { bg: "#98BBC8", text: "#1a3a4a" };
           case "FULLY_FLOWN":
-            return { bg: "#176149", text: "#ffffff" };
+            return { bg: "#ACD2C4", text: "#1a3a2a" };
           case "HAS_IMAGERY":
             return { bg: "#98BBC8", text: "#1a3a4a" };
           case "HAS_ISSUES":
@@ -277,7 +277,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
           case "IMAGE_PROCESSING_STARTED":
             return { bg: "#9C77B2", text: "#ffffff" };
           case "IMAGE_PROCESSING_FINISHED":
-            return { bg: "#ACD2C4", text: "#1a3a2a" };
+            return { bg: "#176149", text: "#ffffff" };
           case "IMAGE_PROCESSING_FAILED":
             return { bg: "#D73F3F", text: "#ffffff" };
           default:
