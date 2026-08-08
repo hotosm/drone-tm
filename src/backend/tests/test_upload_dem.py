@@ -102,10 +102,10 @@ async def test_download_and_upload_dem_clips_on_success(monkeypatch, tmp_path):
     monkeypatch.setattr(upload_dem, "upload_dem_file_s3_sync", _fake_upload)
     monkeypatch.setattr(upload_dem, "clip_dem_to_aoi", _fake_clip)
 
-    # Create a dummy merged.tif so the crawler stub doesn't need to.
-    merged = tmp_path / "merged.tif"
-    merged.write_bytes(b"fake-tif")
     monkeypatch.setattr(upload_dem.tempfile, "gettempdir", lambda: str(tmp_path))
+    merged = tmp_path / "tif_processing" / project_id / "merged.tif"
+    merged.parent.mkdir(parents=True, exist_ok=True)
+    merged.write_bytes(b"fake-tif")
 
     await upload_dem.download_and_upload_dem(ctx, coordinates, project_id)
 
