@@ -143,7 +143,9 @@ def clip_dem_to_aoi(dem_path: str, buffered_aoi_geojson: dict) -> str:
     Returns:
         Path to the clipped raster.
     """
-    fd, cutline_path = tempfile.mkstemp(suffix=".geojson", prefix="cutline_")
+    fd, cutline_path = tempfile.mkstemp(
+        suffix=".geojson", prefix="cutline_", dir=Path(dem_path).parent
+    )
     os.close(fd)
     clipped_path = dem_path + ".clipped.tif"
 
