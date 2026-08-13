@@ -1,3 +1,9 @@
+## 2026.8.8 (2026-08-13)
+
+### Refactor
+
+- **frontend**: align style of "Upload to OAM" button with others in project page
+
 ## 2026.8.7 (2026-08-05)
 
 ### Fix

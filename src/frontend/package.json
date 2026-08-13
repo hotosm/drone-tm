@@ -1,6 +1,6 @@
 {
   "name": "drone-tm",
-  "version": "2026.8.7",
+  "version": "2026.8.8",
   "private": true,
   "license": "(AGPL-3.0-only OR CC-BY-4.0)",
   "type": "module",
