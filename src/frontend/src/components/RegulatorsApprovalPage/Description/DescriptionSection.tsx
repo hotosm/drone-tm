@@ -1,7 +1,6 @@
 /* eslint-disable no-nested-ternary */
 import { useMemo } from "react";
 import { useDispatch } from "react-redux";
-import { Button } from "@Components/RadixComponents/Button";
 import {
   descriptionItems,
   getDescriptionItems,
@@ -117,6 +116,21 @@ const DescriptionSection = ({
       ),
     [projectData?.tasks],
   );
+
+  // OAM publishing is author-only, and only makes sense once final processing
+  // produced an orthophoto. The OAM API token itself is gated inside the
+  // upload dialog, which links the user to their profile if it is missing.
+  const isProjectAuthor = String(projectData?.author_id || "") === String(userDetails?.id || "");
+  const isRegulatorApproved =
+    !projectData?.requires_approval_from_regulator ||
+    projectData?.regulator_approval_status === "APPROVED";
+  const oamUploadStatus = projectData?.oam_upload_status;
+  const canUploadToOam =
+    isProjectAuthor &&
+    isRegulatorApproved &&
+    projectData?.image_processing_status === "SUCCESS" &&
+    Boolean(projectData?.orthophoto_url) &&
+    (oamUploadStatus === "NOT_STARTED" || oamUploadStatus === "FAILED");
 
   const localizedItems = getDescriptionItems();
 
@@ -276,6 +290,40 @@ const DescriptionSection = ({
             </div>
             <span className="material-icons naxatw-text-gray-400">chevron_right</span>
           </button>
+
+          {/* Step 5: Upload to OAM - author only */}
+          {isProjectAuthor && (
+            <button
+              className={`naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-p-3 naxatw-text-left naxatw-transition-all ${
+                canUploadToOam
+                  ? "naxatw-border-gray-200 naxatw-bg-white hover:naxatw-border-red-300 hover:naxatw-bg-red-50"
+                  : "naxatw-border-gray-100 naxatw-bg-gray-50 naxatw-cursor-not-allowed naxatw-opacity-60"
+              }`}
+              onClick={() => canUploadToOam && dispatch(toggleModal("upload-to-oam"))}
+              disabled={!canUploadToOam}
+            >
+              <div
+                className={`naxatw-flex naxatw-h-8 naxatw-w-8 naxatw-flex-shrink-0 naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-text-sm naxatw-font-bold naxatw-text-white ${canUploadToOam ? "naxatw-bg-red" : "naxatw-bg-gray-400"}`}
+              >
+                5
+              </div>
+              <div className="naxatw-flex-1">
+                <p className="naxatw-text-sm naxatw-font-medium naxatw-text-gray-900">
+                  {oamUploadStatus === "FAILED"
+                    ? m.proj_desc_reupload_to_oam()
+                    : m.proj_desc_upload_to_oam()}
+                </p>
+                <p className="naxatw-text-xs naxatw-text-gray-500">
+                  {oamUploadStatus && oamUploadStatus !== "NOT_STARTED"
+                    ? m.proj_desc_step_upload_to_oam_status({
+                        status: formatString(oamUploadStatus),
+                      })
+                    : m.proj_desc_step_upload_to_oam_desc()}
+                </p>
+              </div>
+              <span className="material-icons naxatw-text-gray-400">chevron_right</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -284,36 +332,6 @@ const DescriptionSection = ({
           projectData?.regulator_approval_status === "APPROVED") &&
         isAbleToStartProcessing && (
           <div className="naxatw-flex naxatw-flex-wrap naxatw-gap-2">
-            {projectData?.image_processing_status === "SUCCESS" &&
-              String(projectData?.author_id || "") === String(userDetails?.id || "") &&
-              projectData?.orthophoto_url && (
-                <>
-                  {projectData?.oam_upload_status === "NOT_STARTED" ? (
-                    <Button
-                      className="naxatw-bg-red"
-                      withLoader
-                      leftIcon="upload"
-                      onClick={() => {
-                        dispatch(toggleModal("upload-to-oam"));
-                      }}
-                    >
-                      {m.proj_desc_upload_to_oam()}
-                    </Button>
-                  ) : projectData?.oam_upload_status === "FAILED" ? (
-                    <Button
-                      className="naxatw-bg-red"
-                      withLoader
-                      leftIcon="upload"
-                      onClick={() => {
-                        dispatch(toggleModal("upload-to-oam"));
-                      }}
-                    >
-                      {m.proj_desc_reupload_to_oam()}
-                    </Button>
-                  ) : null}
-                </>
-              )}
-
             {projectData?.image_processing_status === "PROCESSING" && (
               <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
                 <div className="naxatw-flex naxatw-items-center naxatw-gap-2 naxatw-text-sm naxatw-text-gray-600">

@@ -67,6 +67,15 @@ const UploadToOAM = () => {
 
   return (
     <div className="naxatw-flex naxatw-flex-col naxatw-gap-4">
+      <div>
+        <h3 className="naxatw-text-sm naxatw-font-semibold naxatw-text-gray-800">
+          {m.individual_project_oam_tags_title()}
+        </h3>
+        <p className="naxatw-mt-1 naxatw-text-xs naxatw-text-gray-500">
+          {m.individual_project_oam_tags_desc()}
+        </p>
+      </div>
+
       <FormControl className="naxatw-relative">
         <Input
           placeholder={m.individual_project_oam_tag_placeholder()}
@@ -93,9 +102,9 @@ const UploadToOAM = () => {
           {tagList?.map((tag: string) => (
             <div
               key={tag}
-              className="naxatw-flex naxatw-w-fit naxatw-items-center naxatw-gap-1 naxatw-rounded-xl naxatw-border naxatw-border-black naxatw-bg-gray-50 naxatw-px-2 naxatw-py-0.5"
+              className="naxatw-flex naxatw-w-fit naxatw-items-center naxatw-gap-1 naxatw-rounded-full naxatw-border naxatw-border-gray-200 naxatw-bg-gray-100 naxatw-px-2 naxatw-py-0.5"
             >
-              <div className="naxatw-flex naxatw-items-center naxatw-text-sm naxatw-leading-4">
+              <div className="naxatw-flex naxatw-items-center naxatw-text-xs naxatw-font-medium naxatw-leading-4 naxatw-text-gray-700">
                 {tag}
               </div>
               <i
@@ -112,24 +121,13 @@ const UploadToOAM = () => {
         </FlexRow>
       </FormControl>
 
-      <div className="naxatw-flex naxatw-flex-col naxatw-justify-center naxatw-gap-1">
-        <div className="naxatw-flex naxatw-justify-center">
-          <Button
-            className="naxatw-bg-red"
-            withLoader
-            leftIcon="upload"
-            onClick={() => handleUpload()}
-            disabled={!userProfile?.has_oam_token}
-          >
-            {m.individual_project_oam_upload_button()}
-          </Button>
-        </div>
+      <div className="naxatw-flex naxatw-flex-col naxatw-items-center naxatw-gap-2">
         {!userProfile?.has_oam_token && (
-          <p className="naxatw-text-yellow-600">
+          <p className="naxatw-text-center naxatw-text-xs naxatw-text-amber-700">
             {m.individual_project_oam_token_required_prefix()}
             <Link
               to="/user-profile"
-              className="naxatw-px-1 naxatw-text-lg naxatw-text-blue-700 hover:naxatw-underline"
+              className="naxatw-px-1 naxatw-text-blue-700 naxatw-underline-offset-2 hover:naxatw-underline"
               onClick={() => dispatch(toggleModal())}
               title={m.individual_project_oam_token_link_title()}
             >
@@ -137,6 +135,16 @@ const UploadToOAM = () => {
             </Link>
           </p>
         )}
+        <Button
+          variant="ghost"
+          className="naxatw-bg-red naxatw-px-8 naxatw-py-2 naxatw-text-white disabled:naxatw-bg-gray-400"
+          withLoader
+          leftIcon="upload"
+          onClick={() => handleUpload()}
+          disabled={!userProfile?.has_oam_token}
+        >
+          {m.individual_project_oam_upload_button()}
+        </Button>
       </div>
     </div>
   );
