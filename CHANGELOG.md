@@ -1,3 +1,9 @@
+## 2026.8.10 (2026-08-16)
+
+### Fix
+
+- ensure image cleanup runs in background job, not foreground wait
+
 ## 2026.8.9 (2026-08-16)
 
 ## 2026.8.8 (2026-08-13)
