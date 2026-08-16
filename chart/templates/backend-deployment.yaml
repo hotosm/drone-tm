@@ -66,6 +66,7 @@ spec:
               value: "redis://{{ include "drone-tm.dragonfly.serviceFQDN" . }}:6379/0"
             - name: LOG_LEVEL
               value: {{ (.Values.env).LOG_LEVEL | default "INFO" | quote }}
+            {{- include "drone-tm.backend.internalURLEnv" . | nindent 12 }}
             {{- include "drone-tm.renderEnvOmit" (dict "env" (.Values.env | default dict) "omit" (dict "DRAGONFLY_DSN" true "LOG_LEVEL" true)) | nindent 12 }}
           resources:
             {{- toYaml .Values.backend.resources | nindent 12 }}

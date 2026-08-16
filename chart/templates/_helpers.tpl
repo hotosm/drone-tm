@@ -119,6 +119,14 @@ DragonflyDB Helm chart names the service:
 {{- printf "%s.%s.svc.cluster.local" (include "drone-tm.dragonfly.serviceName" .) .Release.Namespace -}}
 {{- end }}
 
+{{/* FQDN, not a short name: ScaleODM POSTs this webhook URL from its own namespace. */}}
+{{- define "drone-tm.backend.internalURLEnv" -}}
+{{- if not (hasKey (.Values.env | default dict) "BACKEND_URL_INTERNAL") }}
+- name: BACKEND_URL_INTERNAL
+  value: "http://{{ include "drone-tm.backend.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.backend.service.port }}"
+{{- end }}
+{{- end }}
+
 {{/*
 Render a map of env key/value pairs into a Kubernetes env: list.
 Intended for NON-secret values defined in values.yaml.

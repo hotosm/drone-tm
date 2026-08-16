@@ -23,6 +23,7 @@ existingSecret:
 # For frontend.mode=cloudfront, see frontend.cloudfront.roleArn (IRSA, no static keys needed).
 extraEnvFrom: []
 env: {}
+# BACKEND_URL_INTERNAL defaults to the backend Service FQDN; set it only if ScaleODM is off-cluster.
 # # See an exhaustive list of env var options in the documentation.
 # env:
 #   # --- Required ---

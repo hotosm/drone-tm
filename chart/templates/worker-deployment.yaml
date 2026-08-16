@@ -55,6 +55,7 @@ spec:
             - name: QGIS_URL
               value: "http://{{ include "drone-tm.qgis.fullname" . }}:{{ .Values.qgis.service.port }}"
             {{- end }}
+            {{- include "drone-tm.backend.internalURLEnv" . | nindent 12 }}
             {{- include "drone-tm.renderEnvOmit" (dict "env" (.Values.env | default dict) "omit" (dict "DRAGONFLY_DSN" true "LOG_LEVEL" true)) | nindent 12 }}
           livenessProbe:
             {{- toYaml .Values.worker.livenessProbe | nindent 12 }}
