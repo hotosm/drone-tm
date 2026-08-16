@@ -23,6 +23,7 @@ device and partially supported WPML functions in the DJI waypoint implementation
 import argparse
 import logging
 import os
+import tempfile
 import xml.etree.ElementTree as ET
 import zipfile
 from xml.etree.ElementTree import Element
@@ -31,6 +32,7 @@ import geojson
 from geojson import FeatureCollection
 
 from drone_flightplan.enums import RCLostOptions
+from drone_flightplan.output.output_paths import resolve_output_path
 
 # Instantiate logger
 log = logging.getLogger(__name__)
@@ -48,7 +50,17 @@ def zip_directory(directory_path, zip_path):
                 )
 
 
-def create_zip_file(waylines_path_uid):
+def create_zip_file(waylines_path_uid, output_file_name=None):
+    """Package a directory containing waylines.wpml into a .kmz file.
+
+    Args:
+        waylines_path_uid: Directory holding the generated waylines.wpml.
+        output_file_name: Destination .kmz path. Defaults to output.kmz
+            alongside the source, as before.
+
+    Returns:
+        Path to the generated .kmz file.
+    """
     # Create the wpmz folder if it doesn't exist
     wpmz_path = f"{waylines_path_uid}/wpmz"
     os.makedirs(wpmz_path, exist_ok=True)
@@ -61,7 +73,8 @@ def create_zip_file(waylines_path_uid):
         f.write(wpml_content)
 
     # Create a Zip file containing the contents of the wpmz folder directly
-    output_file_name = f"{waylines_path_uid}/output.kmz"
+    if output_file_name is None:
+        output_file_name = f"{waylines_path_uid}/output.kmz"
     zip_directory(wpmz_path, output_file_name)
 
     return output_file_name
@@ -467,31 +480,55 @@ def create_kml(mission_config, folder):
     return kml
 
 
-def create_xml(placemarks, global_height, output_file_path="/tmp/"):
+def resolve_kmz_path(output_file_path: str | None) -> str:
+    """Resolve the destination .kmz path.
+
+    An existing directory is still accepted, since `output_file_path` used to
+    be treated as the directory the mission tree was written into.
+    """
+    if output_file_path is not None and os.path.isdir(output_file_path):
+        return os.path.join(output_file_path, "output.kmz")
+
+    return resolve_output_path(
+        output_file_path, suffix=".kmz", prefix="dji_flightplan_"
+    )
+
+
+def create_xml(placemarks, global_height, output_file_path: str | None = None):
     mission_config = create_mission_config(global_height)
     folder = create_folder(placemarks)
     kml = create_kml(mission_config, folder)
 
     tree = ET.ElementTree(kml)
 
-    folder_name = "flight"
-    os.makedirs(os.path.join(output_file_path, folder_name), exist_ok=True)
-    waylines_path = os.path.join(output_file_path, folder_name, "waylines.wpml")
+    output_file_name = resolve_kmz_path(output_file_path)
 
-    tree.write(waylines_path, encoding="UTF-8", xml_declaration=True)
-    output_file_name = create_zip_file(os.path.join(output_file_path, folder_name))
+    # The waylines.wpml / wpmz tree is only scratch space needed to build the
+    # .kmz, so keep it in a managed temp dir. It used to be left behind under
+    # /tmp on every single call.
+    with tempfile.TemporaryDirectory(prefix="dji_flightplan_") as temp_dir:
+        flight_dir = os.path.join(temp_dir, "flight")
+        os.makedirs(flight_dir, exist_ok=True)
+        waylines_path = os.path.join(flight_dir, "waylines.wpml")
+
+        tree.write(waylines_path, encoding="UTF-8", xml_declaration=True)
+        create_zip_file(flight_dir, output_file_name)
+
     return output_file_name
 
 
 def create_wpml(
     placemark_geojson: str | FeatureCollection | dict,
-    output_file_path: str = "/tmp/",
+    output_file_path: str | None = None,
 ):
     """Arguments:
         placemark_geojson: The placemark coordinates to be included in the flightplan mission
-        output_file_path: The output file path for the wpml file
+        output_file_path: Destination path for the generated .kmz file.
+            An existing directory is also accepted, in which case output.kmz
+            is written inside it. Defaults to a temporary file, which the
+            caller is responsible for removing.
     Returns:
-        wpml file.
+        Path to the generated .kmz file.
     """
     # global height is taken from the first point
     try:

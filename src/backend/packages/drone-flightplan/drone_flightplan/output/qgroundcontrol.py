@@ -27,6 +27,7 @@ import geojson
 from geojson import FeatureCollection
 
 from drone_flightplan.enums import FlightMode
+from drone_flightplan.output.output_paths import resolve_output_path
 
 log = logging.getLogger(__name__)
 
@@ -351,7 +352,7 @@ def create_return_to_launch_item() -> dict:
 
 def create_qgroundcontrol_plan(
     placemark_geojson: str | FeatureCollection | dict,
-    output_file_path: str = "/tmp/mission.plan",
+    output_file_path: str | None = None,
     flight_mode: FlightMode = FlightMode.WAYPOINTS,
     photo_interval_time: float = 2.0,
     photo_interval_distance: float | None = None,
@@ -381,7 +382,8 @@ def create_qgroundcontrol_plan(
             - altitude: altitude in meters
             - speed: (optional) speed in m/s
             - gimbal_angle: (optional) camera pitch angle in degrees
-        output_file_path: Path for output .plan file
+        output_file_path: Path for output .plan file. Defaults to a temporary
+            file, which the caller is responsible for removing.
         flight_mode: WAYPOINTS (photo at each point) or WAYLINES (interval photos)
         photo_interval_time: Time between photos in seconds (WAYLINES mode)
         photo_interval_distance: Distance between photos in meters (WAYLINES mode)
@@ -543,6 +545,10 @@ def create_qgroundcontrol_plan(
         # Empty rally points (can be populated later if needed)
         "rallyPoints": {"version": 2, "points": []},
     }
+
+    output_file_path = resolve_output_path(
+        output_file_path, suffix=".plan", prefix="qgc_mission_"
+    )
 
     # Write the plan to file as formatted JSON
     with open(output_file_path, "w") as f:
