@@ -447,6 +447,28 @@ def list_objects_from_bucket(bucket_name: str, prefix: str):
     return client.list_objects(bucket_name, prefix=prefix, recursive=True)
 
 
+def delete_objects(bucket_name: str, object_names: list[str]) -> set[str]:
+    """Delete objects in batched requests.
+
+    Args:
+        bucket_name: The name of the S3 bucket
+        object_names: The object keys to delete
+
+    Returns:
+        set: The keys that could not be deleted
+    """
+    if not object_names:
+        return set()
+
+    client = s3_client()
+    delete_list = [DeleteObject(_normalize_object_name(name)) for name in object_names]
+    errors = list(client.remove_objects(bucket_name, delete_list))
+    for err in errors:
+        log.warning(f"Failed to delete {err.name}: {err.message}")
+
+    return {err.name for err in errors}
+
+
 def delete_objects_by_prefix(bucket_name: str, prefix: str) -> int:
     """Delete all objects under a given S3 prefix.
 
@@ -459,16 +481,9 @@ def delete_objects_by_prefix(bucket_name: str, prefix: str) -> int:
     """
     client = s3_client()
     objects = list(client.list_objects(bucket_name, prefix=prefix, recursive=True))
-    if not objects:
-        return 0
+    object_names = [obj.object_name for obj in objects if not obj.is_dir]
 
-    delete_list = [DeleteObject(obj.object_name) for obj in objects if not obj.is_dir]
-    errors = list(client.remove_objects(bucket_name, delete_list))
-    if errors:
-        for err in errors:
-            log.warning(f"Failed to delete {err.name}: {err.message}")
-
-    deleted = len(delete_list) - len(errors)
+    deleted = len(object_names) - len(delete_objects(bucket_name, object_names))
     log.info(f"Deleted {deleted} objects under prefix {prefix}")
     return deleted
 

@@ -394,9 +394,7 @@ export const deleteInvalidImages = async (
 ): Promise<{
   message: string;
   project_id: string;
-  deleted_count: number;
-  deleted_s3_count: number;
-  failed_count?: number;
+  job_id: string;
 }> => {
   const response = await authenticated(api).delete(`/projects/${projectId}/imagery/invalid/`);
   return response.data;

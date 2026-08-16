@@ -17,10 +17,10 @@ from app.images.solar_position import (
 )
 from app.models.enums import ImageStatus
 from app.s3 import (
+    delete_objects,
     get_obj_from_bucket,
     maybe_presign_s3_key,
     move_file_within_bucket,
-    s3_client,
     s3_object_exists,
 )
 from fastapi.concurrency import run_in_threadpool
@@ -927,6 +927,9 @@ class ImageClassifier:
                     "classified_at": datetime.now(UTC),
                 },
             )
+            # Cleanup may have deleted the row while this update waited on its lock.
+            if cur.rowcount == 0:
+                raise ValueError(f"Image {image_id} no longer exists")
 
     @staticmethod
     async def classify_project(
@@ -1479,13 +1482,58 @@ class ImageClassifier:
         }
 
     @staticmethod
+    async def _delete_images(db: Connection, rows: list[dict]) -> tuple[int, int, int]:
+        """Batch delete image S3 objects, then the rows whose storage is gone.
+
+        Returns (deleted images, images kept due to S3 failures, deleted S3 objects).
+        """
+        keys_by_image: dict[Any, list[str]] = {}
+        for row in rows:
+            # Duplicates share the original's S3 key, so only their DB row goes.
+            if row["status"] == ImageStatus.DUPLICATE.value:
+                keys_by_image[row["id"]] = []
+                continue
+            keys_by_image[row["id"]] = list(
+                dict.fromkeys(
+                    str(key).lstrip("/")
+                    for key in (row["s3_key"], row["thumbnail_url"])
+                    if key
+                )
+            )
+
+        keys = list(dict.fromkeys(k for keys in keys_by_image.values() for k in keys))
+        failed_keys = await run_in_threadpool(
+            delete_objects, settings.S3_BUCKET_NAME, keys
+        )
+
+        deleted_ids = [
+            image_id
+            for image_id, image_keys in keys_by_image.items()
+            if failed_keys.isdisjoint(image_keys)
+        ]
+
+        if deleted_ids:
+            async with db.cursor() as cur:
+                await cur.execute(
+                    "DELETE FROM project_images WHERE id = ANY(%(ids)s)",
+                    {"ids": deleted_ids},
+                )
+        await db.commit()
+
+        return (
+            len(deleted_ids),
+            len(rows) - len(deleted_ids),
+            len(keys) - len(failed_keys),
+        )
+
+    @staticmethod
     async def delete_batch(
         db: Connection,
         batch_id: uuid.UUID,
         project_id: uuid.UUID,
     ) -> dict:
         keys_query = """
-            SELECT s3_key, thumbnail_url, status
+            SELECT id, s3_key, thumbnail_url, status
             FROM project_images
             WHERE batch_id = %(batch_id)s
             AND project_id = %(project_id)s
@@ -1498,52 +1546,27 @@ class ImageClassifier:
             )
             rows = await cur.fetchall()
 
-        # Duplicates share the same S3 key as the original image, so
-        # deleting the S3 object would destroy the original's file.
-        s3_keys_to_delete: list[str] = []
-        for row in rows:
-            if row["status"] == ImageStatus.DUPLICATE.value:
-                continue
-            if row["s3_key"]:
-                s3_keys_to_delete.append(str(row["s3_key"]).lstrip("/"))
-            if row["thumbnail_url"]:
-                s3_keys_to_delete.append(str(row["thumbnail_url"]).lstrip("/"))
+        (
+            deleted_count,
+            failed_count,
+            deleted_s3_count,
+        ) = await ImageClassifier._delete_images(db, rows)
 
-        deleted_s3_count = 0
-        if s3_keys_to_delete:
-            client = s3_client()
-            for key in s3_keys_to_delete:
-                try:
-                    client.remove_object(settings.S3_BUCKET_NAME, key)
-                    deleted_s3_count += 1
-                except Exception as e:
-                    log.warning(f"Failed to delete S3 object {key}: {e}")
-
-        delete_query = """
-            DELETE FROM project_images
-            WHERE batch_id = %(batch_id)s
-            AND project_id = %(project_id)s
-        """
-
-        async with db.cursor() as cur:
-            await cur.execute(
-                delete_query,
-                {"batch_id": str(batch_id), "project_id": str(project_id)},
-            )
-
-        await db.commit()
-
-        image_count = len(rows)
         log.info(
-            f"Deleted {image_count} images and {deleted_s3_count} S3 objects "
+            f"Deleted {deleted_count} images and {deleted_s3_count} S3 objects "
             f"from batch {batch_id} in project {project_id}"
         )
+        if failed_count:
+            log.error(
+                f"Batch {batch_id}: {failed_count} image(s) kept due to S3 failures"
+            )
 
         return {
             "message": "Batch deleted successfully",
             "batch_id": str(batch_id),
-            "deleted_count": image_count,
+            "deleted_count": deleted_count,
             "deleted_s3_count": deleted_s3_count,
+            "failed_count": failed_count,
         }
 
     @staticmethod
@@ -1567,39 +1590,12 @@ class ImageClassifier:
         if not image:
             raise ValueError(f"Image {image_id} not found in project {project_id}")
 
-        deleted_s3_count = 0
-        if image["status"] != ImageStatus.DUPLICATE.value:
-            keys: list[str] = []
-            for key in (image.get("thumbnail_url"), image.get("s3_key")):
-                if not key:
-                    continue
-                normalized = str(key).lstrip("/")
-                if normalized not in keys:
-                    keys.append(normalized)
+        _, failed_count, deleted_s3_count = await ImageClassifier._delete_images(
+            db, [image]
+        )
+        if failed_count:
+            raise RuntimeError(f"Failed to delete storage objects for image {image_id}")
 
-            client = s3_client()
-            for key in keys:
-                try:
-                    client.remove_object(settings.S3_BUCKET_NAME, key)
-                    deleted_s3_count += 1
-                except Exception as e:
-                    log.error(
-                        f"Failed to delete S3 object {key} for image {image_id}: {e}"
-                    )
-                    raise RuntimeError(
-                        f"Failed to delete image storage object: {key}"
-                    ) from e
-
-        async with db.cursor() as cur:
-            await cur.execute(
-                """
-                DELETE FROM project_images
-                WHERE id = %(image_id)s AND project_id = %(project_id)s
-                """,
-                {"image_id": str(image_id), "project_id": str(project_id)},
-            )
-
-        await db.commit()
         log.info(
             f"Deleted image {image_id} from project {project_id}; "
             f"deleted_s3_count={deleted_s3_count}"
@@ -1627,12 +1623,15 @@ class ImageClassifier:
         """
         invalid_statuses = ("rejected", "invalid_exif", "unmatched", "duplicate")
 
+        # FOR UPDATE holds the rows until the delete commits, so an image
+        # assigned to a task mid-cleanup is re-checked and left alone.
         keys_query = """
             SELECT id, s3_key, thumbnail_url, status
             FROM project_images
             WHERE project_id = %(project_id)s
             AND task_id IS NULL
             AND status = ANY(%(statuses)s)
+            FOR UPDATE
         """
 
         async with db.cursor(row_factory=dict_row) as cur:
@@ -1653,54 +1652,11 @@ class ImageClassifier:
                 "deleted_s3_count": 0,
             }
 
-        # Delete S3 objects per-image, tracking which images fully succeeded
-        # so we only remove DB rows whose storage is actually gone.
-        client = s3_client()
-        deleted_s3_count = 0
-        succeeded_image_ids: list[str] = []
-        failed_image_ids: list[str] = []
-
-        for row in rows:
-            # Duplicates share the same S3 key as the original image, so
-            # deleting the S3 object would destroy the original's file.
-            # Only remove the DB row for duplicates; skip S3 deletion.
-            if row["status"] == ImageStatus.DUPLICATE.value:
-                succeeded_image_ids.append(row["id"])
-                continue
-
-            s3_key = str(row["s3_key"]).lstrip("/") if row["s3_key"] else None
-            thumb_key = (
-                str(row["thumbnail_url"]).lstrip("/") if row["thumbnail_url"] else None
-            )
-
-            image_ok = True
-            for key in (s3_key, thumb_key):
-                if not key:
-                    continue
-                try:
-                    client.remove_object(settings.S3_BUCKET_NAME, key)
-                    deleted_s3_count += 1
-                except Exception as e:
-                    log.warning(f"Failed to delete S3 object {key}: {e}")
-                    image_ok = False
-
-            if image_ok:
-                succeeded_image_ids.append(row["id"])
-            else:
-                failed_image_ids.append(row["id"])
-
-        # Only delete DB rows for images whose S3 objects were fully removed.
-        if succeeded_image_ids:
-            delete_query = """
-                DELETE FROM project_images
-                WHERE id = ANY(%(ids)s)
-            """
-            async with db.cursor() as cur:
-                await cur.execute(delete_query, {"ids": succeeded_image_ids})
-            await db.commit()
-
-        deleted_count = len(succeeded_image_ids)
-        failed_count = len(failed_image_ids)
+        (
+            deleted_count,
+            failed_count,
+            deleted_s3_count,
+        ) = await ImageClassifier._delete_images(db, rows)
 
         if failed_count:
             log.error(

@@ -15,7 +15,8 @@ from app.db import database
 from app.images.flight_gap_identification import identify_flight_gaps
 from app.images.image_classification import ImageClassifier
 from app.models.enums import HTTPStatus, State
-from app.projects import project_schemas
+from app.projects import project_deps, project_schemas
+from app.users.permissions import IsProjectCreator, IsSuperUser, check_permissions
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
 from app.waypoints.flightplan_output import (
@@ -23,6 +24,7 @@ from app.waypoints.flightplan_output import (
     get_flightplan_output_config,
 )
 from arq import ArqRedis
+from arq.constants import result_key_prefix
 from drone_flightplan.drone_type import DroneType
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from loguru import logger as log
@@ -486,21 +488,59 @@ async def delete_image(
         )
 
 
-@router.delete("/{project_id}/imagery/invalid/", tags=["Image Classification"])
+@router.delete(
+    "/{project_id}/imagery/invalid/",
+    tags=["Image Classification"],
+    status_code=HTTPStatus.ACCEPTED,
+)
 async def delete_invalid_images(
-    project_id: UUID,
-    db: Annotated[Connection, Depends(database.get_db)],
-    user: Annotated[AuthUser, Depends(login_required)],
+    redis: Annotated[ArqRedis, Depends(get_redis_pool)],
+    project: Annotated[
+        project_schemas.DbProject,
+        Depends(
+            check_permissions(
+                IsSuperUser() | IsProjectCreator(),
+                get_obj=project_deps.get_project_by_id,
+            )
+        ),
+    ],
 ):
-    """Delete all invalid/unmatched images for a project (rejected, invalid_exif, unmatched, duplicate)."""
-    try:
-        return await ImageClassifier.delete_invalid_images(db, project_id)
-    except Exception as e:
-        log.error(f"Failed to delete invalid images: {e}")
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail=f"Failed to delete invalid images: {e}",
+    """Queue deletion of all invalid/unmatched images for a project.
+
+    Targets rejected, invalid_exif, unmatched and duplicate images. The stable
+    job id means a second request while one is queued or running is rejected.
+    """
+    job_id = f"cleanup-invalid:{project.id}"
+
+    async def enqueue():
+        return await redis.enqueue_job(
+            "delete_invalid_images",
+            str(project.id),
+            _queue_name="default_queue",
+            _job_id=job_id,
         )
+
+    job = await enqueue()
+    if job is None:
+        # A finished run lingers only as a result key, so clear it and retry.
+        await redis.delete(result_key_prefix + job_id)
+        job = await enqueue()
+
+    if job is None:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail="Invalid imagery cleanup is already running for this project",
+        )
+
+    log.info(
+        f"Queued invalid imagery cleanup job: {job.job_id} for project: {project.id}"
+    )
+
+    return {
+        "message": "Invalid imagery cleanup started",
+        "job_id": job.job_id,
+        "project_id": str(project.id),
+    }
 
 
 # ─── Project-level (task-centric) endpoints ──────────────────────────────────

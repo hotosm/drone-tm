@@ -57,7 +57,7 @@ from app.s3 import (
 )
 from app.tasks import task_logic
 from app.utils import timestamp
-from arq import ArqRedis, create_pool, cron
+from arq import ArqRedis, Retry, create_pool, cron
 from arq.connections import RedisSettings, log_redis_info
 from arq.jobs import Job, JobStatus
 from fastapi import HTTPException
@@ -1113,6 +1113,19 @@ async def reconcile_pending_transfers(
     return totals
 
 
+def _retry_on_partial_cleanup(result: dict[str, Any]) -> None:
+    """Rerun the job (up to max_tries) for images whose storage delete failed.
+
+    Only arq.Retry reschedules a job; any other exception fails it outright.
+    """
+    if result.get("failed_count"):
+        log.warning(
+            f"Retrying cleanup: {result['failed_count']} image(s) kept after "
+            f"storage delete failure"
+        )
+        raise Retry(defer=60)
+
+
 async def delete_batch_images(
     ctx: dict[Any, Any],
     project_id: str,
@@ -1141,22 +1154,51 @@ async def delete_batch_images(
             result = await ImageClassifier.delete_batch(
                 conn, UUID(batch_id), UUID(project_id)
             )
-
-            log.info(
-                f"Batch deletion complete: {result['deleted_count']} images, "
-                f"{result['deleted_s3_count']} S3 objects deleted"
-            )
-
-            return {
-                "message": result["message"],
-                "batch_id": batch_id,
-                "deleted_images": result["deleted_count"],
-                "deleted_s3_objects": result["deleted_s3_count"],
-            }
-
     except Exception as e:
         log.error(f"Failed to delete batch (Job: {job_id}): {e!s}")
         raise
+
+    log.info(
+        f"Batch deletion complete: {result['deleted_count']} images, "
+        f"{result['deleted_s3_count']} S3 objects deleted"
+    )
+    _retry_on_partial_cleanup(result)
+
+    return {
+        "message": result["message"],
+        "batch_id": batch_id,
+        "deleted_images": result["deleted_count"],
+        "deleted_s3_objects": result["deleted_s3_count"],
+    }
+
+
+async def delete_invalid_images(
+    ctx: dict[Any, Any],
+    project_id: str,
+    **_kwargs: Any,
+) -> dict[str, Any]:
+    """Background task to delete a project's invalid/unmatched images from DB and S3."""
+    job_id = ctx.get("job_id", "unknown")
+    log.info(f"Starting delete_invalid_images (Job ID: {job_id}): project={project_id}")
+
+    db_pool = ctx.get("db_pool")
+    if not db_pool:
+        raise RuntimeError("Database pool not initialized in ARQ context")
+
+    try:
+        async with db_pool.connection() as conn:
+            result = await ImageClassifier.delete_invalid_images(conn, UUID(project_id))
+    except Exception as e:
+        log.error(f"Failed to delete invalid images (Job: {job_id}): {e!s}")
+        raise
+
+    log.info(
+        f"Invalid imagery cleanup complete: {result['deleted_count']} images, "
+        f"{result['deleted_s3_count']} S3 objects deleted"
+    )
+    _retry_on_partial_cleanup(result)
+
+    return result
 
 
 async def process_project_task_metrics(
@@ -2054,6 +2096,7 @@ class WorkerSettings:
         classify_project_images,
         move_task_images_for_processing,
         delete_batch_images,
+        delete_invalid_images,
         process_project_task_metrics,
         download_and_upload_dem,
         generate_qfield_project,

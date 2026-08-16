@@ -629,7 +629,7 @@
   "image_review_failed_reject_image": "Failed to reject image",
   "image_review_failed_assign_image": "Failed to assign image",
   "image_review_failed_delete_invalid_images": "Failed to delete invalid images",
-  "image_review_deleted_invalid_images": "Deleted {count} invalid image{suffix}",
+  "image_review_cleanup_invalid_started": "Cleanup started. Invalid images are being removed in the background.",
   "image_review_loading_review_data": "Loading review data...",
   "image_review_error_loading_review_data": "Error loading review data: {message}",
   "image_review_no_classified_images": "No classified images available for review.",

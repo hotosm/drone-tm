@@ -629,7 +629,7 @@
   "image_review_failed_reject_image": "No se pudo rechazar la imagen",
   "image_review_failed_assign_image": "No se pudo asignar la imagen",
   "image_review_failed_delete_invalid_images": "No se pudieron eliminar las imágenes no válidas",
-  "image_review_deleted_invalid_images": "Se eliminaron {count} imagen{suffix} no válida(s)",
+  "image_review_cleanup_invalid_started": "Limpieza iniciada. Las imágenes no válidas se están eliminando en segundo plano.",
   "image_review_loading_review_data": "Cargando datos de revisión...",
   "image_review_error_loading_review_data": "Error al cargar los datos de revisión: {message}",
   "image_review_no_classified_images": "No hay imágenes clasificadas disponibles para revisar.",

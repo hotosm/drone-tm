@@ -3,9 +3,15 @@ import uuid
 from io import BytesIO
 
 import pytest
+from app.arq.tasks import get_redis_pool
 from app.config import settings
 from app.images.image_classification import ImageClassifier
+from app.models.enums import UserRole
 from app.s3 import add_obj_to_bucket, check_file_exists
+from app.users.user_deps import login_dependency
+from app.users.user_schemas import AuthUser
+from arq.constants import job_key_prefix, result_key_prefix
+from psycopg import AsyncConnection
 from shapely import wkb as wkblib
 from shapely.geometry import box
 
@@ -527,6 +533,7 @@ async def test_delete_batch_route_waits_for_cleanup(
         "batch_id": str(batch_id),
         "deleted_count": 2,
         "deleted_s3_count": 4,
+        "failed_count": 0,
     }
     assert await _count_batch_images(db, project_id=project_id, batch_id=batch_id) == 0
     assert all(
@@ -725,19 +732,29 @@ async def test_delete_invalid_images_noop_when_none(db, create_test_project, aut
 
 
 @pytest.mark.asyncio
-async def test_delete_invalid_images_route(client, db, create_test_project, auth_user):
-    """Test the DELETE /projects/{project_id}/imagery/invalid/ route."""
+async def test_delete_invalid_images_skips_image_with_pending_assignment(
+    db, create_test_project, auth_user
+):
+    """Assignment holds the row lock first: cleanup must wait, then skip the image."""
     project_id = uuid.UUID(create_test_project)
     batch_id = uuid.uuid4()
+    task_id = uuid.uuid4()
 
-    key = f"projects/{project_id}/user-uploads/{batch_id}/unmatched.jpg"
-    _upload_test_object(key, b"unmatched")
-    await _insert_batch_image(
+    outline_wkb = wkblib.dumps(box(0, 0, 1, 1), hex=True)
+    async with db.cursor() as cur:
+        await cur.execute(
+            "INSERT INTO tasks (id, project_id, project_task_index, outline) VALUES (%s, %s, %s, %s)",
+            (task_id, project_id, 1, outline_wkb),
+        )
+
+    key = f"projects/{project_id}/user-uploads/{batch_id}/late-assign.jpg"
+    _upload_test_object(key, b"late-assign")
+    image_id = await _insert_batch_image(
         db,
         project_id=project_id,
         batch_id=batch_id,
         uploaded_by=auth_user.id,
-        filename="unmatched.jpg",
+        filename="late-assign.jpg",
         s3_key=key,
         thumbnail_url="",
         status="unmatched",
@@ -745,13 +762,173 @@ async def test_delete_invalid_images_route(client, db, create_test_project, auth
     )
     await db.commit()
 
+    # Assign the image on a second connection, uncommitted, so cleanup has to
+    # block on the row lock rather than acting on its own stale snapshot.
+    other_conn = await AsyncConnection.connect(
+        conninfo=settings.DTM_DB_URL.unicode_string()
+    )
+    try:
+        async with other_conn.cursor() as cur:
+            await cur.execute(
+                "UPDATE project_images SET task_id = %s, status = 'assigned' WHERE id = %s",
+                (str(task_id), str(image_id)),
+            )
+
+        cleanup = asyncio.create_task(
+            ImageClassifier.delete_invalid_images(db, project_id)
+        )
+        await asyncio.sleep(0.5)
+        assert not cleanup.done(), "cleanup did not wait for the assignment lock"
+
+        await other_conn.commit()
+        result = await asyncio.wait_for(cleanup, timeout=10)
+    finally:
+        await other_conn.close()
+
+    assert result["deleted_count"] == 0
+    assert check_file_exists(settings.S3_BUCKET_NAME, key)
+    assert await _count_project_images(db, project_id=project_id) == 1
+
+
+@pytest.mark.asyncio
+async def test_manual_assign_fails_when_cleanup_deletes_image_first(
+    db, create_test_project, auth_user
+):
+    """Cleanup holds the row lock first: the waiting assignment must not report success."""
+    project_id = uuid.UUID(create_test_project)
+    batch_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+
+    outline_wkb = wkblib.dumps(box(0, 0, 1, 1), hex=True)
+    async with db.cursor() as cur:
+        await cur.execute(
+            "INSERT INTO tasks (id, project_id, project_task_index, outline) VALUES (%s, %s, %s, %s)",
+            (task_id, project_id, 1, outline_wkb),
+        )
+
+    image_id = await _insert_batch_image(
+        db,
+        project_id=project_id,
+        batch_id=batch_id,
+        uploaded_by=auth_user.id,
+        filename="doomed.jpg",
+        s3_key=f"projects/{project_id}/user-uploads/{batch_id}/doomed.jpg",
+        thumbnail_url="",
+        status="unmatched",
+        task_id=None,
+    )
+    await db.commit()
+
+    # Stand in for cleanup: lock the row, then delete it while the assign waits.
+    cleanup_conn = await AsyncConnection.connect(
+        conninfo=settings.DTM_DB_URL.unicode_string()
+    )
+    try:
+        async with cleanup_conn.cursor() as cur:
+            await cur.execute(
+                "SELECT id FROM project_images WHERE id = %s FOR UPDATE",
+                (str(image_id),),
+            )
+
+        assign = asyncio.create_task(
+            ImageClassifier.manual_assign_to_task(db, image_id, task_id, project_id)
+        )
+        await asyncio.sleep(0.5)
+        assert not assign.done(), "assignment did not wait for the cleanup lock"
+
+        async with cleanup_conn.cursor() as cur:
+            await cur.execute(
+                "DELETE FROM project_images WHERE id = %s", (str(image_id),)
+            )
+        await cleanup_conn.commit()
+
+        with pytest.raises(ValueError, match="no longer exists"):
+            await asyncio.wait_for(assign, timeout=10)
+    finally:
+        await cleanup_conn.close()
+
+    assert await _count_project_images(db, project_id=project_id) == 0
+
+
+@pytest.mark.asyncio
+async def test_delete_invalid_images_route_forbidden_for_other_user(
+    app, client, create_test_project
+):
+    """Only the project creator or a superuser may trigger cleanup."""
+    other_user = AuthUser(
+        id="999000111222333444",
+        email="someone.else@hotosm.org",
+        name="someone else",
+        profile_img="",
+        role=UserRole.DRONE_PILOT.name,
+        is_superuser=False,
+    )
+    app.dependency_overrides[login_dependency] = lambda: other_user
+
     response = await client.delete(
-        f"/api/projects/{project_id}/imagery/invalid/",
+        f"/api/projects/{create_test_project}/imagery/invalid/"
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_delete_invalid_images_route_dedupes_queued_job(
+    app, client, arq_test_redis, create_test_project
+):
+    """A stable job id blocks a second run, but not one after the job finished."""
+    app.dependency_overrides[get_redis_pool] = lambda: arq_test_redis
+    url = f"/api/projects/{create_test_project}/imagery/invalid/"
+    job_id = f"cleanup-invalid:{create_test_project}"
+
+    assert (await client.delete(url)).status_code == 202
+    assert (await client.delete(url)).status_code == 409
+
+    # Simulate the worker finishing: job key gone, only the result key remains.
+    await arq_test_redis.delete(job_key_prefix + job_id)
+    await arq_test_redis.set(result_key_prefix + job_id, "done")
+
+    assert (await client.delete(url)).status_code == 202
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_delete_invalid_images_route_enqueues_cleanup_job(
+    client, db, create_test_project, auth_user
+):
+    """Integration test: requires a running ARQ worker to process the background job.
+
+    Skipped by default in unit test runs. Run with: pytest -m integration
+    """
+    project_id = uuid.UUID(create_test_project)
+    batch_id = uuid.uuid4()
+
+    key = f"projects/{project_id}/user-uploads/{batch_id}/queued-unmatched.jpg"
+    _upload_test_object(key, b"unmatched")
+    await _insert_batch_image(
+        db,
+        project_id=project_id,
+        batch_id=batch_id,
+        uploaded_by=auth_user.id,
+        filename="queued-unmatched.jpg",
+        s3_key=key,
+        thumbnail_url="",
+        status="unmatched",
+        task_id=None,
+    )
+    await db.commit()
+
+    response = await client.delete(f"/api/projects/{project_id}/imagery/invalid/")
+
+    assert response.status_code == 202
     body = response.json()
-    assert body["deleted_count"] == 1
+    assert body["message"] == "Invalid imagery cleanup started"
     assert body["project_id"] == str(project_id)
-    assert not check_file_exists(settings.S3_BUCKET_NAME, key)
-    assert await _count_project_images(db, project_id=project_id) == 0
+    assert body["job_id"]
+
+    await _wait_for_batch_cleanup(
+        db,
+        project_id=project_id,
+        batch_id=batch_id,
+        object_names=[key],
+    )

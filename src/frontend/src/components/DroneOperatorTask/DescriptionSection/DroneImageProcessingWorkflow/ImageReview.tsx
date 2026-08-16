@@ -1259,17 +1259,8 @@ ${safeReason && ["rejected", "unmatched", "invalid_exif", "duplicate"].includes(
 
   const cleanupInvalidMutation = useMutation({
     mutationFn: () => deleteInvalidImages(projectId),
-    onSuccess: (data) => {
-      if (data.failed_count) {
-        toast.error(data.message);
-      } else {
-        toast.success(
-          m.image_review_deleted_invalid_images({
-            count: data.deleted_count,
-            suffix: data.deleted_count === 1 ? "" : "s",
-          }),
-        );
-      }
+    onSuccess: () => {
+      toast.info(m.image_review_cleanup_invalid_started());
       queryClient.invalidateQueries({ queryKey: ["projectReview", projectId] });
       queryClient.invalidateQueries({
         queryKey: ["projectMapData", projectId],
