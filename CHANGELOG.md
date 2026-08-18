@@ -1,3 +1,9 @@
+## 2026.9.0 (2026-08-18)
+
+### Feat
+
+- add hot-annoucement banner component
+
 ## 2026.8.10 (2026-08-16)
 
 ### Fix
