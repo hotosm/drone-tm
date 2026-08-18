@@ -7,6 +7,18 @@ declare module "react" {
         "site-id"?: string;
         domain?: string;
       };
+      "hot-announcement": React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement>,
+        HTMLElement
+      > & {
+        src?: string;
+        version?: string;
+        title?: string;
+        message?: string;
+        variant?: "brand" | "success" | "neutral" | "warning";
+        "dismiss-label"?: string;
+        "storage-key"?: string;
+      };
     }
   }
 }

@@ -27,6 +27,8 @@ import { getRuntimeConfig } from "@/runtimeConfig";
 
 const API_URL = getRuntimeConfig("VITE_API_URL", "/api");
 
+const ANNOUNCEMENT_CONFIG_URL = "https://d33erh71igmru9.cloudfront.net/drone-tm.json";
+
 export default function App() {
   const dispatch = useTypedDispatch();
   const { pathname } = useLocation();
@@ -131,6 +133,8 @@ export default function App() {
           initDomToCode()}
         <div>
           <ToastContainer />
+
+          <hot-announcement src={ANNOUNCEMENT_CONFIG_URL} />
 
           {!routesWithoutNavbar.includes(pathname) && <Navbar />}
 
