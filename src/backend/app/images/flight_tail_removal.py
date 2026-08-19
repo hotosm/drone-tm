@@ -1,5 +1,11 @@
 from uuid import UUID
 
+from app.images.flight_segments import (
+    PASS_ORDER_SQL,
+    camera_serial_sql,
+    group_by_pass,
+    segment_break_sql,
+)
 from app.images.image_logic import reject_assigned_images
 from app.models.enums import ImageStatus
 from app.utils import (
@@ -115,6 +121,11 @@ async def mark_and_remove_flight_tail_imagery(
     else:
         batch_filter = "AND batch_id IS NULL"
 
+    camera_serial = camera_serial_sql()
+    segment_break = segment_break_sql(
+        "sort_ts", "prev_sort_ts", "location", "prev_location"
+    )
+
     sql = f"""
         WITH ordered AS (
             SELECT
@@ -126,7 +137,8 @@ async def mark_and_remove_flight_tail_imagery(
                     uploaded_at
                 ) AS sort_ts,
                 NULLIF(exif->>'FlightYawDegree', '')::double precision AS yaw_deg,
-                NULLIF(regexp_replace(COALESCE(exif->>'AbsoluteAltitude',''), '[^0-9+\\-.]+', '', 'g'), '')::double precision AS altitude_m
+                NULLIF(regexp_replace(COALESCE(exif->>'AbsoluteAltitude',''), '[^0-9+\\-.]+', '', 'g'), '')::double precision AS altitude_m,
+                {camera_serial} AS camera_serial
             FROM project_images
             WHERE project_id = %(project_id)s
               {batch_filter}
@@ -143,11 +155,13 @@ async def mark_and_remove_flight_tail_imagery(
                 sort_ts,
                 yaw_deg,
                 altitude_m,
-                LAG(sort_ts, 1, sort_ts) OVER (ORDER BY sort_ts ASC) AS prev_sort_ts,
-                LAG(location, 1, location) OVER (ORDER BY sort_ts ASC) AS prev_location,
-                LAG(yaw_deg, 1, yaw_deg) OVER (ORDER BY sort_ts ASC) AS prev_yaw_deg,
-                LAG(altitude_m, 1, altitude_m) OVER (ORDER BY sort_ts ASC) AS prev_altitude_m
+                camera_serial,
+                LAG(sort_ts, 1, sort_ts) OVER w AS prev_sort_ts,
+                LAG(location, 1, location) OVER w AS prev_location,
+                LAG(yaw_deg, 1, yaw_deg) OVER w AS prev_yaw_deg,
+                LAG(altitude_m, 1, altitude_m) OVER w AS prev_altitude_m
             FROM ordered
+            WINDOW w AS (PARTITION BY camera_serial ORDER BY {PASS_ORDER_SQL})
         ),
         segmented AS (
             SELECT
@@ -157,23 +171,15 @@ async def mark_and_remove_flight_tail_imagery(
                 sort_ts,
                 yaw_deg,
                 altitude_m,
+                camera_serial,
                 prev_sort_ts,
                 prev_location,
                 prev_yaw_deg,
                 prev_altitude_m,
                 ST_Distance(prev_location::geography, location::geography) AS step_m,
                 GREATEST(EXTRACT(EPOCH FROM (sort_ts - prev_sort_ts)), 0) AS step_s,
-                SUM(
-                    CASE
-                        WHEN EXTRACT(EPOCH FROM (sort_ts - prev_sort_ts)) > 600 THEN 1
-                        WHEN ST_Distance(prev_location::geography, location::geography) > 1000 THEN 1
-                        WHEN GREATEST(EXTRACT(EPOCH FROM (sort_ts - prev_sort_ts)), 0) > 0
-                             AND (ST_Distance(prev_location::geography, location::geography) /
-                                  GREATEST(EXTRACT(EPOCH FROM (sort_ts - prev_sort_ts)), 0)) > 50
-                          THEN 1
-                        ELSE 0
-                    END
-                ) OVER (ORDER BY sort_ts ASC) AS segment_id
+                SUM({segment_break})
+                    OVER (PARTITION BY camera_serial ORDER BY {PASS_ORDER_SQL}) AS segment_id
             FROM base
         ),
         trajectory_data AS (
@@ -184,13 +190,15 @@ async def mark_and_remove_flight_tail_imagery(
                 segment_id,
                 yaw_deg,
                 altitude_m,
-                LAG(sort_ts, 1, sort_ts) OVER (PARTITION BY segment_id ORDER BY sort_ts ASC) AS previous_sort_ts,
-                LAG(location, 1, location) OVER (PARTITION BY segment_id ORDER BY sort_ts ASC) AS previous_location,
-                LAG(yaw_deg, 1, yaw_deg) OVER (PARTITION BY segment_id ORDER BY sort_ts ASC) AS previous_yaw_deg,
-                LAG(altitude_m, 1, altitude_m) OVER (PARTITION BY segment_id ORDER BY sort_ts ASC) AS previous_altitude_m,
+                camera_serial,
+                LAG(sort_ts, 1, sort_ts) OVER w AS previous_sort_ts,
+                LAG(location, 1, location) OVER w AS previous_location,
+                LAG(yaw_deg, 1, yaw_deg) OVER w AS previous_yaw_deg,
+                LAG(altitude_m, 1, altitude_m) OVER w AS previous_altitude_m,
                 location,
-                ROW_NUMBER() OVER (PARTITION BY segment_id ORDER BY sort_ts ASC) as row_num
+                ROW_NUMBER() OVER w as row_num
             FROM segmented
+            WINDOW w AS (PARTITION BY camera_serial, segment_id ORDER BY {PASS_ORDER_SQL})
         )
         SELECT
             id,
@@ -213,9 +221,10 @@ async def mark_and_remove_flight_tail_imagery(
             yaw_deg,
             previous_yaw_deg,
             altitude_m,
-            previous_altitude_m
+            previous_altitude_m,
+            camera_serial
         FROM trajectory_data
-        ORDER BY sort_ts ASC;
+        ORDER BY {PASS_ORDER_SQL};
     """
 
     async with db.cursor(row_factory=dict_row) as cur:
@@ -227,16 +236,11 @@ async def mark_and_remove_flight_tail_imagery(
         f"Found {len(project_image_results)} assigned images with valid GPS"
     )
 
-    # Group by segment
-    segments_map: dict[int, list[dict]] = {}
-    for row in project_image_results:
-        seg_id = int(row.get("segment_id") or 0)
-        segments_map.setdefault(seg_id, []).append(row)
-    segments = list(segments_map.values())
+    segments = group_by_pass(project_image_results)
 
     log.info(
         f"Tail detection for task {task_id}: "
-        f"Split into {len(segments)} time-contiguous segments"
+        f"Split into {len(segments)} per-aircraft flight passes"
     )
 
     MIN_DISTANCE_METERS = 5.0

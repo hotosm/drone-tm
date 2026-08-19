@@ -41,6 +41,7 @@ ImageUrlVariant = Literal["thumb", "full", "both"]
 
 class ClassifyProjectRequest(BaseModel):
     disable_flight_tail_detection: bool = False
+    enforce_gimbal_deviation_rejection: bool = False
 
 
 class FlightGapDetectionRequest(BaseModel):
@@ -117,6 +118,9 @@ async def start_project_classification(
     """
     log.info(f"Received project classification request: project_id={project_id}")
     disable_flight_tail_detection = bool(body and body.disable_flight_tail_detection)
+    enforce_gimbal_deviation_rejection = bool(
+        body and body.enforce_gimbal_deviation_rejection
+    )
 
     async with db.cursor() as cur:
         await cur.execute(
@@ -150,6 +154,7 @@ async def start_project_classification(
         "classify_project_images",
         str(project_id),
         disable_flight_tail_detection=disable_flight_tail_detection,
+        enforce_gimbal_deviation_rejection=enforce_gimbal_deviation_rejection,
         _queue_name="default_queue",
     )
 

@@ -118,9 +118,9 @@ const DescriptionBox = () => {
           },
           {
             name: m.drone_task_gimbal_angle_label(),
-            value: resolvedTaskData?.gimble_angles_degrees
+            value: resolvedTaskData?.gimble_angles_degrees?.length
               ? m.drone_task_degrees_value({
-                  degrees: resolvedTaskData?.gimble_angles_degrees,
+                  degrees: resolvedTaskData.gimble_angles_degrees.join(", "),
                 })
               : null,
           },

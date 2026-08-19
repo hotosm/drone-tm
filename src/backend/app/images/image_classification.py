@@ -150,6 +150,20 @@ class ImageClassifier:
         return None
 
     @staticmethod
+    def _resolve_gimbal_pitch(data: dict[str, Any]) -> Any:
+        """Camera pitch from EXIF, falling back to drone metadata.
+
+        GimbalPitchDegree is preferred but 0.0 is a real value (camera level
+        with the horizon), so presence is tested rather than truthiness.
+        FlightPitchDegree is deliberately ignored: that is aircraft attitude.
+        """
+        for key in ("GimbalPitchDegree", "pitch"):
+            value = data.get(key)
+            if value is not None and value != "":
+                return value
+        return None
+
+    @staticmethod
     def _parse_gps(value: Any) -> float | None:
         """Parse EXIF GPS values into decimal degrees."""
         if value is None:
@@ -675,11 +689,7 @@ class ImageClassifier:
         # Merge drone metadata for quality checks
         quality_check_data = {**exif_data, **drone_metadata}
 
-        # Check gimbal pitch (camera angle, not aircraft pitch)
-        # Only use GimbalPitchDegree - FlightPitchDegree is aircraft attitude, not camera angle
-        gimbal_angle_raw = quality_check_data.get(
-            "GimbalPitchDegree"
-        ) or quality_check_data.get("pitch")
+        gimbal_angle_raw = ImageClassifier._resolve_gimbal_pitch(quality_check_data)
         gimbal_angle = ImageClassifier._to_float(gimbal_angle_raw)
         if gimbal_angle_raw is not None and gimbal_angle is None:
             log.debug(

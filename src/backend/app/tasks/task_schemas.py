@@ -315,7 +315,7 @@ class TaskDetailsOut(BaseModel):
     front_overlap: float | None = None
     side_overlap: float | None = None
     gsd_cm_px: float | None = None
-    gimble_angles_degrees: int | None = None
+    gimble_angles_degrees: list[int] | None = None
     centroid: dict
 
     @model_validator(mode="after")

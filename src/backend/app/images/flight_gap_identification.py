@@ -6,6 +6,12 @@ from uuid import UUID
 import geojson
 import numpy as np
 import pyproj
+from app.images.flight_segments import (
+    PASS_ORDER_SQL,
+    camera_serial_sql,
+    group_by_pass,
+    segment_break_sql,
+)
 from app.models.enums import ImageStatus
 from app.s3 import maybe_presign_s3_key
 from app.utils import (
@@ -454,7 +460,10 @@ async def identify_flight_gaps(
         "status": ImageStatus.ASSIGNED.value,
     }
 
-    sql = """
+    camera_serial = camera_serial_sql("i")
+    segment_break = segment_break_sql("sort_ts", "prev_sort_ts", "geom", "prev_geom")
+
+    sql = f"""
         WITH ordered AS (
             SELECT
                 i.id,
@@ -471,7 +480,8 @@ async def identify_flight_gaps(
                     i.uploaded_at
                 ) AS sort_ts,
                 NULLIF(i.exif->>'FlightYawDegree', '')::double precision AS yaw_deg,
-                NULLIF(regexp_replace(COALESCE(i.exif->>'AbsoluteAltitude',''), '[^0-9+\\-.]+', '', 'g'), '')::double precision AS altitude_m
+                NULLIF(regexp_replace(COALESCE(i.exif->>'AbsoluteAltitude',''), '[^0-9+\\-.]+', '', 'g'), '')::double precision AS altitude_m,
+                {camera_serial} AS camera_serial
             FROM project_images i
             INNER JOIN tasks t ON i.task_id = t.id
             LEFT JOIN drone_flights df ON t.id = df.task_id
@@ -485,32 +495,25 @@ async def identify_flight_gaps(
         base AS (
             SELECT
                 *,
-                LAG(sort_ts, 1, sort_ts) OVER (ORDER BY sort_ts ASC) AS prev_sort_ts,
-                LAG(geom, 1, geom) OVER (ORDER BY sort_ts ASC) AS prev_geom
+                LAG(sort_ts, 1, sort_ts) OVER w AS prev_sort_ts,
+                LAG(geom, 1, geom) OVER w AS prev_geom
             FROM ordered
+            WINDOW w AS (PARTITION BY camera_serial ORDER BY {PASS_ORDER_SQL})
         ),
         segmented AS (
             SELECT
                 *,
-                SUM(
-                    CASE
-                        WHEN EXTRACT(EPOCH FROM (sort_ts - prev_sort_ts)) > 600 THEN 1
-                        WHEN ST_Distance(prev_geom::geography, geom::geography) > 1000 THEN 1
-                        WHEN GREATEST(EXTRACT(EPOCH FROM (sort_ts - prev_sort_ts)), 0) > 0
-                             AND (ST_Distance(prev_geom::geography, geom::geography) /
-                                  GREATEST(EXTRACT(EPOCH FROM (sort_ts - prev_sort_ts)), 0)) > 50
-                          THEN 1
-                        ELSE 0
-                    END
-                ) OVER (ORDER BY sort_ts ASC) AS segment_id
+                SUM({segment_break})
+                    OVER (PARTITION BY camera_serial ORDER BY {PASS_ORDER_SQL}) AS segment_id
             FROM base
         ),
         trajectory_data AS (
             SELECT
                 *,
-                LAG(geom, 1, geom) OVER (PARTITION BY segment_id ORDER BY sort_ts ASC) AS previous_geom,
-                ROW_NUMBER() OVER (PARTITION BY segment_id ORDER BY sort_ts ASC) as row_num
+                LAG(geom, 1, geom) OVER w AS previous_geom,
+                ROW_NUMBER() OVER w as row_num
             FROM segmented
+            WINDOW w AS (PARTITION BY camera_serial, segment_id ORDER BY {PASS_ORDER_SQL})
         )
         SELECT
             id,
@@ -520,6 +523,7 @@ async def identify_flight_gaps(
             s3_key,
             sort_ts,
             segment_id,
+            camera_serial,
             drone_model_name,
             exif_drone_model_name,
             altitude_m,
@@ -538,7 +542,7 @@ async def identify_flight_gaps(
                 ELSE ST_Distance(previous_geom::geography, geom::geography)
             END AS distance_moved
         FROM trajectory_data
-        ORDER BY sort_ts ASC;
+        ORDER BY {PASS_ORDER_SQL};
     """
 
     # Setting all global and tracking variables
@@ -604,12 +608,7 @@ async def identify_flight_gaps(
                 log.error("No altitude found for image")
 
         # Executing analysis
-        # Group by segment
-        segments_map: dict[int, list[dict]] = {}
-        for row in project_image_results:
-            seg_id = int(row.get("segment_id") or 0)
-            segments_map.setdefault(seg_id, []).append(row)
-        segments = list(segments_map.values())
+        segments = group_by_pass(project_image_results)
 
         log.info(
             f"Image gap detection for task {task_id}: "

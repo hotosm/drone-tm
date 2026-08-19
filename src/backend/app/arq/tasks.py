@@ -24,6 +24,7 @@ from app.arq.cloudnative import (
 )
 from app.config import settings
 from app.db.database import get_db_connection_pool
+from app.images.flight_gimbal_deviation import mark_and_remove_off_axis_imagery
 from app.images.flight_stationary_removal import mark_and_remove_stationary_imagery
 from app.images.flight_tail_removal import mark_and_remove_flight_tail_imagery
 from app.images.image_classification import ImageClassifier
@@ -595,13 +596,16 @@ async def classify_project_images(
     ctx: dict[Any, Any],
     project_id: str,
     disable_flight_tail_detection: bool = False,
+    enforce_gimbal_deviation_rejection: bool = False,
     **_kwargs: Any,
 ) -> dict:
     """Classify all staged images in a project (across all batches)."""
     job_id = ctx.get("job_id", "unknown")
     log.info(
         f"Starting project classification job {job_id} for project {project_id} "
-        f"(flight tail detection {'disabled' if disable_flight_tail_detection else 'enabled'})"
+        f"(flight tail detection {'disabled' if disable_flight_tail_detection else 'enabled'}, "
+        f"gimbal deviation rejection "
+        f"{'enforced' if enforce_gimbal_deviation_rejection else 'shadow-mode'})"
     )
 
     db_pool = ctx.get("db_pool")
@@ -660,6 +664,23 @@ async def classify_project_images(
                                 UUID(project_id),
                                 UUID(str(batch_id)) if batch_id else None,
                                 UUID(str(task_id)),
+                            )
+
+                    # Off-axis frames go before tail detection so sweeps do not
+                    # pollute the tail baseline heading.
+                    if pairs:
+                        log.info(
+                            f"Inspecting project {project_id} for off-axis gimbal "
+                            f"frames: {len(pairs)} (batch, task) pairs"
+                        )
+                        for batch_id, task_id in pairs:
+                            await mark_and_remove_off_axis_imagery(
+                                conn,
+                                UUID(project_id),
+                                UUID(str(batch_id)) if batch_id else None,
+                                UUID(str(task_id)),
+                                image_ids=classified_image_ids,
+                                enforce=enforce_gimbal_deviation_rejection,
                             )
 
                     if pairs and not disable_flight_tail_detection:

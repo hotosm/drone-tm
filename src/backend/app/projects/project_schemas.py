@@ -144,6 +144,7 @@ class ProjectIn(BaseModel):
     altitude_from_ground: float | None = None
     front_overlap: float | None = None
     side_overlap: float | None = None
+    gimble_angles_degrees: list[int] | None = None
     is_terrain_follow: bool = False
     outline: Annotated[
         FeatureCollection | Feature | Polygon, AfterValidator(validate_geojson)
@@ -296,6 +297,7 @@ class DbProject(BaseModel):
     side_overlap: float | None = None
     gsd_cm_px: float | None = None
     altitude_from_ground: float | None = None
+    gimble_angles_degrees: list[int] | None = None
     is_terrain_follow: bool = False
     final_output: list[FinalOutput] | None = None
     image_url: str | None = None
