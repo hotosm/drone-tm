@@ -39,7 +39,7 @@ export default function Pagination({
   }
 
   return (
-    <FlexRow className="naxatw-fixed naxatw-bottom-0 naxatw-left-0 naxatw-right-0 naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-between naxatw-gap-4 naxatw-bg-white naxatw-px-3 naxatw-py-2.5 md:naxatw-absolute md:naxatw-flex md:naxatw-flex-row md:naxatw-gap-0 lg:naxatw-px-16">
+    <FlexRow className="naxatw-w-full naxatw-flex-col naxatw-items-center naxatw-justify-between naxatw-gap-4 naxatw-bg-white naxatw-py-2.5 md:naxatw-flex-row md:naxatw-gap-0">
       <FlexRow className="naxatw-w-full naxatw-items-center naxatw-justify-between naxatw-gap-2 md:naxatw-w-[78%]">
         <FlexRow gap={4} className="naxatw-items-center">
           <p className="naxatw-text-sm naxatw-font-bold">{m.projects_pagination_row_per_page()}</p>
