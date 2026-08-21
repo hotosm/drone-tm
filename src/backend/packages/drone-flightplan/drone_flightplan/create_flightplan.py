@@ -17,6 +17,7 @@ from drone_flightplan.output.litchi import create_litchi_csv
 from drone_flightplan.output.mavlink import create_mavlink_plan
 from drone_flightplan.output.potensic_v1 import create_potensic_sqlite
 from drone_flightplan.output.potensic_v2 import create_potensic_json
+from drone_flightplan.output.potensic_v3 import create_potensic_v3_json
 from drone_flightplan.output.qgroundcontrol import create_qgroundcontrol_plan
 from drone_flightplan.terrain_following_waylines import waypoints2waylines
 from drone_flightplan.waypoints import create_waypoint
@@ -124,6 +125,8 @@ def write_flightplan_file(
         outpath = create_potensic_sqlite(placemarks, outfile)
     elif output_format == "POTENSIC_JSON":
         outpath = create_potensic_json(placemarks, outfile)
+    elif output_format == "POTENSIC_JSON_V3":
+        outpath = create_potensic_v3_json(placemarks, outfile)
     elif output_format == "MAVLINK_PLAN":
         outpath = create_mavlink_plan(placemarks, outfile)
     elif output_format == "QGROUNDCONTROL":

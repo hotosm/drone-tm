@@ -12,6 +12,7 @@ class DroneType(StrEnum):
     DJI_MINI_5_PRO = "DJI_MINI_5_PRO"
     POTENSIC_ATOM_1 = "POTENSIC_ATOM_1"
     POTENSIC_ATOM_2 = "POTENSIC_ATOM_2"
+    POTENSIC_ATOM_3 = "POTENSIC_ATOM_3"
     MAVLINK = "MAVLINK"
     QGROUNDCONTROL = "QGROUNDCONTROL"
     LITCHI = "LITCHI"
@@ -74,6 +75,16 @@ DRONE_SPECS = {
         "sensor_width_mm": 6.40,
         "equiv_focal_length_mm": 26,
         "image_width_px": 4608,
+    },
+    DroneType.POTENSIC_ATOM_3: {
+        # 1/1.3-inch CMOS
+        # 4:3 (or 16:9 cropped)
+        # Potensic quotes 40 minutes at a test speed of 5 m/s (18 km/h).
+        "max_battery_life_minutes": {"quoted_value": 40, "tested_value": 18},
+        "sensor_height_mm": 7.2,
+        "sensor_width_mm": 9.6,
+        "equiv_focal_length_mm": 24,
+        "image_width_px": 4096,  # actual Atom 3 sample (16:9 crop)
     },
     # FIXME these params can vary widely. We need a way for user to input
     # FIXME the current values are simply for testing
@@ -164,6 +175,12 @@ DRONE_PARAMS = {
         "HORIZONTAL_FOV": 1.17,
         "GSD_TO_AGL_CONST": 34.61,
         "OUTPUT_FORMAT": "POTENSIC_JSON",
+    },
+    DroneType.POTENSIC_ATOM_3: {
+        "VERTICAL_FOV": 0.99,
+        "HORIZONTAL_FOV": 1.25,
+        "GSD_TO_AGL_CONST": 28.39,
+        "OUTPUT_FORMAT": "POTENSIC_JSON_V3",
     },
     # FIXME these params can vary widely. We need a way for user to input
     # FIXME the current values are simply for testing different output formats

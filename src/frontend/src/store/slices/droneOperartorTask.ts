@@ -22,6 +22,7 @@ export interface IDroneOperatorTaskState {
     | "DJI_AIR_3"
     | "POTENSIC_ATOM_1"
     | "POTENSIC_ATOM_2"
+    | "POTENSIC_ATOM_3"
     | "LITCHI"
     | "QGROUNDCONTROL";
   gimbalAngle: "-80" | "-90" | "-45";

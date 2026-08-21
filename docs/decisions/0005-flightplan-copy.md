@@ -7,7 +7,8 @@ generates a flightplan, the file has to land in a specific directory on the
 drone controller for the manufacturer's app to pick it up:
 
 - DJI: `Android/data/dji.go.v5/files/waypoint/<uuid>/<uuid>.kmz`
-- Potensic Atom 2: `Android/data/com.ipotensic.atom/files/Waypoint/<mission-id>/`
+- Potensic Atom 2 and 3:
+  `Android/data/com.ipotensic.atom/files/Waypoint/<mission-id>/`
 
 The original plugin tried to do this transparently with a "Copy to Flight
 Controller" button that scanned `/sdcard`, `/storage/usbotg`, and
