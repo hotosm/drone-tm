@@ -1,3 +1,11 @@
+## 2026.9.1 (2026-08-22)
+
+### Fix
+
+- **backend**: digital zoom stripping, altitude usage from Relative not Absolute
+- **frontend**: pagination bar was hovering over page content in recent changes
+- **backend**: huge improvement to bad image detection based on gimbal angles
+
 ## 2026.9.0 (2026-08-18)
 
 ### Feat
