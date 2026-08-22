@@ -59,6 +59,36 @@ async def test_north_wrap_around(db, load_freetown_into_db):
 
 
 @pytest.mark.asyncio
+async def test_below_launch_altitude_does_not_break_gap_detection(
+    db, load_freetown_into_db
+):
+    """Negative launch-relative heights fall back to a usable altitude."""
+    below_launch_path = []
+    for i in range(60):
+        if i in [10, 20, 30, 40]:
+            continue
+
+        below_launch_path.append(
+            {
+                "SourceFile": f"below_launch_{i}.jpg",
+                "GPSLatitude": f"8 deg 28' {8.4 + (i * 0.2)}\" N",
+                "GPSLongitude": "13 deg 11' 49.2\" W",
+                "RelativeAltitude": "-48.5",
+                "DateTimeOriginal": f"2024:01:01 12:00:{i:02d}",
+                "FlightYawDegree": str(359 if i % 2 else 1),
+            }
+        )
+
+    project_id, _batch_id, task_id = await load_freetown_into_db(
+        manual_metadata=below_launch_path
+    )
+    result = await identify_flight_gaps(db, project_id, task_id)
+
+    assert "type" in result["gap_polygons"]
+    assert "images" in result
+
+
+@pytest.mark.asyncio
 async def test_gap_missing_flight_leg(db, load_freetown_into_db):
     """
     Verifies side overlap gaps.

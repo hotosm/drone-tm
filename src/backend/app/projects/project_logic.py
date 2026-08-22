@@ -12,7 +12,7 @@ import geojson
 import pyproj
 import shapely.wkb as wkblib
 from app.config import settings
-from app.images.image_classification import ImageClassifier
+from app.images.image_classification import ImageClassifier, QualityThresholds
 from app.images.image_processing import (
     ScaleOdmSubmitError,
     fetch_scaleodm_task_info,
@@ -70,15 +70,20 @@ AERIAL_SFM_OPTIONS: list[dict[str, Any]] = [
     # {"name": "sfm-algorithm", "value": "triangulation"},
 ]
 
-# We only ever process GPS-tagged nadir drone imagery flown in a grid, so we can
-# turn on flags ODM keeps off by default. ODM ships them off because it also has
-# to handle handheld / unordered / non-GPS photo sets where they'd break matching
-# - none of which applies to us.
-MATCHER_NEIGHBORS = 24
+# Do not restore these retired performance flags:
+#
+#   matcher-neighbors            disables long-range matching rounds
+#   use-hybrid-bundle-adjustment limits adjustment to immediate neighbours
+#   auto-boundary                barely trims the shot hull due to its units
+#
+# Together they weakened global consistency on large surveys. Use an explicit
+# boundary to constrain output extent. See ScaleODM docs/testing-alternative-images.md.
 
-# Past this many images, refining every photo against the whole set each step
-# gets too slow, so we switch to hybrid bundle adjustment (see below).
-LARGE_DATASET_IMAGE_THRESHOLD = 800
+# Both NodeODM and ScaleODM accept an inline GeoJSON boundary.
+BOUNDARY_OPTION_NAME = "boundary"
+
+# Match the classifier's edge-photo allowance so survey overlap is retained.
+BOUNDARY_BUFFER_METERS = QualityThresholds.peripheral_buffer_meters
 
 
 async def get_centroids(db: Connection):
@@ -479,12 +484,10 @@ async def process_drone_images(
                 {"name": "cog", "value": True},
             ]
 
-            # Grid-safe flags apply to every task; the size-gated ones kick in
-            # once a single task is large enough.
             options.extend(AERIAL_SFM_OPTIONS)
             options.extend(gps_grid_odm_options())
+            options.extend(await boundary_odm_option(conn, project_id, task_id))
             image_count = await count_assigned_images(conn, task_id=task_id)
-            options.extend(large_dataset_odm_options(image_count))
             log.info(f"Task {task_id}: {image_count} images to process")
 
             read_s3_path = f"s3://{settings.S3_BUCKET_NAME}/projects/{project_id}/{task_id}/images/"
@@ -597,34 +600,60 @@ async def update_processing_status(
     await db.commit()
 
 
+async def boundary_odm_option(
+    conn, project_id: uuid.UUID, task_id: uuid.UUID | None = None
+) -> list[dict[str, Any]]:
+    """Build an ODM boundary from a task or project outline.
+
+    Uses the project outline when task_id is omitted. Returns no option when an
+    outline is unavailable.
+    """
+    if task_id is not None:
+        # Reject task/project mismatches.
+        source = "tasks"
+        where = "id = %(id)s AND project_id = %(project_id)s"
+        params = {"id": task_id, "project_id": project_id}
+    else:
+        source = "projects"
+        where = "id = %(id)s"
+        params = {"id": project_id}
+
+    # Identifiers are selected above, not supplied by users.
+    sql = f"""
+        SELECT ST_AsGeoJSON(
+            ST_Buffer(outline::geography, %(buffer_m)s)::geometry
+        )::jsonb AS geom
+        FROM {source}
+        WHERE {where}
+    """
+    params["buffer_m"] = BOUNDARY_BUFFER_METERS
+
+    async with conn.cursor(row_factory=dict_row) as cur:
+        await cur.execute(sql, params)
+        row = await cur.fetchone()
+
+    geometry = (row or {}).get("geom")
+    if not geometry:
+        log.warning(
+            f"No outline stored for {'task ' + str(task_id) if task_id else 'project ' + str(project_id)}; "
+            "submitting to ODM without a boundary"
+        )
+        return []
+
+    # ODM wants a FeatureCollection or Feature, not a bare geometry.
+    boundary = {
+        "type": "FeatureCollection",
+        "features": [{"type": "Feature", "properties": {}, "geometry": geometry}],
+    }
+    return [{"name": BOUNDARY_OPTION_NAME, "value": json.dumps(boundary)}]
+
+
 def gps_grid_odm_options() -> list[dict[str, Any]]:
     """ODM flags that are safe on any dataset we process (GPS-tagged nadir grids)."""
     return [
-        # Only match each photo against its nearest GPS neighbours instead of
-        # every other photo. Matching everything lets similar-looking but distant
-        # photos (fields, water, rooftops) match by mistake, which can place a
-        # camera far from where it belongs and stretch the reconstruction well
-        # past the real survey area - a big output extent is a common cause of
-        # out-of-memory failures. Also much faster. With fewer photos than this it
-        # just matches them all.
-        {"name": "matcher-neighbors", "value": MATCHER_NEIGHBORS},
-        # Clip the reconstruction to the camera footprint. Stops stray far-away
-        # geometry (sky, background, treelines) from inflating the output extent
-        # and risking an out-of-memory failure. Does nothing on clean nadir data,
-        # so it's safe to leave on.
-        {"name": "auto-boundary", "value": True},
-    ]
-
-
-def large_dataset_odm_options(image_count: int) -> list[dict[str, Any]]:
-    """Flags worth turning on only once a dataset is large enough to need them."""
-    if image_count < LARGE_DATASET_IMAGE_THRESHOLD:
-        return []
-    return [
-        # Refine each photo locally and the full set only periodically, rather
-        # than re-solving everything every step. Faster on big sets, slightly less
-        # accurate, so only past the threshold.
-        {"name": "use-hybrid-bundle-adjustment", "value": True},
+        # Correct motion skew from electronic rolling shutters. ODM uses a
+        # camera-specific readout time when known and a 30 ms fallback otherwise.
+        {"name": "rolling-shutter", "value": True},
     ]
 
 
@@ -689,12 +718,10 @@ async def process_all_drone_images(
             if FinalOutput.DIGITAL_TERRAIN_MODEL in requested_outputs:
                 options.append({"name": "dtm", "value": True})
 
-            # Grid-safe flags apply to every project; the size-gated ones kick in
-            # once the project is large enough.
             options.extend(AERIAL_SFM_OPTIONS)
             options.extend(gps_grid_odm_options())
+            options.extend(await boundary_odm_option(conn, project_id))
             image_count = await count_assigned_images(conn, project_id=project_id)
-            options.extend(large_dataset_odm_options(image_count))
             log.info(f"Project {project_id}: {image_count} images to process")
 
             # Final guard: the project-wide scan reads each {tid}/images/ folder,

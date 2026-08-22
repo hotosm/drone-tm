@@ -480,7 +480,16 @@ async def identify_flight_gaps(
                     i.uploaded_at
                 ) AS sort_ts,
                 NULLIF(i.exif->>'FlightYawDegree', '')::double precision AS yaw_deg,
-                NULLIF(regexp_replace(COALESCE(i.exif->>'AbsoluteAltitude',''), '[^0-9+\\-.]+', '', 'g'), '')::double precision AS altitude_m,
+                -- Use launch-relative height for footprint calculations;
+                -- DJI AbsoluteAltitude can include a large power-on offset.
+                -- Ignore non-positive heights, which would invert the footprint.
+                NULLIF(
+                    GREATEST(
+                        NULLIF(regexp_replace(COALESCE(i.exif->>'RelativeAltitude',''), '[^0-9+\\-.]+', '', 'g'), '')::double precision,
+                        0
+                    ),
+                    0
+                ) AS altitude_m,
                 {camera_serial} AS camera_serial
             FROM project_images i
             INNER JOIN tasks t ON i.task_id = t.id
@@ -561,7 +570,10 @@ async def identify_flight_gaps(
 
     # Final tracking variables to be passed into flightplan reconstruction
     flight_drone_type = drone_type_override
-    overall_average_altitude = altitude_override or None
+    # Ignore invalid altitude overrides.
+    overall_average_altitude = (
+        altitude_override if (altitude_override or 0) > 0 else None
+    )
     global_side_overlap_median = overlap_override or None
     overall_rotation = rotation_override or None
 
@@ -722,16 +734,21 @@ async def identify_flight_gaps(
                 # Calculate what the spacing SHOULD look like based on the drone's FOV
                 # at its current altitude, assuming a standard 70% side overlap.
                 specs = DRONE_PARAMS[flight_drone_type]
-                avg_alt = np.median(
-                    [
-                        images["altitude_m"]
-                        for images in segment
-                        if images.get("altitude_m")
-                    ]
-                )
-                horizontal_footprint = avg_alt * specs["HORIZONTAL_FOV"]
-
-                segment_side_overlap_median = horizontal_footprint * 0.30
+                segment_altitudes = [
+                    images["altitude_m"]
+                    for images in segment
+                    if images.get("altitude_m")
+                ]
+                if segment_altitudes:
+                    horizontal_footprint = (
+                        np.median(segment_altitudes) * specs["HORIZONTAL_FOV"]
+                    )
+                    segment_side_overlap_median = horizontal_footprint * 0.30
+                else:
+                    # Keep the baseline unset instead of producing a truthy NaN.
+                    log.warning(
+                        "No altitude on any image in segment; skipping side overlap baseline."
+                    )
             else:
                 log.warning(
                     "Unable to estimate side overlap baseline without a drone type."
@@ -765,7 +782,8 @@ async def identify_flight_gaps(
                         leg_azi_list.append(leg[i]["azimuth"])
 
                 front_overlap_leg_median = np.median(front_dist_moved_leg_list)
-                leg_median_altitude = np.median(leg_alt_list)
+                # Avoid a truthy NaN when the leg has no altitude data.
+                leg_median_altitude = np.median(leg_alt_list) if leg_alt_list else None
                 leg_azimuth = circular_mean_list(leg_azi_list)
 
                 log.debug(
@@ -821,9 +839,11 @@ async def identify_flight_gaps(
     # Fetch the task aoi
     task_outline_query = """
                     SELECT
-                        ST_AsGeoJSON(outline)::json as geometry
-                    FROM tasks
-                    WHERE id = %(task_id)s
+                        ST_AsGeoJSON(t.outline)::json as geometry,
+                        p.altitude_from_ground
+                    FROM tasks t
+                    JOIN projects p ON p.id = t.project_id
+                    WHERE t.id = %(task_id)s
                 """
     async with db.cursor(row_factory=dict_row) as cur:
         await cur.execute(task_outline_query, {"task_id": task_id})
@@ -841,30 +861,22 @@ async def identify_flight_gaps(
             [shape(f["geometry"]) for f in manual_gaps.get("features", [])]
         )
 
-        if gap_type == "sparse":
-            sparse_gap_geometry = manual_geom
-            result = _generate_flightplan_for_geometry(
-                sparse_gap_geometry,
-                drone_type=flight_drone_type,
-                average_altitude=overall_average_altitude,
-                rotation_angle=overall_rotation,
-            )
+        # Manual gaps lack the spacing and endpoint data required by the
+        # reconstruction planner, so plan directly over their geometry.
+        result = _generate_flightplan_for_geometry(
+            manual_geom,
+            drone_type=flight_drone_type,
+            average_altitude=overall_average_altitude,
+            rotation_angle=overall_rotation,
+        )
 
-        elif gap_type == "main":
-            confirmed_gaps = manual_geom
-            result = _generate_reconstruction_flightplan(
-                confirmed_gaps,
-                task_aoi_outline,
-                global_side_overlap_median,
-                flight_drone_type,
-                overall_average_altitude,
-                overall_rotation,
-            )
-
-    # Finalizing variables to be passed into flight gap generation
-    if global_side_overlap_median is None and overall_average_altitude is None:
-        # Overall average altitude detection
-        if len(all_altitudes) > 0:
+    # Resolve altitude and overlap independently so either can be overridden.
+    if overall_average_altitude is None:
+        # Prefer configured AGL; EXIF height is relative to the launch point.
+        configured_altitude = task_row.get("altitude_from_ground")
+        if configured_altitude and configured_altitude > 0:
+            overall_average_altitude = float(configured_altitude)
+        elif len(all_altitudes) > 0:
             overall_average_altitude = np.mean(all_altitudes)
         else:
             overall_average_altitude = MINIMUM_ALTITUDE
@@ -872,18 +884,17 @@ async def identify_flight_gaps(
                 f"Altitude values not found, falling to MINIMUM ALTITUDE: {MINIMUM_ALTITUDE}."
             )
 
-        # Calculating theoretical spacing overall (70%) for side overlap median then overriding if values exist
-        if flight_drone_type:
+    if global_side_overlap_median is None:
+        # Fall back to theoretical spacing for 70% side overlap.
+        if len(all_side_overlap_medians) > 0:
+            global_side_overlap_median = np.median(all_side_overlap_medians)
+        elif flight_drone_type:
             specs = DRONE_PARAMS[flight_drone_type]
             horizontal_footprint = (
                 2 * overall_average_altitude * specs["HORIZONTAL_FOV"]
             )
             global_side_overlap_median = horizontal_footprint * 0.30
-
-        if len(all_side_overlap_medians) > 0:
-            global_side_overlap_median = np.median(all_side_overlap_medians)
-
-        elif flight_drone_type is None:
+        else:
             log.error("No drone type found and no side overlap medians available.")
 
     # Process for confirming gaps and triggering reconstruction of flightplan

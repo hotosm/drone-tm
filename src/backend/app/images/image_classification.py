@@ -106,6 +106,10 @@ class QualityThresholds:
     # DJI gimbal pitch is typically ~-90 (down), 0 (horizon), >0 (up)
     max_gimbal_pitch_deg: float = -20.0
 
+    # Digital zoom crops the sensor while DJI retains the 1x focal-length EXIF,
+    # preventing ODM from selecting the correct camera model.
+    max_digital_zoom_ratio: float = 1.0
+
     # Blurry detection (Laplacian variance)
     min_sharpness: float = 100.0
 
@@ -706,6 +710,22 @@ class ImageClassifier:
         elif gimbal_angle is not None:
             log.debug(
                 f"Gimbal check passed: image_id={image_id} angle={gimbal_angle:.1f}"
+            )
+
+        zoom_raw = quality_check_data.get("DigitalZoomRatio")
+        zoom_ratio = ImageClassifier._to_float(zoom_raw)
+        if zoom_raw is not None and zoom_ratio is None:
+            log.debug(
+                f"Unparsable digital zoom ratio: image_id={image_id} value={zoom_raw!r}"
+            )
+        elif zoom_ratio is not None and zoom_ratio > Q.max_digital_zoom_ratio:
+            issues.append(
+                f"Digital zoom ({zoom_ratio:g}x) is not reflected in the EXIF focal "
+                "length, so the camera cannot be calibrated. Reshoot at 1x."
+            )
+            log.debug(
+                f"Digital zoom check FAILED: image_id={image_id} ratio={zoom_ratio:g} "
+                f"max={Q.max_digital_zoom_ratio:g}"
             )
 
         # Only download image if we haven't already found critical issues (EXIF/GPS)
@@ -2138,7 +2158,7 @@ class ImageClassifier:
                         )) AS avg_h,
                         AVG(
                             NULLIF(regexp_replace(
-                                COALESCE(exif->>'AbsoluteAltitude',''),
+                                COALESCE(exif->>'RelativeAltitude',''),
                                 '[^0-9+\\-.]+', '', 'g'
                             ), '')::double precision
                         ) AS avg_alt
@@ -2543,7 +2563,7 @@ class ImageClassifier:
                         """
                         SELECT AVG(
                             NULLIF(regexp_replace(
-                                COALESCE(exif->>'AbsoluteAltitude',''),
+                                COALESCE(exif->>'RelativeAltitude',''),
                                 '[^0-9+\\-.]+', '', 'g'
                             ), '')::double precision
                         ) AS avg_alt

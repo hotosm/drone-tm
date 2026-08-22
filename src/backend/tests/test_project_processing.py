@@ -11,6 +11,21 @@ from app.models.enums import ImageProcessingStatus, State
 from app.projects import project_logic
 from minio.error import S3Error
 
+# Stand-in for a buffered PostGIS outline.
+_POLYGON = {
+    "type": "Polygon",
+    "coordinates": [
+        [[115.45, -8.35], [115.48, -8.35], [115.48, -8.39], [115.45, -8.35]]
+    ],
+}
+
+# See project_logic for why these are retired.
+RETIRED_ODM_FLAGS = {
+    "matcher-neighbors",
+    "use-hybrid-bundle-adjustment",
+    "auto-boundary",
+}
+
 
 class _FakeCursor:
     """Minimal async context-manager cursor; fetchone() returns None by default."""
@@ -234,15 +249,15 @@ async def test_process_drone_images_submits_standard_mode(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_process_drone_images_applies_large_dataset_tuning(monkeypatch):
+async def test_process_drone_images_applies_grid_safe_odm_options(monkeypatch):
     project_id = uuid.uuid4()
     task_id = uuid.uuid4()
-    # Same dict answers the gsd lookup and the image COUNT. Count is above the
-    # threshold, so a big single task gets the faster SfM flags too.
+    # The fake cursor returns this mapping for each lookup.
     conn = _FakeConn(
         cursor_fetchone={
             "gsd_cm_px": 5,
-            "count": project_logic.LARGE_DATASET_IMAGE_THRESHOLD,
+            "count": 900,
+            "geom": _POLYGON,
         }
     )
     ctx = {"job_id": "job-1", "db_pool": _FakePool(conn)}
@@ -276,7 +291,9 @@ async def test_process_drone_images_applies_large_dataset_tuning(monkeypatch):
     names = {opt["name"] for opt in submit_calls[0]["options"]}
     # No sfm-algorithm flag is sent, so ODM uses its incremental default.
     assert "sfm-algorithm" not in names
-    assert "matcher-neighbors" in names
+    assert "rolling-shutter" in names
+    assert "boundary" in names
+    assert not (names & RETIRED_ODM_FLAGS)
 
 
 @pytest.mark.asyncio
@@ -499,15 +516,15 @@ async def test_process_all_drone_images_uses_project_wide_scan_depth(monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_process_all_drone_images_applies_large_dataset_tuning(monkeypatch):
+async def test_process_all_drone_images_applies_grid_safe_odm_options(monkeypatch):
     project_id = uuid.uuid4()
-    # One dict serves both fetchone() calls (gsd/final_output lookup, then the
-    # image COUNT). Count is above the threshold, so tuning should switch on.
+    # The fake cursor returns this mapping for each lookup.
     conn = _FakeConn(
         cursor_fetchone={
             "final_output": [],
             "gsd_cm_px": 5,
-            "count": project_logic.LARGE_DATASET_IMAGE_THRESHOLD,
+            "count": 900,
+            "geom": _POLYGON,
         }
     )
     ctx = {"job_id": "proj-1", "db_pool": _FakePool(conn)}
@@ -524,42 +541,34 @@ async def test_process_all_drone_images_applies_large_dataset_tuning(monkeypatch
     )
 
     names = {opt["name"]: opt["value"] for opt in submit_calls[0]["options"]}
-    # No sfm-algorithm flag sent (ODM defaults to incremental); scaling flags on.
+    # ODM defaults to incremental SfM.
     assert "sfm-algorithm" not in names
-    assert names["matcher-neighbors"] == project_logic.MATCHER_NEIGHBORS
-    assert names["use-hybrid-bundle-adjustment"] is True
+    assert names["rolling-shutter"] is True
+    assert json.loads(names["boundary"])["type"] == "FeatureCollection"
+    assert not (set(names) & RETIRED_ODM_FLAGS)
 
 
 @pytest.mark.asyncio
-async def test_process_all_drone_images_skips_tuning_for_small_sets(monkeypatch):
-    project_id = uuid.uuid4()
-    conn = _FakeConn(
-        cursor_fetchone={
-            "final_output": [],
-            "gsd_cm_px": 5,
-            "count": project_logic.LARGE_DATASET_IMAGE_THRESHOLD - 1,
-        }
-    )
-    ctx = {"job_id": "proj-1", "db_pool": _FakePool(conn)}
-    submit_calls = []
+async def test_boundary_odm_option_buffers_task_outline():
+    conn = _FakeConn(cursor_fetchone={"geom": _POLYGON})
+    task_id = uuid.uuid4()
 
-    async def fake_submit(**kwargs):
-        submit_calls.append(kwargs)
-        return "fake-project-odm-uuid"
+    options = await project_logic.boundary_odm_option(conn, uuid.uuid4(), task_id)
 
-    monkeypatch.setattr(project_logic, "submit_scaleodm_task", fake_submit)
+    assert len(options) == 1
+    assert options[0]["name"] == "boundary"
+    # ODM requires a Feature or FeatureCollection.
+    boundary = json.loads(options[0]["value"])
+    assert boundary["type"] == "FeatureCollection"
+    assert boundary["features"][0]["geometry"] == _POLYGON
 
-    await project_logic.process_all_drone_images(
-        ctx, project_id, [uuid.uuid4()], "user-123"
-    )
 
-    names = {opt["name"]: opt["value"] for opt in submit_calls[0]["options"]}
-    # No sfm-algorithm flag (ODM uses its incremental default). GPS-grid matching
-    # is domain-safe and applies at every size, but the size-gated scaling flag
-    # (hybrid BA) stays off below the threshold.
-    assert "sfm-algorithm" not in names
-    assert names["matcher-neighbors"] == project_logic.MATCHER_NEIGHBORS
-    assert "use-hybrid-bundle-adjustment" not in names
+@pytest.mark.asyncio
+async def test_boundary_odm_option_omitted_when_no_outline():
+    # Missing outlines must not create an invalid boundary.
+    conn = _FakeConn(cursor_fetchone={"geom": None})
+
+    assert await project_logic.boundary_odm_option(conn, uuid.uuid4()) == []
 
 
 # ── task-level ODM output reconciliation ──────────────────────────────────────

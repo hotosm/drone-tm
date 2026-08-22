@@ -347,9 +347,13 @@ async def load_freetown_into_db(
                 lat = dms_to_decimal(row.get("GPSLatitude"))
                 lon = dms_to_decimal(row.get("GPSLongitude"))
 
+                # This older fixture lacks RelativeAltitude. Mirror its absolute
+                # value so gap detection still has usable test data.
+                altitude = row.get("RelativeAltitude") or row.get("AbsoluteAltitude")
                 exif_data = {
                     "DateTimeOriginal": row.get("DateTimeOriginal"),
                     "AbsoluteAltitude": row.get("AbsoluteAltitude"),
+                    "RelativeAltitude": altitude,
                     "FlightYawDegree": row.get("FlightYawDegree"),
                 }
 

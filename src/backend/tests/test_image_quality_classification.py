@@ -319,6 +319,89 @@ async def test_reject_gimbal_errors(db, create_test_project, auth_user):
 
 
 @pytest.mark.asyncio
+async def test_digital_zoom_rejected_and_1x_accepted(
+    db, create_test_project, auth_user
+):
+    """Reject zoomed frames while allowing 1x and "not used" (0)."""
+    project_id = uuid.UUID(create_test_project)
+    batch_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    now = datetime.now(timezone.utc)
+
+    geom = box(115.4, -8.4, 115.6, -8.2)
+    outline_wkb = wkblib.dumps(geom, hex=True)
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO tasks (id, project_id, project_task_index, outline)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (task_id, project_id, 1, outline_wkb),
+        )
+
+    # EXIF 0 means digital zoom was not used, so it must pass like 1 does.
+    cases = [
+        {"name": "ZOOM_2X.JPG", "zoom": "2", "rejected": True},
+        {"name": "ZOOM_1X.JPG", "zoom": "1", "rejected": False},
+        {"name": "ZOOM_UNUSED.JPG", "zoom": "0", "rejected": False},
+    ]
+
+    async with db.cursor() as cur:
+        for i, case in enumerate(cases):
+            filename = case["name"]
+            exif_data = json.dumps(
+                {"GimbalPitchDegree": "-80.0", "DigitalZoomRatio": case["zoom"]}
+            )
+            await cur.execute(
+                """
+                INSERT INTO project_images (
+                    project_id, filename, s3_key, hash_md5, batch_id, task_id,
+                    location, uploaded_by, status, uploaded_at, exif
+                )
+                VALUES (
+                    %(project_id)s, %(filename)s, %(s3_key)s, %(hash_md5)s,
+                    %(batch_id)s, %(task_id)s,
+                    ST_SetSRID(ST_MakePoint(115.5, -8.3), 4326),
+                    %(uploaded_by)s, 'assigned', %(uploaded_at)s, %(exif)s
+                )
+                RETURNING id
+                """,
+                {
+                    "project_id": str(project_id),
+                    "filename": filename,
+                    "s3_key": f"dtm-data/projects/{project_id}/user-uploads/{filename}",
+                    "hash_md5": hashlib.md5(filename.encode("utf-8")).hexdigest(),
+                    "batch_id": str(batch_id),
+                    "task_id": str(task_id),
+                    "uploaded_by": auth_user.id,
+                    "uploaded_at": now + timedelta(seconds=i),
+                    "exif": exif_data,
+                },
+            )
+            case["image_id"] = (await cur.fetchone())[0]
+
+    await db.commit()
+
+    for case in cases:
+        result = await ImageClassifier.classify_single_image(
+            db, case["image_id"], project_id
+        )
+        reason = result.get("reason") or ""
+        if case["rejected"]:
+            assert result["status"].value == "rejected", case["name"]
+            assert "Digital zoom" in reason, case["name"]
+        else:
+            # Later checks may fail because this test does not provide image bytes.
+            assert "Digital zoom" not in reason, case["name"]
+
+
+def test_digital_zoom_threshold_is_1x():
+    # The threshold is inclusive.
+    assert QualityThresholds().max_digital_zoom_ratio == 1.0
+
+
+@pytest.mark.asyncio
 async def test_reject_invalid_coordinates_range(db, create_test_project, auth_user):
     """Verifies images are rejected with invalid coordinates (e.g. Lat 250)."""
     project_id = uuid.UUID(create_test_project)
