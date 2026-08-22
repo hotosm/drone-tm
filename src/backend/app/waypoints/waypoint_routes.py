@@ -18,7 +18,12 @@ from app.tasks.task_logic import (
 )
 from app.utils import calculate_flight_time_from_placemarks, merge_multipolygon
 from app.waypoints import waypoint_schemas
-from app.waypoints.flightplan_output import build_flightplan_download_response
+from app.waypoints.flightplan_output import (
+    build_flightplan_download_response,
+    build_temporary_file_response,
+    create_flightplan_workspace,
+    remove_flightplan_workspace,
+)
 from app.waypoints.waypoint_logic import (
     check_point_within_buffer,
 )
@@ -32,7 +37,6 @@ from drone_flightplan.drone_type import DroneType
 from drone_flightplan.enums import FlightMode, GimbalAngle
 from drone_flightplan.output.dji import create_wpml
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
 from psycopg import Connection
 from shapely.geometry import shape
 
@@ -184,14 +188,19 @@ async def get_task_flightplan(
     # If the user needs a download, wrap in correct response
     if download:
         # Output writers each treat `outfile` differently (some as a file path,
-        # some as a base dir for a subdirectory tree). They all expect a unique
-        # non-existent path under a writable tmpdir.
-        outfile = os.path.join(tempfile.gettempdir(), f"flightplan-{uuid.uuid4()}")
-        outpath = write_flightplan_file(placemarks, drone_type, outfile, mode)
+        # some as a base dir for a subdirectory tree). Keep all of those files
+        # in one managed workspace and remove it after the response is sent.
+        temp_dir, outfile = create_flightplan_workspace()
+        try:
+            outpath = write_flightplan_file(placemarks, drone_type, outfile, mode)
+        except Exception:
+            remove_flightplan_workspace(temp_dir)
+            raise
         return build_flightplan_download_response(
             outpath,
             drone_type=drone_type,
             filename_stem=f"task-{project_task_index}-{mode.name}-project-{project_id}",
+            cleanup_dir=temp_dir,
         )
 
     flight_data = calculate_flight_time_from_placemarks(placemarks)
@@ -274,11 +283,6 @@ async def generate_wmpl_kmz(
                 detail="DEM file should be in GeoTIFF format",
             )
 
-        fd, dem_path = tempfile.mkstemp(suffix=".tif", prefix="dem_")
-        os.close(fd)
-        with open(dem_path, "wb") as buffer:
-            shutil.copyfileobj(dem.file, buffer)
-
     boundary = merge_multipolygon(geojson.loads(await project_geojson.read()))
 
     # create a takeoff point in this format ["lon","lat"]
@@ -303,23 +307,35 @@ async def generate_wmpl_kmz(
         )
         return geojson.loads(points)
     else:
-        output_file = create_flightplan(
-            aoi=boundary,
-            forward_overlap=forward_overlap,
-            side_overlap=side_overlap,
-            agl=altitude,
-            gsd=gsd,
-            flight_mode=flight_mode,
-            dem=dem_path if dem else None,
-            outfile=os.path.join(tempfile.gettempdir(), str(uuid.uuid4())),
-            take_off_point=take_off_point,
-            drone_type=drone_type,
-        )
+        temp_dir, outfile = create_flightplan_workspace()
+        dem_path = None
+        try:
+            if terrain_follow:
+                dem_path = os.path.join(temp_dir, "dem.tif")
+                with open(dem_path, "wb") as buffer:
+                    shutil.copyfileobj(dem.file, buffer)
+
+            output_file = create_flightplan(
+                aoi=boundary,
+                forward_overlap=forward_overlap,
+                side_overlap=side_overlap,
+                agl=altitude,
+                gsd=gsd,
+                flight_mode=flight_mode,
+                dem=dem_path,
+                outfile=outfile,
+                take_off_point=take_off_point,
+                drone_type=drone_type,
+            )
+        except Exception:
+            remove_flightplan_workspace(temp_dir)
+            raise
 
         return build_flightplan_download_response(
             output_file,
             drone_type=drone_type,
             filename_stem="output",
+            cleanup_dir=temp_dir,
         )
 
 
@@ -327,17 +343,20 @@ async def generate_wmpl_kmz(
 async def generate_kmz_with_placemarks(
     task_id: uuid.UUID, data: waypoint_schemas.PlacemarksFeature
 ):
+    temp_dir, _ = create_flightplan_workspace()
     try:
-        outfile = os.path.join(tempfile.gettempdir(), f"{task_id}_flight_plan.kmz")
+        outfile = os.path.join(temp_dir, f"{task_id}_flight_plan.kmz")
 
         kmz_file = create_wpml(data.model_dump(), outfile)
         if not os.path.exists(kmz_file):
             raise HTTPException(status_code=500, detail="Failed to generate KMZ file.")
-        return FileResponse(
+        return build_temporary_file_response(
             kmz_file,
             media_type="application/zip",
             filename=f"{task_id}_flight_plan.kmz",
+            cleanup_dir=temp_dir,
         )
 
     except Exception as e:
+        remove_flightplan_workspace(temp_dir)
         raise HTTPException(status_code=500, detail=f"Error generating KMZ: {e!s}")
