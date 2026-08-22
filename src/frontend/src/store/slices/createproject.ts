@@ -27,6 +27,7 @@ export interface CreateProjectState {
   projectMapImage: any;
   imageMergeType: string;
   ProjectsFilterByOwner: "yes" | "no";
+  projectsFilterHasImagery: boolean;
   requiresApprovalFromRegulator: "required" | "not_required";
   selectedProjectStatus: string;
   regulatorEmails: string[] | [];
@@ -57,6 +58,7 @@ const initialState: CreateProjectState = {
   projectMapImage: null,
   imageMergeType: "overlap",
   ProjectsFilterByOwner: "no",
+  projectsFilterHasImagery: false,
   requiresApprovalFromRegulator: "not_required",
   regulatorEmails: [],
   demType: "auto",

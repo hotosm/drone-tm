@@ -20,6 +20,9 @@ const Projects = () => {
   const projectFilterByStatus = useTypedSelector(
     (state) => state.createproject.selectedProjectStatus,
   );
+  const projectsFilterHasImagery = useTypedSelector(
+    (state) => state.createproject.projectsFilterHasImagery,
+  );
   const projectSearchKey = useTypedSelector((state) => state.common.projectSearchKey);
   const [paginationState, setSetPaginationState] = useState({
     activePage: 1,
@@ -30,20 +33,14 @@ const Projects = () => {
     setSetPaginationState((prev) => ({ ...prev, ...value }));
   };
 
-  const filterParams = projectFilterByStatus
-    ? {
-        filter_by_owner: projectsFilterByOwner === "yes",
-        status: projectFilterByStatus,
-        page: paginationState?.activePage,
-        results_per_page: paginationState?.selectedNumberOfRows,
-        search: projectSearchKey,
-      }
-    : {
-        filter_by_owner: projectsFilterByOwner === "yes",
-        page: paginationState?.activePage,
-        results_per_page: paginationState?.selectedNumberOfRows,
-        search: projectSearchKey,
-      };
+  const filterParams = {
+    filter_by_owner: projectsFilterByOwner === "yes",
+    has_imagery: projectsFilterHasImagery,
+    page: paginationState?.activePage,
+    results_per_page: paginationState?.selectedNumberOfRows,
+    search: projectSearchKey,
+    ...(projectFilterByStatus ? { status: projectFilterByStatus } : {}),
+  };
 
   // fetch api for projectsList
   const { data: projectListData, isFetching: isLoading }: Record<string, any> =
@@ -59,11 +56,16 @@ const Projects = () => {
 
   useEffect(() => {
     handlePaginationState({ activePage: 1 });
-  }, [projectSearchKey, projectsFilterByOwner]);
+  }, [projectSearchKey, projectsFilterByOwner, projectsFilterHasImagery, projectFilterByStatus]);
 
   useEffect(() => {
     return () => {
-      dispatch(setCreateProjectState({ ProjectsFilterByOwner: "no" }));
+      dispatch(
+        setCreateProjectState({
+          ProjectsFilterByOwner: "no",
+          projectsFilterHasImagery: false,
+        }),
+      );
       dispatch(setCommonState({ projectSearchKey: "" }));
     };
   }, [dispatch]);

@@ -116,6 +116,222 @@ async def test_read_projects(client):
 
 
 @pytest.mark.asyncio
+async def test_read_projects_filter_by_author_username(
+    client, db, auth_user, create_test_project
+):
+    """The author filter matches the project creator's username."""
+    project_id = create_test_project
+
+    response = await client.get("/api/projects/", params={"author": auth_user.name})
+    assert response.status_code == 200
+    results = response.json()["results"]
+    assert project_id in [project["id"] for project in results]
+    assert all(project["author_name"] == auth_user.name for project in results)
+
+    response = await client.get("/api/projects/", params={"author": "nobody-by-name"})
+    assert response.status_code == 200
+    assert response.json()["results"] == []
+    assert response.json()["pagination"]["total"] == 0
+
+
+@pytest.mark.asyncio
+async def test_read_projects_author_filter_is_partial_and_case_insensitive(
+    client, auth_user, create_test_project
+):
+    """A partial, differently cased username still matches."""
+    partial = auth_user.name[:3].upper()
+
+    response = await client.get("/api/projects/", params={"author": partial})
+
+    assert response.status_code == 200
+    assert create_test_project in [
+        project["id"] for project in response.json()["results"]
+    ]
+
+
+@pytest.mark.asyncio
+async def test_read_projects_filter_by_owner_wins_over_author(
+    client, auth_user, create_test_project
+):
+    """filter_by_owner is the logged in user, so a foreign author is ignored."""
+    response = await client.get(
+        "/api/projects/",
+        params={"filter_by_owner": True, "author": "somebody-else"},
+    )
+
+    assert response.status_code == 200
+    assert create_test_project in [
+        project["id"] for project in response.json()["results"]
+    ]
+
+
+@pytest.mark.asyncio
+async def test_read_projects_has_imagery_excludes_projects_without_imagery(
+    client, db, auth_user, create_test_project
+):
+    """A project whose tasks are all pre-imagery is filtered out."""
+    project_id = create_test_project
+    task_id = await _insert_classification_test_task(db, project_id=project_id)
+    await _insert_task_state(
+        db,
+        project_id=project_id,
+        task_id=task_id,
+        user_id=auth_user.id,
+        state=State.LOCKED,
+    )
+
+    response = await client.get("/api/projects/", params={"has_imagery": True})
+
+    assert response.status_code == 200
+    assert project_id not in [project["id"] for project in response.json()["results"]]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "state",
+    [
+        State.HAS_IMAGERY,
+        State.READY_FOR_PROCESSING,
+        State.IMAGE_PROCESSING_STARTED,
+        State.IMAGE_PROCESSING_FAILED,
+        State.IMAGE_PROCESSING_FINISHED,
+    ],
+)
+async def test_read_projects_has_imagery_includes_every_imagery_state(
+    client, db, auth_user, create_test_project, state
+):
+    """One task in any imagery-bearing state is enough to keep the project."""
+    project_id = create_test_project
+    task_id = await _insert_classification_test_task(db, project_id=project_id)
+    await _insert_task_state(
+        db,
+        project_id=project_id,
+        task_id=task_id,
+        user_id=auth_user.id,
+        state=state,
+    )
+
+    response = await client.get("/api/projects/", params={"has_imagery": True})
+
+    assert response.status_code == 200
+    assert project_id in [project["id"] for project in response.json()["results"]]
+
+
+@pytest.mark.asyncio
+async def test_read_projects_has_imagery_ignores_has_issues(
+    client, db, auth_user, create_test_project
+):
+    """HAS_ISSUES sorts above HAS_IMAGERY but says nothing about imagery."""
+    project_id = create_test_project
+    task_id = await _insert_classification_test_task(db, project_id=project_id)
+    await _insert_task_state(
+        db,
+        project_id=project_id,
+        task_id=task_id,
+        user_id=auth_user.id,
+        state=State.HAS_ISSUES,
+    )
+
+    response = await client.get("/api/projects/", params={"has_imagery": True})
+
+    assert response.status_code == 200
+    assert project_id not in [project["id"] for project in response.json()["results"]]
+
+
+@pytest.mark.asyncio
+async def test_read_projects_has_imagery_uses_only_the_latest_task_state(
+    client, db, auth_user, create_test_project
+):
+    """Imagery uploaded then reverted should not keep the project in results."""
+    project_id = create_test_project
+    task_id = await _insert_classification_test_task(db, project_id=project_id)
+    await _insert_task_state(
+        db,
+        project_id=project_id,
+        task_id=task_id,
+        user_id=auth_user.id,
+        state=State.HAS_IMAGERY,
+    )
+    await _insert_task_state(
+        db,
+        project_id=project_id,
+        task_id=task_id,
+        user_id=auth_user.id,
+        state=State.UNLOCKED,
+    )
+
+    response = await client.get("/api/projects/", params={"has_imagery": True})
+
+    assert response.status_code == 200
+    assert project_id not in [project["id"] for project in response.json()["results"]]
+
+
+@pytest.mark.asyncio
+async def test_read_projects_pagination_total_counts_all_matches(
+    client, db, auth_user, project_info
+):
+    """The paginated total reflects every match, not just the page."""
+    created = []
+    for index in range(3):
+        info = project_info.model_copy(
+            update={"name": f"{project_info.name}_PAGE_{index}"}
+        )
+        created.append(
+            str(await project_schemas.DbProject.create(db, info, auth_user.id))
+        )
+    await db.commit()
+
+    response = await client.get(
+        "/api/projects/",
+        params={"search": "_PAGE_", "results_per_page": 2, "page": 1},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["results"]) == 2
+    assert body["pagination"]["total"] == len(created)
+
+
+@pytest.mark.asyncio
+async def test_read_projects_total_survives_an_out_of_range_page(
+    client, db, auth_user, project_info
+):
+    """A page past the last result still reports the real total."""
+    created = []
+    for index in range(3):
+        info = project_info.model_copy(
+            update={"name": f"{project_info.name}_OOR_{index}"}
+        )
+        created.append(
+            str(await project_schemas.DbProject.create(db, info, auth_user.id))
+        )
+    await db.commit()
+
+    response = await client.get(
+        "/api/projects/",
+        params={"search": "_OOR_", "results_per_page": 2, "page": 99},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["results"] == []
+    assert body["pagination"]["total"] == len(created)
+
+
+@pytest.mark.asyncio
+async def test_read_projects_total_is_zero_when_nothing_matches(client):
+    """A filter that matches nothing reports a zero total, not a stale one."""
+    response = await client.get(
+        "/api/projects/", params={"search": "NO_SUCH_PROJECT_NAME_EXISTS"}
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["results"] == []
+    assert body["pagination"]["total"] == 0
+
+
+@pytest.mark.asyncio
 async def test_read_project(client, create_test_project):
     """Test reading a single project."""
     project_id = create_test_project

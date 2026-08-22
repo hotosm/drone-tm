@@ -104,6 +104,7 @@ class DbTask(Base):
             "project_id",
             postgresql_where=text("odm_task_uuid IS NOT NULL"),
         ),
+        Index("ix_tasks_project_id", "project_id"),
     )
 
 
@@ -353,6 +354,8 @@ class TaskEvent(Base):
     __table_args__ = (
         Index("idx_task_event_composite", "task_id", "project_id"),
         Index("idx_task_event_project_id_user_id", "user_id", "project_id"),
+        # Serves the "latest event per task" lookup behind the project list.
+        Index("ix_task_events_task_id_created_at", "task_id", text("created_at DESC")),
     )
     updated_at = cast(datetime, Column(DateTime, nullable=True))
 

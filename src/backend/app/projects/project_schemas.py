@@ -14,6 +14,7 @@ from app.models.enums import (
     ProjectStatus,
     ProjectVisibility,
     RegulatorApprovalStatus,
+    State,
 )
 from app.projects.s3_paths import (
     cloudnative_3d_tileset_browser_url,
@@ -473,111 +474,158 @@ class DbProject(BaseModel):
     async def all(
         db: Connection,
         user_id: str | None = None,
+        author: str | None = None,
         search: str | None = None,
         status: ProjectCompletionStatus | None = None,
+        has_imagery: bool = False,
         skip: int = 0,
         limit: int = 100,
     ):
         """Get all projects, count total tasks and task states (ongoing, completed, etc.).
-        Optionally filter by the project creator (user), search by project name, and status.
+
+        Optional filters:
+            user_id: only projects created by this user id (the logged in user).
+            author: only projects whose creator's name matches (partial, case
+                insensitive). Resolved against the same author_id column as
+                ``user_id``, so both share one code path.
+            search: partial, case insensitive match on the project name.
+            status: derived completion status (not-started / ongoing / completed).
+            has_imagery: only projects where at least one task has imagery
+                uploaded (see ``State.imagery_present_states``).
         """
         search_term = f"%{search}%" if search else "%"
+        author_term = f"%{author}%" if author else None
         status_value = status.value if status else None
+        imagery_states = [state.name for state in State.imagery_present_states()]
 
-        async with db.cursor(row_factory=dict_row) as cur:
-            query = """
-                WITH project_stats AS (
-                    SELECT
-                        p.id,
-                        p.slug,
-                        p.name,
-                        p.description,
-                        p.per_task_instructions,
-                        p.created_at,
-                        p.author_id,
-                        ST_AsGeoJSON(p.outline)::jsonb AS outline,
-                        p.requires_approval_from_manager_for_locking,
-                        COUNT(t.id) AS total_task_count,
-                        COUNT(CASE WHEN te.state::text IN ('LOCKED', 'AWAITING_APPROVAL', 'READY_FOR_PROCESSING', 'HAS_ISSUES') THEN 1 END) AS ongoing_task_count,
-                        COUNT(CASE WHEN te.state::text = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) AS completed_task_count,
-                        CASE
-                            WHEN COUNT(CASE WHEN te.state::text = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = COUNT(t.id) THEN 'completed'
-                            WHEN COUNT(CASE WHEN te.state::text IN ('LOCKED', 'AWAITING_APPROVAL', 'READY_FOR_PROCESSING', 'HAS_ISSUES') THEN 1 END) = 0
-                                AND COUNT(CASE WHEN te.state::text = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = 0 THEN 'not-started'
-                            ELSE 'ongoing'
-                        END AS calculated_status
-                    FROM projects p
-                    LEFT JOIN tasks t ON t.project_id = p.id
-                    LEFT JOIN (
-                        SELECT DISTINCT ON (te.task_id)
-                            te.task_id,
-                            te.state,
-                            te.created_at
-                        FROM task_events te
-                        ORDER BY te.task_id, te.created_at DESC
-                    ) AS te ON te.task_id = t.id
-                    WHERE (p.author_id = COALESCE(%(user_id)s, p.author_id))
+        # NOTE the total count comes back via COUNT(*) OVER () rather than a
+        # second query, so the (expensive) task aggregation only runs once.
+        query = """
+            WITH filtered_projects AS (
+                SELECT
+                    p.id,
+                    p.slug,
+                    p.name,
+                    p.description,
+                    p.per_task_instructions,
+                    p.created_at,
+                    p.author_id,
+                    p.outline,
+                    p.requires_approval_from_manager_for_locking,
+                    u.name AS author_name
+                FROM projects p
+                LEFT JOIN users u ON u.id = p.author_id
+                WHERE p.author_id = COALESCE(%(user_id)s, p.author_id)
                     AND p.name ILIKE %(search)s
-                    GROUP BY p.id, p.slug, p.name, p.description, p.per_task_instructions, p.created_at, p.author_id, p.outline, p.requires_approval_from_manager_for_locking
-                )
+                    AND (
+                        CAST(%(author)s AS text) IS NULL
+                        OR u.name ILIKE %(author)s
+                    )
+            ),
+            -- Latest event per task, restricted to the projects that survived
+            -- the filters above so we never scan the whole task_events table.
+            latest_task_state AS (
+                SELECT DISTINCT ON (te.task_id)
+                    te.task_id,
+                    te.state::text AS state
+                FROM task_events te
+                WHERE te.project_id IN (SELECT id FROM filtered_projects)
+                ORDER BY te.task_id, te.created_at DESC
+            ),
+            project_stats AS (
+                SELECT
+                    fp.id,
+                    fp.slug,
+                    fp.name,
+                    fp.description,
+                    fp.per_task_instructions,
+                    fp.created_at,
+                    fp.author_id,
+                    fp.outline,
+                    fp.requires_approval_from_manager_for_locking,
+                    fp.author_name,
+                    COUNT(t.id) AS total_task_count,
+                    COUNT(CASE WHEN lts.state IN ('LOCKED', 'AWAITING_APPROVAL', 'READY_FOR_PROCESSING', 'HAS_ISSUES') THEN 1 END) AS ongoing_task_count,
+                    COUNT(CASE WHEN lts.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) AS completed_task_count,
+                    COUNT(CASE WHEN lts.state = ANY(%(imagery_states)s) THEN 1 END) AS imagery_task_count,
+                    CASE
+                        WHEN COUNT(CASE WHEN lts.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = COUNT(t.id) THEN 'completed'
+                        WHEN COUNT(CASE WHEN lts.state IN ('LOCKED', 'AWAITING_APPROVAL', 'READY_FOR_PROCESSING', 'HAS_ISSUES') THEN 1 END) = 0
+                            AND COUNT(CASE WHEN lts.state = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = 0 THEN 'not-started'
+                        ELSE 'ongoing'
+                    END AS calculated_status
+                FROM filtered_projects fp
+                LEFT JOIN tasks t ON t.project_id = fp.id
+                LEFT JOIN latest_task_state lts ON lts.task_id = t.id
+                GROUP BY fp.id, fp.slug, fp.name, fp.description, fp.per_task_instructions,
+                    fp.created_at, fp.author_id, fp.outline,
+                    fp.requires_approval_from_manager_for_locking, fp.author_name
+            ),
+            matching AS (
                 SELECT *
                 FROM project_stats
-                WHERE CAST(%(status)s AS text) IS NULL
-                    OR calculated_status = CAST(%(status)s AS text)
+                WHERE (
+                        CAST(%(status)s AS text) IS NULL
+                        OR calculated_status = CAST(%(status)s AS text)
+                    )
+                    AND (NOT %(has_imagery)s OR imagery_task_count > 0)
+            ),
+            total AS (
+                SELECT COUNT(*) AS total_count FROM matching
+            ),
+            page AS (
+                SELECT *
+                FROM matching
                 ORDER BY created_at DESC
                 OFFSET %(skip)s
                 LIMIT %(limit)s
-            """
+            )
+            -- LEFT JOIN from the single-row total so the count still comes back
+            -- when the requested page is past the last result. Serialise the
+            -- outline here, for the page only, not for every project matched.
+            SELECT
+                total.total_count,
+                page.id,
+                page.slug,
+                page.name,
+                page.description,
+                page.per_task_instructions,
+                page.created_at,
+                page.author_id,
+                page.author_name,
+                page.requires_approval_from_manager_for_locking,
+                page.total_task_count,
+                page.ongoing_task_count,
+                page.completed_task_count,
+                page.imagery_task_count,
+                page.calculated_status,
+                ST_AsGeoJSON(page.outline)::jsonb AS outline
+            FROM total
+            LEFT JOIN page ON TRUE
+            ORDER BY page.created_at DESC
+        """
 
+        async with db.cursor(row_factory=dict_row) as cur:
             await cur.execute(
                 query,
                 {
                     "skip": skip,
                     "limit": limit,
                     "user_id": user_id,
+                    "author": author_term,
                     "search": search_term,
                     "status": status_value,
+                    "has_imagery": has_imagery,
+                    "imagery_states": imagery_states,
                 },
             )
-            db_projects = await cur.fetchall()
+            rows = await cur.fetchall()
 
-        async with db.cursor() as cur:
-            count_query = """
-                WITH project_stats AS (
-                    SELECT
-                        p.id,
-                        CASE
-                            WHEN COUNT(CASE WHEN te.state::text = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = COUNT(t.id) THEN 'completed'
-                            WHEN COUNT(CASE WHEN te.state::text IN ('LOCKED', 'AWAITING_APPROVAL', 'READY_FOR_PROCESSING', 'HAS_ISSUES') THEN 1 END) = 0
-                                AND COUNT(CASE WHEN te.state::text = 'IMAGE_PROCESSING_FINISHED' THEN 1 END) = 0 THEN 'not-started'
-                            ELSE 'ongoing'
-                        END AS calculated_status
-                    FROM projects p
-                    LEFT JOIN tasks t ON t.project_id = p.id
-                    LEFT JOIN (
-                        SELECT DISTINCT ON (te.task_id)
-                            te.task_id,
-                            te.state,
-                            te.created_at
-                        FROM task_events te
-                        ORDER BY te.task_id, te.created_at DESC
-                    ) AS te ON te.task_id = t.id
-                    WHERE (p.author_id = COALESCE(%(user_id)s, p.author_id))
-                    AND p.name ILIKE %(search)s
-                    GROUP BY p.id
-                )
-                SELECT COUNT(*)
-                FROM project_stats
-                WHERE CAST(%(status)s AS text) IS NULL
-                    OR calculated_status = CAST(%(status)s AS text)
-            """
-            await cur.execute(
-                count_query,
-                {"user_id": user_id, "search": search_term, "status": status_value},
-            )
-            total_count = await cur.fetchone()
-
-        return db_projects, total_count[0]
+        # `total` always yields exactly one row, so the count survives even when
+        # the page is empty - in which case that row carries no project.
+        total_count = rows[0]["total_count"] if rows else 0
+        db_projects = [row for row in rows if row["id"] is not None]
+        return db_projects, total_count
 
     @staticmethod
     async def create(db: Connection, project: ProjectIn, user_id: str) -> uuid.UUID:

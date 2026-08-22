@@ -24,6 +24,9 @@ export default function ProjectsHeader() {
   const selectedProjectStatus = useTypedSelector(
     (state) => state.createproject.selectedProjectStatus,
   );
+  const projectsFilterHasImagery = useTypedSelector(
+    (state) => state.createproject.projectsFilterHasImagery,
+  );
   const [searchValue, setSearchValue] = useState("");
   const debouncedValue = useDebounceListener(searchValue || "", 300);
 
@@ -76,6 +79,17 @@ export default function ProjectsHeader() {
                 dispatch(setCreateProjectState({ selectedProjectStatus: value }))
               }
             />
+            <label className="naxatw-flex naxatw-cursor-pointer naxatw-select-none naxatw-items-center naxatw-gap-2 naxatw-whitespace-nowrap naxatw-text-body-md">
+              <input
+                type="checkbox"
+                className="naxatw-h-4 naxatw-w-4 naxatw-cursor-pointer naxatw-accent-red"
+                checked={projectsFilterHasImagery}
+                onChange={(e) =>
+                  dispatch(setCreateProjectState({ projectsFilterHasImagery: e.target.checked }))
+                }
+              />
+              {m.projects_filter_has_imagery()}
+            </label>
           </div>
           <div className="naxatw-min-w-[180px] naxatw-flex-1 md:naxatw-flex-none">
             <SearchInput

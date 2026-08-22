@@ -134,6 +134,20 @@ class State(IntEnum):
     IMAGE_PROCESSING_STARTED = 8
     IMAGE_PROCESSING_FINISHED = 9
 
+    @classmethod
+    def imagery_present_states(cls) -> list["State"]:
+        """The states that mean imagery has been uploaded for a task.
+
+        HAS_ISSUES is excluded despite sorting above HAS_IMAGERY: a task can be
+        marked as having issues (unflyable, needs redo) while still awaiting a
+        flight, so it tells us nothing about whether imagery exists.
+        """
+        return [
+            state
+            for state in cls
+            if state >= cls.HAS_IMAGERY and state is not cls.HAS_ISSUES
+        ]
+
 
 class EventType(StrEnum):
     """Events that can be used via the API to update a state.

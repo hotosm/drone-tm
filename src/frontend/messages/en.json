@@ -382,6 +382,7 @@
   "projects_no_projects_available": "No projects available",
   "projects_add_project": "Add Project",
   "projects_show_map": "Show map",
+  "projects_filter_has_imagery": "Has Imagery",
   "projects_filter_all_projects": "All projects",
   "projects_filter_my_projects": "My Projects",
   "projects_filter_by_status_placeholder": "Filter By Project Status",

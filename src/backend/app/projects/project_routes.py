@@ -450,8 +450,22 @@ async def read_projects(
     filter_by_owner: bool | None = Query(
         False, description="Filter projects by authenticated user (creator)"
     ),
+    author: str | None = Query(
+        None,
+        description=(
+            "Filter projects by creator username (partial, case insensitive). "
+            "Ignored when filter_by_owner is set."
+        ),
+    ),
     status: ProjectCompletionStatus | None = Query(
         None, description="Filter projects by status"
+    ),
+    has_imagery: bool = Query(
+        False,
+        description=(
+            "Only return projects where at least one task has imagery uploaded "
+            "(uploaded, ready for processing, processing, processed or failed)"
+        ),
     ),
     search: str | None = Query(None, description="Search projects by name"),
     page: int = Query(1, ge=1, description="Page number"),
@@ -461,13 +475,17 @@ async def read_projects(
 ):
     """Get all projects with task count."""
     try:
+        # Filtering by the logged in user is just the username filter with the
+        # author resolved for us, so it wins if both are passed.
         user_id = user_data.id if filter_by_owner else None
         skip = (page - 1) * results_per_page
         projects, total_count = await project_schemas.DbProject.all(
             db,
             user_id=user_id,
+            author=None if filter_by_owner else author,
             search=search,
             status=status,
+            has_imagery=has_imagery,
             skip=skip,
             limit=results_per_page,
         )
