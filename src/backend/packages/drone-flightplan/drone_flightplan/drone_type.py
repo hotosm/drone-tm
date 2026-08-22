@@ -79,7 +79,8 @@ DRONE_SPECS = {
     DroneType.POTENSIC_ATOM_3: {
         # 1/1.3-inch CMOS
         # 4:3 (or 16:9 cropped)
-        # Potensic quotes 40 minutes at a test speed of 5 m/s (18 km/h).
+        # Potensic measured the 40-minute flight time at 5 m/s. The battery
+        # model expects tested_value in km/h, so 5 m/s is stored as 18 km/h.
         "max_battery_life_minutes": {"quoted_value": 40, "tested_value": 18},
         "sensor_height_mm": 7.2,
         "sensor_width_mm": 9.6,
@@ -180,7 +181,7 @@ DRONE_PARAMS = {
         "VERTICAL_FOV": 0.99,
         "HORIZONTAL_FOV": 1.25,
         "GSD_TO_AGL_CONST": 28.39,
-        "OUTPUT_FORMAT": "POTENSIC_JSON_V3",
+        "OUTPUT_FORMAT": "POTENSIC_JSON_V2",
     },
     # FIXME these params can vary widely. We need a way for user to input
     # FIXME the current values are simply for testing different output formats

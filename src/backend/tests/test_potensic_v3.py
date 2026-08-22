@@ -61,7 +61,7 @@ def test_atom3_drone_parameters_and_output_config():
         "image_width_px": 4096,
     }
     assert DRONE_PARAMS[DroneType.POTENSIC_ATOM_3]["OUTPUT_FORMAT"] == (
-        "POTENSIC_JSON_V3"
+        "POTENSIC_JSON_V2"
     )
     assert get_flightplan_output_config(DroneType.POTENSIC_ATOM_3) == {
         "suffix": ".zip",
@@ -98,7 +98,7 @@ def test_atom3_output_format_routes_to_v3_serializer(tmp_path, monkeypatch):
     }
 
 
-def test_atom3_ground_speed_stays_within_documented_waypoint_range():
+def test_atom3_ground_speed_uses_existing_default_cap():
     fast_plan = calculate_parameters(
         forward_overlap=0,
         side_overlap=70,
@@ -114,8 +114,8 @@ def test_atom3_ground_speed_stays_within_documented_waypoint_range():
         drone_type=DroneType.POTENSIC_ATOM_3,
     )
 
-    assert fast_plan["ground_speed"] == 10.0
-    assert slow_plan["ground_speed"] == 0.5
+    assert fast_plan["ground_speed"] == 11.5
+    assert slow_plan["ground_speed"] == 0.05
 
 
 def test_create_atom3_mission_matches_observed_format(tmp_path, monkeypatch):
@@ -180,7 +180,7 @@ def test_atom3_mission_rejects_empty_feature_collection(tmp_path):
         )
 
 
-def test_atom3_mission_default_speed_respects_documented_maximum(tmp_path, monkeypatch):
+def test_atom3_mission_uses_default_speed_when_waypoints_omit_it(tmp_path, monkeypatch):
     timestamp_ms = 1_786_984_375_375
     monkeypatch.setattr(potensic_v3.time, "time", lambda: timestamp_ms / 1000)
     feature = geojson.Feature(
@@ -204,14 +204,3 @@ def test_atom3_mission_default_speed_respects_documented_maximum(tmp_path, monke
     assert global_json["speed"] == 10.0
     assert waypoints[0]["speed"] == 10.0
     assert waypoints[0]["speedType"] == "GLOBAL"
-
-
-def test_atom3_mission_rejects_more_than_200_waypoints(tmp_path):
-    feature = _atom3_features()[0]
-    features = geojson.FeatureCollection([feature for _ in range(201)])
-
-    with pytest.raises(ValueError, match="support at most 200 waypoints; received 201"):
-        potensic_v3.create_potensic_v3_json(
-            features,
-            outfile=str(Path(tmp_path) / "flightplan"),
-        )

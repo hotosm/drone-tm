@@ -193,9 +193,6 @@ def calculate_parameters(
         # NOTE This seems to be the max speed for the Potensic Atom 1
         # upon testing. This value could be updated if reported otherwise
         ground_speed = min(ground_speed, 8.0)
-    elif drone_type == DroneType.POTENSIC_ATOM_3:
-        # Potensic documents a 0.5-10 m/s range for Atom 3 waypoint missions.
-        ground_speed = max(0.5, min(ground_speed, 10.0))
     else:
         # FIXME is this default appropriate for all drones?
         ground_speed = min(ground_speed, 11.5)

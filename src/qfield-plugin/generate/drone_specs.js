@@ -6,7 +6,8 @@ var DroneType = {
     DJI_AIR_3: "DJI_AIR_3",
     DJI_MINI_5_PRO: "DJI_MINI_5_PRO",
     POTENSIC_ATOM_1: "POTENSIC_ATOM_1",
-    POTENSIC_ATOM_2: "POTENSIC_ATOM_2"
+    POTENSIC_ATOM_2: "POTENSIC_ATOM_2",
+    POTENSIC_ATOM_3: "POTENSIC_ATOM_3"
 };
 
 // Flight mode constants
@@ -59,6 +60,15 @@ var DRONE_SPECS = {
         sensor_width_mm: 6.40,
         equiv_focal_length_mm: 26,
         image_width_px: 4608
+    },
+    POTENSIC_ATOM_3: {
+        // Potensic measured the 40-minute flight time at 5 m/s. The battery
+        // model expects tested_value in km/h, so 5 m/s is stored as 18 km/h.
+        max_battery_life_minutes: { quoted_value: 40, tested_value: 18 },
+        sensor_height_mm: 7.2,
+        sensor_width_mm: 9.6,
+        equiv_focal_length_mm: 24,
+        image_width_px: 4096
     }
 };
 
@@ -94,6 +104,12 @@ var DRONE_PARAMS = {
         HORIZONTAL_FOV: 1.17,
         GSD_TO_AGL_CONST: 34.61,
         OUTPUT_FORMAT: "POTENSIC_JSON"
+    },
+    POTENSIC_ATOM_3: {
+        VERTICAL_FOV: 0.99,
+        HORIZONTAL_FOV: 1.25,
+        GSD_TO_AGL_CONST: 28.39,
+        OUTPUT_FORMAT: "POTENSIC_JSON_V2"
     }
 };
 
@@ -103,5 +119,6 @@ var DRONE_DISPLAY_NAMES = {
     DJI_AIR_3: "DJI Air 3",
     DJI_MINI_5_PRO: "DJI Mini 5 Pro",
     POTENSIC_ATOM_1: "Potensic Atom 1",
-    POTENSIC_ATOM_2: "Potensic Atom 2"
+    POTENSIC_ATOM_2: "Potensic Atom 2",
+    POTENSIC_ATOM_3: "Potensic Atom 3"
 };

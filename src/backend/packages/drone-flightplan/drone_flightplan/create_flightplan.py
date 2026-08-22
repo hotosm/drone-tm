@@ -125,7 +125,7 @@ def write_flightplan_file(
         outpath = create_potensic_sqlite(placemarks, outfile)
     elif output_format == "POTENSIC_JSON":
         outpath = create_potensic_json(placemarks, outfile)
-    elif output_format == "POTENSIC_JSON_V3":
+    elif output_format == "POTENSIC_JSON_V2":
         outpath = create_potensic_v3_json(placemarks, outfile)
     elif output_format == "MAVLINK_PLAN":
         outpath = create_mavlink_plan(placemarks, outfile)

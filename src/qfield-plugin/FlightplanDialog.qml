@@ -41,6 +41,10 @@ QfDialog {
   property bool kmzAvailable: false
   property string lastDroneType: ""
   property string djiMissionId: ""
+  property bool lastDroneUsesPotensicJson: lastDroneType === "POTENSIC_ATOM_2" || lastDroneType === "POTENSIC_ATOM_3"
+  property string lastPotensicOutputDirName: lastDroneType === "POTENSIC_ATOM_3"
+    ? "flightplans_potensic3"
+    : "flightplans_potensic2"
 
   parent: iface.mainWindow().contentItem
   width: Math.min(parent.width * 0.9, 400)
@@ -227,7 +231,7 @@ QfDialog {
       ComboBox {
         id: droneTypeCombo
         Layout.fillWidth: true
-        model: ["DJI Mini 4 Pro", "DJI Air 3", "DJI Mini 5 Pro", "Potensic Atom 1", "Potensic Atom 2"]
+        model: ["DJI Mini 4 Pro", "DJI Air 3", "DJI Mini 5 Pro", "Potensic Atom 1", "Potensic Atom 2", "Potensic Atom 3"]
         currentIndex: flightplanDialog.droneTypeIndex
         onCurrentIndexChanged: flightplanDialog.droneTypeIndex = currentIndex
       }
@@ -340,7 +344,7 @@ QfDialog {
         enabled: taskCombo.currentIndex >= 0 && taskCombo.count > 0
 
         onClicked: {
-          var droneTypes = ["DJI_MINI_4_PRO", "DJI_AIR_3", "DJI_MINI_5_PRO", "POTENSIC_ATOM_1", "POTENSIC_ATOM_2"];
+          var droneTypes = ["DJI_MINI_4_PRO", "DJI_AIR_3", "DJI_MINI_5_PRO", "POTENSIC_ATOM_1", "POTENSIC_ATOM_2", "POTENSIC_ATOM_3"];
           var gimbalAngles = ["-80", "-90", "-45"];
 
           // Flight mode depends on DEM selection
@@ -389,10 +393,10 @@ QfDialog {
       // --- File write failure help ---
       Label {
         visible: generationState === "error"
-        text: lastDroneType === "POTENSIC_ATOM_2"
-          ? qsTr("File write failed. Mission JSON files may still be saved in flightplans_potensic2/ in the project folder.\n\n" +
+        text: lastDroneUsesPotensicJson
+          ? qsTr("File write failed. Mission JSON files may still be saved in %1/ in the project folder.\n\n" +
               "To transfer manually, connect your phone via USB and copy global.json and the timestamped .json into:\n" +
-              "Android/data/com.ipotensic.atom/files/Waypoint/<mission-id>/")
+              "Android/data/com.ipotensic.atom/files/Waypoint/<mission-id>/").arg(lastPotensicOutputDirName)
           : qsTr("The WPML has been copied to your clipboard. To get the flightplan to your drone:\n\n" +
               "1. Paste clipboard into a new file named <task>.wpml using a text editor\n" +
               "2. Use a file manager app to copy the .kmz or .wpml from this project's flightplans_dji/ folder to the DJI controller storage\n" +
@@ -406,7 +410,7 @@ QfDialog {
       // --- Manual transfer help (file picker was used) ---
       Label {
         visible: generationState === "manual_transfer"
-        text: lastDroneType === "POTENSIC_ATOM_2"
+        text: lastDroneUsesPotensicJson
           ? qsTr("A file picker was opened. To load the mission on your Potensic controller:\n\n" +
               "1. In the picker, browse to your controller (connect by USB if not visible)\n" +
               "2. Navigate to: Android/data/com.ipotensic.atom/files/Waypoint/<mission-id>/\n" +
@@ -424,7 +428,7 @@ QfDialog {
 
       // --- DJI mission section ---
       Label {
-        visible: kmzAvailable && lastDroneType !== "POTENSIC_ATOM_2"
+        visible: kmzAvailable && !lastDroneUsesPotensicJson
         text: qsTr("DJI Mission")
         font: Theme.defaultFont
         color: Theme.mainTextColor
@@ -434,13 +438,13 @@ QfDialog {
       // Pick the existing controller file to extract its mission UUID
       QfButton {
         Layout.fillWidth: true
-        visible: kmzAvailable && lastDroneType !== "POTENSIC_ATOM_2" && djiMissionId.length === 0
+        visible: kmzAvailable && !lastDroneUsesPotensicJson && djiMissionId.length === 0
         text: qsTr("Select File to Replace")
         onClicked: selectDjiMissionFileRequested()
       }
 
       Label {
-        visible: kmzAvailable && lastDroneType !== "POTENSIC_ATOM_2" && djiMissionId.length === 0
+        visible: kmzAvailable && !lastDroneUsesPotensicJson && djiMissionId.length === 0
         text: qsTr("Opens a file picker. Navigate to the DJI controller's waypoint folder (Android/data/dji.go.v5/files/waypoint/<mission>/) and pick any file inside - the filename is the mission ID. Stored after first pick.")
         font.pixelSize: Theme.defaultFont.pixelSize * 0.8
         color: Theme.secondaryTextColor
@@ -451,7 +455,7 @@ QfDialog {
       // Display the captured mission UUID + a way to change it
       RowLayout {
         Layout.fillWidth: true
-        visible: kmzAvailable && lastDroneType !== "POTENSIC_ATOM_2" && djiMissionId.length > 0
+        visible: kmzAvailable && !lastDroneUsesPotensicJson && djiMissionId.length > 0
         spacing: 8
 
         Label {
@@ -477,7 +481,7 @@ QfDialog {
       }
 
       Label {
-        visible: kmzAvailable && lastDroneType !== "POTENSIC_ATOM_2" && djiMissionId.length > 0
+        visible: kmzAvailable && !lastDroneUsesPotensicJson && djiMissionId.length > 0
         text: qsTr("Mission ID captured from the controller file. Tap 'Change' to re-pick.")
         font.pixelSize: Theme.defaultFont.pixelSize * 0.8
         color: Theme.secondaryTextColor
@@ -489,12 +493,12 @@ QfDialog {
       QfButton {
         Layout.fillWidth: true
         visible: kmzAvailable && (generationState === "done" || generationState === "manual_transfer")
-        text: (lastDroneType !== "POTENSIC_ATOM_2" && djiMissionId.length > 0)
+        text: (!lastDroneUsesPotensicJson && djiMissionId.length > 0)
           ? qsTr("Copy Flightplan to Controller")
           : qsTr("Save to Device")
 
         onClicked: {
-          if (lastDroneType !== "POTENSIC_ATOM_2" && djiMissionId.length > 0) {
+          if (!lastDroneUsesPotensicJson && djiMissionId.length > 0) {
             exportToDjiMissionRequested(djiMissionId);
           } else {
             exportToDeviceRequested();
@@ -503,7 +507,7 @@ QfDialog {
       }
 
       Label {
-        visible: kmzAvailable && lastDroneType !== "POTENSIC_ATOM_2" && djiMissionId.length > 0 && generationState === "done"
+        visible: kmzAvailable && !lastDroneUsesPotensicJson && djiMissionId.length > 0 && generationState === "done"
         text: qsTr("Opens a file picker. Navigate back to the waypoint folder you picked from and save - it will replace the existing %1.kmz.").arg(djiMissionId)
         font.pixelSize: Theme.defaultFont.pixelSize * 0.8
         color: Theme.secondaryTextColor
