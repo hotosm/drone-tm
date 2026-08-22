@@ -43,9 +43,8 @@ def create_potensic_v3_json(
 
     timestamp_ms = int(time.time() * 1000)
 
-    # DroneTM applies one calculated speed to every placemark. Use it for the
-    # mission-level speed so Atom 3 waypoints can retain the observed GLOBAL
-    # speed mode without losing the planned overlap speed.
+    # DroneTM calculates one speed for the full mission. Keep global.json in
+    # sync so GLOBAL waypoints use the planned speed.
     mission_speed = default_speed
     for feature in all_features:
         speed = feature.get("properties", {}).get("speed")

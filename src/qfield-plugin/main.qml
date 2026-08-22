@@ -458,7 +458,8 @@ Item {
     flightplanDialog.lastDroneType = droneType
 
     // GeoJSONs live under workspace/ so operators only see the
-    // drone-specific output dirs (flightplans_dji, flightplans_potensic2/3)
+    // drone-specific output dirs (flightplans_dji, flightplans_potensic2,
+    // and flightplans_potensic3)
     // when browsing the project folder. platformUtilities.createDir is
     // non-recursive (QDir::mkdir), so create the parent first.
     var geojsonDir = qgisProject.homePath + '/workspace/flightplans'

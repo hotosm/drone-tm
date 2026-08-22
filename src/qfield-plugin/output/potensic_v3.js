@@ -2,9 +2,8 @@
 
 .import "potensic_v2.js" as PotensicV2Output
 
-// Potensic Atom 3 JSON waypoint output format.
-// The ZIP container and global.json layout match Atom 2, while the mission
-// file is a plain JSON array with the owner-supplied Atom 3 waypoint schema.
+// Atom 3 keeps the Atom 2 ZIP and global.json layout, but stores the mission
+// as a plain JSON waypoint array.
 
 function _missionSpeed(featcol, defaultSpeed) {
     var features = featcol.features || []

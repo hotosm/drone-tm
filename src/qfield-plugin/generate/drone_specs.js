@@ -62,8 +62,8 @@ var DRONE_SPECS = {
         image_width_px: 4608
     },
     POTENSIC_ATOM_3: {
-        // Potensic measured the 40-minute flight time at 5 m/s. The battery
-        // model expects tested_value in km/h, so 5 m/s is stored as 18 km/h.
+        // Potensic lists a 40-minute flight time measured at 5 m/s. The battery
+        // model stores that test speed in km/h (18).
         max_battery_life_minutes: { quoted_value: 40, tested_value: 18 },
         sensor_height_mm: 7.2,
         sensor_width_mm: 9.6,

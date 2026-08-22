@@ -79,13 +79,13 @@ DRONE_SPECS = {
     DroneType.POTENSIC_ATOM_3: {
         # 1/1.3-inch CMOS
         # 4:3 (or 16:9 cropped)
-        # Potensic measured the 40-minute flight time at 5 m/s. The battery
-        # model expects tested_value in km/h, so 5 m/s is stored as 18 km/h.
+        # Potensic lists a 40-minute flight time measured at 5 m/s. The battery
+        # model stores that test speed in km/h (18).
         "max_battery_life_minutes": {"quoted_value": 40, "tested_value": 18},
         "sensor_height_mm": 7.2,
         "sensor_width_mm": 9.6,
         "equiv_focal_length_mm": 24,
-        "image_width_px": 4096,  # actual Atom 3 sample (16:9 crop)
+        "image_width_px": 4096,  # Width of the 16:9 sample image
     },
     # FIXME these params can vary widely. We need a way for user to input
     # FIXME the current values are simply for testing
