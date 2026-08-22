@@ -1,9 +1,8 @@
 import json
 
 import numpy as np
-from osgeo import gdal, osr
-
 from drone_flightplan.add_elevation_from_dem import add_elevation_from_dem
+from osgeo import gdal, osr
 
 # A point in Kathmandu, used as the single test point (WGS84 lon/lat, as a
 # GeoJSON file would normally provide).
