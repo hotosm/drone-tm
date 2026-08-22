@@ -1,3 +1,9 @@
+## 2026.9.2 (2026-08-22)
+
+### Feat
+
+- improve project search capability, speed, filter by projects with imagery
+
 ## 2026.9.1 (2026-08-22)
 
 ### Fix
