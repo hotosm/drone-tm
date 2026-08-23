@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -e
+set -eu
 
 # Copy frontend to attached volume
 echo "Syncing files from /app --> /frontend_html"
@@ -8,14 +8,18 @@ rclone sync /app /frontend_html
 
 # Generate runtime config.js from environment variables.
 # This enables changing API/COG endpoints without rebuilding the frontend image.
-cat > /frontend_html/config.js <<EOF
-window.__RUNTIME_CONFIG__ = {
-  VITE_API_URL: "${VITE_API_URL:-/api}",
-  VITE_AUTH_PROVIDER: "${VITE_AUTH_PROVIDER:-legacy}",
-  VITE_HANKO_URL: "${VITE_HANKO_URL:-}",
-  VITE_DRONE_MESH_URL: "${VITE_DRONE_MESH_URL:-/mesh}",
-};
-EOF
+echo "Generating /frontend_html/config.js from environment..."
+{
+  echo "// Generated at container start by docker-entrypoint.sh. Do not edit."
+  echo "window.__RUNTIME_CONFIG__ = {"
+  for name in $(env | grep -E '^VITE_' | cut -d= -f1 | sort); do
+    value=$(printenv "$name")
+    # Escape values for JavaScript strings.
+    escaped=$(printf '%s' "$value" | sed 's/\\/\\\\/g; s/"/\\"/g')
+    printf '  "%s": "%s",\n' "$name" "$escaped"
+  done
+  echo "};"
+} > /frontend_html/config.js
 
 echo "Updating directory permissions 101:101 (nginx)."
 chown -R 101:101 /frontend_html
