@@ -8,6 +8,7 @@ import { Button } from "@Components/RadixComponents/Button";
 import { Select } from "@Components/common/FormUI";
 import { setCreateProjectState } from "@Store/actions/createproject";
 import SearchInput from "@Components/common/FormUI/SearchInput";
+import ToolTip from "@Components/RadixComponents/ToolTip";
 import useDebounceListener from "@Hooks/useDebouncedListener";
 import useAuth from "@Hooks/useAuth";
 import { m } from "@/paraglide/messages";
@@ -79,17 +80,31 @@ export default function ProjectsHeader() {
                 dispatch(setCreateProjectState({ selectedProjectStatus: value }))
               }
             />
-            <label className="naxatw-flex naxatw-cursor-pointer naxatw-select-none naxatw-items-center naxatw-gap-2 naxatw-whitespace-nowrap naxatw-text-body-md">
-              <input
-                type="checkbox"
-                className="naxatw-h-4 naxatw-w-4 naxatw-cursor-pointer naxatw-accent-red"
-                checked={projectsFilterHasImagery}
-                onChange={(e) =>
-                  dispatch(setCreateProjectState({ projectsFilterHasImagery: e.target.checked }))
+            <ToolTip side="bottom" message={m.projects_filter_has_imagery_tooltip()}>
+              <button
+                type="button"
+                aria-pressed={projectsFilterHasImagery}
+                className={`naxatw-flex naxatw-h-9 naxatw-cursor-pointer naxatw-select-none naxatw-items-center naxatw-gap-1 naxatw-whitespace-nowrap naxatw-rounded-md naxatw-border naxatw-px-3 naxatw-text-sm naxatw-transition-colors ${
+                  projectsFilterHasImagery
+                    ? "naxatw-border-red naxatw-bg-red naxatw-text-white"
+                    : "naxatw-border-gray-800 naxatw-text-grey-800 hover:naxatw-border-red hover:naxatw-text-red"
+                }`}
+                onClick={() =>
+                  dispatch(
+                    setCreateProjectState({
+                      projectsFilterHasImagery: !projectsFilterHasImagery,
+                    }),
+                  )
                 }
-              />
-              {m.projects_filter_has_imagery()}
-            </label>
+              >
+                {projectsFilterHasImagery && (
+                  <i className="material-symbols-outlined naxatw-text-[16px] naxatw-leading-none">
+                    check
+                  </i>
+                )}
+                {m.projects_filter_has_imagery()}
+              </button>
+            </ToolTip>
           </div>
           <div className="naxatw-min-w-[180px] naxatw-flex-1 md:naxatw-flex-none">
             <SearchInput

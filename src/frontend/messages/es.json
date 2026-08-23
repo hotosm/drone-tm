@@ -383,6 +383,7 @@
   "projects_add_project": "Añadir proyecto",
   "projects_show_map": "Mostrar mapa",
   "projects_filter_has_imagery": "Con imágenes",
+  "projects_filter_has_imagery_tooltip": "Mostrar solo los proyectos que ya tienen algunas imágenes subidas",
   "projects_filter_all_projects": "Todos los proyectos",
   "projects_filter_my_projects": "Mis proyectos",
   "projects_filter_by_status_placeholder": "Filtrar por estado del proyecto",

@@ -383,6 +383,7 @@
   "projects_add_project": "Tambahkan Proyek",
   "projects_show_map": "Tampilkan peta",
   "projects_filter_has_imagery": "Ada Citra",
+  "projects_filter_has_imagery_tooltip": "Tampilkan hanya proyek yang sudah memiliki citra yang diunggah",
   "projects_filter_all_projects": "Semua proyek",
   "projects_filter_my_projects": "Proyek Saya",
   "projects_filter_by_status_placeholder": "Filter Berdasarkan Status Proyek",
