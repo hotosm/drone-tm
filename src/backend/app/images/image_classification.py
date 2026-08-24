@@ -1,5 +1,4 @@
 import asyncio
-import json
 import math
 import re
 import uuid
@@ -11,6 +10,11 @@ from typing import Any, Literal
 import cv2
 import numpy as np
 from app.config import settings
+from app.images.exif_values import (
+    drone_metadata,
+    resolve_gimbal_pitch,
+    to_float,
+)
 from app.images.solar_position import (
     derive_utc_datetime_from_exif,
     solar_elevation_deg,
@@ -140,33 +144,6 @@ Q = QualityThresholds()
 
 
 class ImageClassifier:
-    @staticmethod
-    def _to_float(value: Any) -> float | None:
-        if value is None:
-            return None
-        if isinstance(value, (int, float)):
-            return float(value)
-        if isinstance(value, str):
-            try:
-                return float(value.strip())
-            except ValueError:
-                return None
-        return None
-
-    @staticmethod
-    def _resolve_gimbal_pitch(data: dict[str, Any]) -> Any:
-        """Camera pitch from EXIF, falling back to drone metadata.
-
-        GimbalPitchDegree is preferred but 0.0 is a real value (camera level
-        with the horizon), so presence is tested rather than truthiness.
-        FlightPitchDegree is deliberately ignored: that is aircraft attitude.
-        """
-        for key in ("GimbalPitchDegree", "pitch"):
-            value = data.get(key)
-            if value is not None and value != "":
-                return value
-        return None
-
     @staticmethod
     def _parse_gps(value: Any) -> float | None:
         """Parse EXIF GPS values into decimal degrees."""
@@ -681,20 +658,11 @@ class ImageClassifier:
                     f"Solar elevation check errored, skipping: image_id={image_id} err={e}"
                 )
 
-        # Parse UserComment for drone metadata (pitch, yaw, etc.)
-        user_comment = exif_data.get("UserComment")
-        drone_metadata = {}
-        if isinstance(user_comment, str):
-            try:
-                drone_metadata = json.loads(user_comment)
-            except (json.JSONDecodeError, TypeError):
-                log.debug("Could not parse UserComment as JSON")
+        # Drone telemetry (pitch, yaw, etc.) overrides the plain EXIF tags.
+        quality_check_data = {**exif_data, **drone_metadata(exif_data)}
 
-        # Merge drone metadata for quality checks
-        quality_check_data = {**exif_data, **drone_metadata}
-
-        gimbal_angle_raw = ImageClassifier._resolve_gimbal_pitch(quality_check_data)
-        gimbal_angle = ImageClassifier._to_float(gimbal_angle_raw)
+        gimbal_angle_raw = resolve_gimbal_pitch(quality_check_data)
+        gimbal_angle = to_float(gimbal_angle_raw)
         if gimbal_angle_raw is not None and gimbal_angle is None:
             log.debug(
                 f"Unparsable gimbal pitch: image_id={image_id} value={gimbal_angle_raw!r}"
@@ -713,7 +681,7 @@ class ImageClassifier:
             )
 
         zoom_raw = quality_check_data.get("DigitalZoomRatio")
-        zoom_ratio = ImageClassifier._to_float(zoom_raw)
+        zoom_ratio = to_float(zoom_raw)
         if zoom_raw is not None and zoom_ratio is None:
             log.debug(
                 f"Unparsable digital zoom ratio: image_id={image_id} value={zoom_raw!r}"

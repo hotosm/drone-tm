@@ -209,7 +209,7 @@ async def test_start_project_classification_enqueues_job_for_staged_images(
             ("classify_project_images", project_id),
             {
                 "disable_flight_tail_detection": False,
-                "enforce_gimbal_deviation_rejection": False,
+                "disable_gimbal_deviation_rejection": False,
                 "_queue_name": "default_queue",
             },
         )
@@ -217,10 +217,10 @@ async def test_start_project_classification_enqueues_job_for_staged_images(
 
 
 @pytest.mark.asyncio
-async def test_start_project_classification_forwards_gimbal_enforcement(
+async def test_start_project_classification_forwards_gimbal_opt_out(
     client, app, db, auth_user, create_test_project
 ):
-    """The gimbal detector defaults to shadow mode; opting in must reach the job."""
+    """The gimbal detector enforces by default; opting out must reach the job."""
     project_id = create_test_project
     await _insert_image(
         db, project_id=project_id, uploaded_by=auth_user.id, status="staged"
@@ -242,7 +242,7 @@ async def test_start_project_classification_forwards_gimbal_enforcement(
 
     resp = await client.post(
         f"/api/projects/{project_id}/classify/",
-        json={"enforce_gimbal_deviation_rejection": True},
+        json={"disable_gimbal_deviation_rejection": True},
     )
 
     assert resp.status_code == 200
@@ -251,7 +251,7 @@ async def test_start_project_classification_forwards_gimbal_enforcement(
             ("classify_project_images", project_id),
             {
                 "disable_flight_tail_detection": False,
-                "enforce_gimbal_deviation_rejection": True,
+                "disable_gimbal_deviation_rejection": True,
                 "_queue_name": "default_queue",
             },
         )

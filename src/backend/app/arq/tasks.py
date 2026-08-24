@@ -596,7 +596,7 @@ async def classify_project_images(
     ctx: dict[Any, Any],
     project_id: str,
     disable_flight_tail_detection: bool = False,
-    enforce_gimbal_deviation_rejection: bool = False,
+    disable_gimbal_deviation_rejection: bool = False,
     **_kwargs: Any,
 ) -> dict:
     """Classify all staged images in a project (across all batches)."""
@@ -605,7 +605,7 @@ async def classify_project_images(
         f"Starting project classification job {job_id} for project {project_id} "
         f"(flight tail detection {'disabled' if disable_flight_tail_detection else 'enabled'}, "
         f"gimbal deviation rejection "
-        f"{'enforced' if enforce_gimbal_deviation_rejection else 'shadow-mode'})"
+        f"{'shadow-mode' if disable_gimbal_deviation_rejection else 'enforced'})"
     )
 
     db_pool = ctx.get("db_pool")
@@ -680,7 +680,7 @@ async def classify_project_images(
                                 UUID(str(batch_id)) if batch_id else None,
                                 UUID(str(task_id)),
                                 image_ids=classified_image_ids,
-                                enforce=enforce_gimbal_deviation_rejection,
+                                enforce=not disable_gimbal_deviation_rejection,
                             )
 
                     if pairs and not disable_flight_tail_detection:

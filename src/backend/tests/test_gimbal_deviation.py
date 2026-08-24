@@ -7,14 +7,13 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 import shapely.wkb as wkblib
+from app.images.exif_values import pitch_from_row, resolve_gimbal_pitch
 from app.images.flight_gimbal_deviation import (
     _acceptable_angles,
     _dominant_angles,
     _is_off_axis,
-    _pitch,
     mark_and_remove_off_axis_imagery,
 )
-from app.images.image_classification import ImageClassifier
 from shapely.geometry import box
 
 
@@ -117,12 +116,12 @@ def test_stabilisation_jitter_is_not_off_axis():
 
 def test_pitch_resolution_matches_the_classifier():
     """UserComment metadata must be read the same way in both detectors."""
-    assert _pitch({"gimbal_pitch_raw": "-80.0"}) == -80.0
-    assert _pitch({"gimbal_pitch_raw": "0.0", "pitch_raw": "-90.0"}) == 0.0
-    assert _pitch({"user_comment": json.dumps({"pitch": -45.0})}) == -45.0
-    assert _pitch({"gimbal_pitch_raw": "", "pitch_raw": "-90.0"}) == -90.0
-    assert _pitch({"user_comment": "not json at all"}) is None
-    assert _pitch({}) is None
+    assert pitch_from_row({"gimbal_pitch_raw": "-80.0"}) == -80.0
+    assert pitch_from_row({"gimbal_pitch_raw": "0.0", "pitch_raw": "-90.0"}) == 0.0
+    assert pitch_from_row({"user_comment": json.dumps({"pitch": -45.0})}) == -45.0
+    assert pitch_from_row({"gimbal_pitch_raw": "", "pitch_raw": "-90.0"}) == -90.0
+    assert pitch_from_row({"user_comment": "not json at all"}) is None
+    assert pitch_from_row({}) is None
 
 
 @pytest.mark.parametrize(
@@ -138,7 +137,7 @@ def test_pitch_resolution_matches_the_classifier():
     ],
 )
 def test_gimbal_pitch_resolution(data, expected):
-    assert ImageClassifier._resolve_gimbal_pitch(data) == expected
+    assert resolve_gimbal_pitch(data) == expected
 
 
 async def _insert_task(db, project_id, task_id):

@@ -7,25 +7,33 @@ travel across its neighbouring frames, while a sweep drifts however finely it
 is sampled. Frames are judged against those measured angles rather than a fixed
 threshold, so a project flown at several angles stays supported.
 
+This check is deliberately relative, so it cannot judge an angle the whole
+pass was flown at: a leg held steadily at the horizon reads as a legitimate
+dominant angle here. QualityThresholds.max_gimbal_pitch_deg is what covers
+that, rejecting any frame above its ceiling before this pass runs. The two
+divide the range between them - the classifier owns the absolute limit, this
+owns everything below it, relative to what the flight actually did.
+
 Known limits:
   - Frames whose EXIF carries no camera serial are treated as one aircraft, so
     concurrent drones lacking that tag can still contaminate a pass.
   - A slew under STABLE_SPAN_DEG across the whole window reads as still. That
     is roughly 0.02 deg/frame, an hour of continuous travel at survey intervals.
+  - A segment under MIN_PASS_SIZE frames is skipped, so a short top-up flight
+    after a battery swap is judged by the classifier ceiling alone.
 """
 
-import json
 from itertools import pairwise
 from statistics import median
 from uuid import UUID
 
+from app.images.exif_values import pitch_columns_sql, pitch_from_row
 from app.images.flight_segments import (
     PASS_ORDER_SQL,
     camera_serial_sql,
     group_by_pass,
     segment_break_sql,
 )
-from app.images.image_classification import ImageClassifier
 from app.images.image_logic import reject_assigned_images
 from app.models.enums import ImageStatus
 from loguru import logger as log
@@ -55,23 +63,6 @@ SWEEP_REASON = (
     "Gimbal never settled: the camera was moving throughout this flight pass, "
     "so it holds no usable mapping angle."
 )
-
-
-def _pitch(row: dict) -> float | None:
-    """Camera pitch for a row, resolved exactly as the image classifier does."""
-    data = {
-        "GimbalPitchDegree": row.get("gimbal_pitch_raw"),
-        "pitch": row.get("pitch_raw"),
-    }
-    comment = row.get("user_comment")
-    if isinstance(comment, str):
-        try:
-            drone_metadata = json.loads(comment)
-        except (json.JSONDecodeError, TypeError):
-            drone_metadata = None
-        if isinstance(drone_metadata, dict):
-            data.update(drone_metadata)
-    return ImageClassifier._to_float(ImageClassifier._resolve_gimbal_pitch(data))
 
 
 def _settled_pitches(pitches: list[float]) -> list[float]:
@@ -164,6 +155,7 @@ async def mark_and_remove_off_axis_imagery(
         batch_filter = "AND batch_id IS NULL"
 
     camera_serial = camera_serial_sql("i")
+    pitch_columns = pitch_columns_sql("i")
     segment_break = segment_break_sql(
         "sort_ts", "prev_sort_ts", "location", "prev_location"
     )
@@ -177,9 +169,7 @@ async def mark_and_remove_off_axis_imagery(
                     to_timestamp(i.exif->>'DateTimeOriginal', 'YYYY:MM:DD HH24:MI:SS')::timestamptz,
                     i.uploaded_at
                 ) AS sort_ts,
-                i.exif->>'GimbalPitchDegree' AS gimbal_pitch_raw,
-                i.exif->>'pitch' AS pitch_raw,
-                i.exif->>'UserComment' AS user_comment,
+                {pitch_columns},
                 {camera_serial} AS camera_serial
             FROM project_images i
             WHERE i.project_id = %(project_id)s
@@ -237,7 +227,7 @@ async def mark_and_remove_off_axis_imagery(
     for flight_pass in group_by_pass(rows):
         frames = []
         for row in flight_pass:
-            pitch = _pitch(row)
+            pitch = pitch_from_row(row)
             if pitch is not None:
                 frames.append((row["id"], pitch))
         if len(frames) < MIN_PASS_SIZE:
