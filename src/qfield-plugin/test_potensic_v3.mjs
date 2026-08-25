@@ -87,16 +87,26 @@ assert.equal(Specs.DroneType.POTENSIC_ATOM_3, 'POTENSIC_ATOM_3');
 assert.equal(Specs.DRONE_PARAMS.POTENSIC_ATOM_3.OUTPUT_FORMAT, 'POTENSIC_JSON_V2');
 assert.equal(
   Params.calculateParameters(0, 70, 120, null, 2, 'POTENSIC_ATOM_3').ground_speed,
-  11.5,
+  10,
 );
 assert.equal(
   Params.calculateParameters(99, 70, 10, null, 2, 'POTENSIC_ATOM_3').ground_speed,
-  0.05,
+  0.5,
+);
+
+const tooManyWaypoints = {
+  type: 'FeatureCollection',
+  features: Array.from({ length: 201 }, () => features.features[0]),
+};
+assert.throws(
+  () => PotensicV3Output.createPotensicZip(tooManyWaypoints, 5, timestamp),
+  /support at most 200 waypoints; received 201/,
 );
 assert.match(mainQml, /import "output\/potensic_v3\.js" as PotensicV3Output/);
 assert.match(mainQml, /droneType === "POTENSIC_ATOM_3"/);
 assert.match(mainQml, /PotensicV3Output\.createPotensicZip/);
 assert.match(dialogQml, /"Potensic Atom 3"/);
 assert.match(dialogQml, /"POTENSIC_ATOM_3"/);
+assert.match(dialogQml, /Rename the generated timestamped \.json/);
 
 console.log('Potensic Atom 3 QField serializer: PASS');

@@ -12,6 +12,8 @@ import geojson
 
 log = logging.getLogger(__name__)
 
+MAX_WAYPOINTS = 200
+
 
 def _zip_directory(directory_path: str, zip_path: str) -> None:
     """Create a zip file from a directory."""
@@ -103,6 +105,12 @@ def create_potensic_v3_json(
             "zoomType": "HAND",
         }
         waypoints.append(waypoint)
+
+    if len(waypoints) > MAX_WAYPOINTS:
+        raise ValueError(
+            f"Potensic Atom 3 missions support at most {MAX_WAYPOINTS} waypoints; "
+            f"received {len(waypoints)}"
+        )
 
     mission_json = json.dumps(waypoints)
 

@@ -5,6 +5,8 @@
 // Atom 3 keeps the Atom 2 ZIP and global.json layout, but stores the mission
 // as a plain JSON waypoint array.
 
+var MAX_WAYPOINTS = 200
+
 function _missionSpeed(featcol, defaultSpeed) {
     var features = featcol.features || []
     for (var i = 0; i < features.length; i++) {
@@ -61,6 +63,11 @@ function createMissionJson(featcol, missionSpeed) {
             zoomRatio: 1.0,
             zoomType: "HAND"
         })
+    }
+
+    if (waypoints.length > MAX_WAYPOINTS) {
+        throw new Error("Potensic Atom 3 missions support at most " + MAX_WAYPOINTS +
+            " waypoints; received " + waypoints.length)
     }
 
     return JSON.stringify(waypoints)

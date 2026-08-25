@@ -395,8 +395,9 @@ QfDialog {
         visible: generationState === "error"
         text: lastDroneUsesPotensicJson
           ? qsTr("File write failed. Mission JSON files may still be saved in %1/ in the project folder.\n\n" +
-              "To transfer manually, connect your phone via USB and copy global.json and the timestamped .json into:\n" +
-              "Android/data/com.ipotensic.atom/files/Waypoint/<mission-id>/").arg(lastPotensicOutputDirName)
+              "To transfer manually, first create and save a disposable mission in Potensic Eve. Then copy global.json and the generated timestamped .json into:\n" +
+              "Android/data/com.ipotensic.atom/files/Waypoint/<mission-id>/\n\n" +
+              "Rename the generated timestamped .json to match the mission .json filename that was already in the folder, replacing the existing file.").arg(lastPotensicOutputDirName)
           : qsTr("The WPML has been copied to your clipboard. To get the flightplan to your drone:\n\n" +
               "1. Paste clipboard into a new file named <task>.wpml using a text editor\n" +
               "2. Use a file manager app to copy the .kmz or .wpml from this project's flightplans_dji/ folder to the DJI controller storage\n" +
@@ -414,7 +415,8 @@ QfDialog {
           ? qsTr("A file picker was opened. To load the mission on your Potensic controller:\n\n" +
               "1. In the picker, browse to your controller (connect by USB if not visible)\n" +
               "2. Navigate to: Android/data/com.ipotensic.atom/files/Waypoint/<mission-id>/\n" +
-              "3. Save the global.json and timestamped .json into that folder, overwriting any existing files\n\n" +
+              "3. Save global.json and the generated timestamped .json into that folder\n" +
+              "4. Rename the generated timestamped .json to match the mission .json filename that was already in the folder, replacing the existing file\n\n" +
               "Tip: Create one test mission in Potensic Eve first so the Waypoint directory exists.")
           : qsTr("A file picker is open. To replace the mission on your DJI controller:\n\n" +
               "1. Navigate back to the waypoint folder you picked from:\n   Android/data/dji.go.v5/files/waypoint/%1/\n" +
