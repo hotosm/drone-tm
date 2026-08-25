@@ -73,7 +73,17 @@ from your flight, check the following:
 - [ ] Camera Aspect Ratio: 4:3
 - [ ] Camera Resolution: 12 MP
 - [ ] Camera Format: JPEG (not DNG/RAW)
+- [ ] Camera Zoom: 1x (the default)
 - [ ] Storage: SD Card
+
+!!! danger "The zoom must stay at 1x"
+
+    On the DJI RC2 the top-right wheel controls zoom, next to the top-left
+    gimbal wheel, so it is easily nudged by accident. Zoomed images keep the 1x
+    focal length in their EXIF and cannot be stitched, so Drone-TM rejects them
+    and **the area must be reflown**. Check the zoom indicator before take-off
+    and after touching either wheel; if it is not 1x, reset it before capturing
+    more photos.
 
 ## 6. Pre-Flight Inspection
 
@@ -162,6 +172,7 @@ elevate, yaw, pitch, and roll to ensure that the UA is responding correctly.
 
 - [ ] Initiate flight plan
 - [ ] At first waypoint, start photo capture
+- [ ] Zoom still reads 1x
 - [ ] Observer: Keep visual line of sight
 - [ ] Pilot: Monitor battery, altitude, errors
 - [ ] At last waypoint, stop photo capture
@@ -189,7 +200,7 @@ elevate, yaw, pitch, and roll to ensure that the UA is responding correctly.
 - [ ] Power off drone
 - [ ] Remove drone battery
 - [ ] Inspect physical condition of drone
-- [ ] Check images on SD card
+- [ ] Check images on SD card, and that they were captured at 1x
 - [ ] Upload images to DroneTM
 - [ ] Initiate image processing
 

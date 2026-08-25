@@ -10,6 +10,7 @@ An image is rejected if any of the following is true:
 - It is missing camera information (EXIF).
 - It is missing GPS location, or the location is invalid.
 - The camera was not pointing down enough (gimbal angle).
+- The camera was digitally zoomed (anything above 1x).
 - The image is too blurry.
 - The image is too dark (almost all black, e.g. lens cap on).
 - The image is too bright (almost all white, e.g. over-exposed from the sun).
@@ -51,6 +52,12 @@ was rejected, then choose one of these actions:
   map that the image belongs to. This skips the GPS check.
 - **Reject image** - Use this to remove an image that was assigned but should
   not be used.
+
+!!! warning "Do not override a digital zoom rejection"
+
+    Zoomed images keep the 1x focal length in their EXIF and cannot be
+    stitched. There is no easy way to correct them after the flight - the area
+    must be reflown at 1x.
 
 ### Doing Many Images at Once
 
