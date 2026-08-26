@@ -47,7 +47,7 @@
     "preview": "pnpm run build && pnpm run --dir site preview"
   },
   "dependencies": {
-    "@hotosm/ui": "^0.10.2",
+    "@hotosm/ui": "^1.0.0",
     "@panzoom/panzoom": "^4.5.1",
     "lit": "^3.2.1"
   },
@@ -62,7 +62,7 @@
     "vitest": "^2.1.9"
   },
   "peerDependencies": {
-    "@awesome.me/webawesome": "3.2.1",
+    "@awesome.me/webawesome": "3.11.0",
     "@geomatico/maplibre-cog-protocol": "^0.3.0",
     "maplibre-gl": "^4.0.0"
   }

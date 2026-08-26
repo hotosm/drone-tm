@@ -1,6 +1,7 @@
-// HOT theme only (fonts + design tokens + WebAwesome overrides)
-// WebAwesome base CSS is loaded via CDN in index.html for cross-tool caching
-import "@hotosm/ui/dist/style-core.css";
+import "@hotosm/ui/dist/style.css";
+// register all wa-* and hot-* elements before first render (avoids FOUCE)
+import "@hotosm/ui/dist/webawesome-all.js";
+import "@hotosm/ui/dist/hotosm-ui.js";
 
 import ReactDOM from "react-dom/client";
 import { Provider } from "react-redux";
@@ -18,11 +19,6 @@ import { getRuntimeConfig } from "./runtimeConfig";
 
 // Reflect Paraglide's resolved locale on <html lang>
 document.documentElement.lang = getLocale();
-
-// Workaround required, as @hotosm/gcp-editor already imports all components
-if (!customElements.get("hot-tracking")) {
-  import("@hotosm/ui/dist/hotosm-ui.js");
-}
 
 const queryClient = new QueryClient({
   defaultOptions: {

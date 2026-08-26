@@ -1,3 +1,13 @@
 packages:
   - "frontend"
   - "gcp-editor"
+# Only the packages that build or fetch a native binary.
+allowBuilds:
+  canvas: true
+  core-js: false
+  core-js-pure: false
+  esbuild: true
+  exifreader: false
+minimumReleaseAgeExclude:
+  - '@hotosm/ui@0.10.2'
+  - '@hotosm/ui@1.0.0'

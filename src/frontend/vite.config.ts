@@ -98,11 +98,27 @@ export default defineConfig({
     sourcemap: process.env.NODE_ENV === "development",
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Split large vendor dependencies into separate cacheable chunks
-          "vendor-react": ["react", "react-dom", "react-router-dom"],
-          "vendor-redux": ["@reduxjs/toolkit", "react-redux", "redux-persist"],
-          "vendor-map": ["maplibre-gl"],
+        // Split large vendor dependencies into separate cacheable chunks
+        manualChunks(id: string) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("@awesome.me/webawesome")) return "vendor-webawesome";
+          if (id.includes("maplibre-gl")) return "vendor-map";
+          if (
+            id.includes("@reduxjs/toolkit") ||
+            id.includes("react-redux") ||
+            id.includes("redux-persist")
+          ) {
+            return "vendor-redux";
+          }
+          if (
+            id.includes("react-router-dom") ||
+            id.includes("/react/") ||
+            id.includes("/react-dom/") ||
+            id.includes("/scheduler/")
+          ) {
+            return "vendor-react";
+          }
+          return undefined;
         },
       },
     },
