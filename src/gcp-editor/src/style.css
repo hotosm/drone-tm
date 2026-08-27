@@ -66,7 +66,7 @@ wa-button.primary::part(base) {
   color: white !important;
   border: 0px;
   font-weight: 600;
-  font-family: "Barlow Condensed";
+  font-family: var(--hot-font-sans);
   padding: 4px 4px;
   font-size: 14px;
 }
@@ -90,7 +90,7 @@ wa-button.secondary::part(base) {
   color: #b91c1c !important;
   border: 0px;
   font-weight: 600;
-  font-family: "Barlow Condensed";
+  font-family: var(--hot-font-sans);
   padding: 4px 4px;
   font-size: 14px;
 }

@@ -128,7 +128,7 @@ export class GcpResult extends LitElement {
       color: white !important;
       border: 0px;
       font-weight: 600;
-      font-family: "Barlow Condensed";
+      font-family: var(--hot-font-sans);
       padding: 4px 4px;
       font-size: 14px;
     }
@@ -143,7 +143,7 @@ export class GcpResult extends LitElement {
       color: #d73f3f !important;
       border: 0px;
       font-weight: 600;
-      font-family: "Barlow Condensed";
+      font-family: var(--hot-font-sans);
       padding: 4px 4px;
       font-size: 14px;
     }
@@ -156,7 +156,7 @@ export class GcpResult extends LitElement {
     wa-button.download::part(base):hover {
       background-color: #ff7b00;
       font-weight: 600;
-      font-family: "Barlow Condensed";
+      font-family: var(--hot-font-sans);
       padding: 4px 4px;
       font-size: 14px;
     }

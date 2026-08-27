@@ -28,8 +28,8 @@ module.exports = {
     },
     extend: {
       fontFamily: {
-        primary: ["Archivo", "sans-serif"],
-        secondary: ["Manrope", "sans-serif"],
+        primary: ["var(--hot-font-sans)"],
+        secondary: ["var(--hot-font-sans)"],
       },
       height: {
         "screen-nav": "calc(100vh - 57px)",

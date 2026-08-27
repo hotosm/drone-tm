@@ -30,8 +30,8 @@ importers:
         specifier: ^0.2.6
         version: 0.2.7
       '@hotosm/ui':
-        specifier: ^1.0.0
-        version: 1.0.0(@awesome.me/webawesome@3.11.0(@floating-ui/utils@0.2.11)(@types/node@22.19.15)(@types/react@19.2.14))
+        specifier: ^2.0.0
+        version: 2.0.0(@awesome.me/webawesome@3.11.0(@floating-ui/utils@0.2.11)(@types/node@22.19.15)(@types/react@19.2.14))
       '@inlang/paraglide-js':
         specifier: ^2.18.1
         version: 2.18.1(typescript@5.9.3)
@@ -307,8 +307,8 @@ importers:
         specifier: ^0.3.0
         version: 0.3.1
       '@hotosm/ui':
-        specifier: ^1.0.0
-        version: 1.0.0(@awesome.me/webawesome@3.11.0(@floating-ui/utils@0.2.11)(@types/node@22.19.15)(@types/react@19.2.14))
+        specifier: ^2.0.0
+        version: 2.0.0(@awesome.me/webawesome@3.11.0(@floating-ui/utils@0.2.11)(@types/node@22.19.15)(@types/react@19.2.14))
       '@panzoom/panzoom':
         specifier: ^4.5.1
         version: 4.6.1
@@ -1372,8 +1372,8 @@ packages:
     resolution: {integrity: sha512-idPmbJtBfAfmug+vVSKd5QN+ECzvZY+3XQTnO8Mt2tqhNSXFWeYdZg9HVieET2EndW35niwrtpMBQ6IxAaf+4w==}
     engines: {node: '>=14.17.0'}
 
-  '@hotosm/ui@1.0.0':
-    resolution: {integrity: sha512-l5MXyrqDvdYDAzd4FWZ2SFS+DDrrPZgkkA1qkmROLZV7rHSLQEnHSe53Dx/V3p/GXjlpi1ZOMIyISFbTyMJYPQ==}
+  '@hotosm/ui@2.0.0':
+    resolution: {integrity: sha512-ypEE/zlo+BA8pNarzdrVgz6RQjDLKRUjHqM9aOyfkCG6c+u+d1djE9omnSrRoi9AbavYDh0goqyImKYd+CyOoA==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       '@awesome.me/webawesome': 3.11.0
@@ -6278,7 +6278,7 @@ snapshots:
     dependencies:
       lit: 3.3.2
 
-  '@hotosm/ui@1.0.0(@awesome.me/webawesome@3.11.0(@floating-ui/utils@0.2.11)(@types/node@22.19.15)(@types/react@19.2.14))':
+  '@hotosm/ui@2.0.0(@awesome.me/webawesome@3.11.0(@floating-ui/utils@0.2.11)(@types/node@22.19.15)(@types/react@19.2.14))':
     dependencies:
       '@awesome.me/webawesome': 3.11.0(@floating-ui/utils@0.2.11)(@types/node@22.19.15)(@types/react@19.2.14)
 

@@ -9,5 +9,4 @@ allowBuilds:
   esbuild: true
   exifreader: false
 minimumReleaseAgeExclude:
-  - '@hotosm/ui@0.10.2'
-  - '@hotosm/ui@1.0.0'
+  - '@hotosm/ui@0.10.2 || 1.0.0 || 1.0.1 || 2.0.0'
