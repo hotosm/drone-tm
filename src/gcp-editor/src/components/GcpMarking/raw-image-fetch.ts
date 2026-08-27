@@ -158,12 +158,12 @@ export class RawImageFetch extends LitElement {
           this.rawImageList?.length
             ? html`
               <div class="tw-flex tw-gap-1">
-                <wa-button size="small" @click=${() => this.previous()}><<</wa-button>
+                <wa-button size="s" @click=${() => this.previous()}><<</wa-button>
                 ${[...Array(this.numberOfPages)].map(
                   (_, index) =>
                     html`
                       <wa-button
-                        size="small"
+                        size="s"
                         class=${this.currentPage === index + 1 ? "is-active" : ""}
                         @click=${() => this.goTo(index + 1)}
                       >
@@ -171,14 +171,14 @@ export class RawImageFetch extends LitElement {
                       </wa-button>
                     `,
                 )}
-                <wa-button size="small" class="active-btn" @click=${() => this.next()}>>></wa-button>
+                <wa-button size="s" class="active-btn" @click=${() => this.next()}>>></wa-button>
               </div>
             `
             : html`
                 <div></div>
               `
         }
-        <wa-button size="small" class="primary" @click=${() => this.updateGcpData()}>Save Changes</wa-button>
+        <wa-button size="s" class="primary" @click=${() => this.updateGcpData()}>Save Changes</wa-button>
       </div>
     `;
   }

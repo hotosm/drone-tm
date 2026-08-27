@@ -297,12 +297,12 @@ export class GcpResult extends LitElement {
         </table>
       </div>
       <div class="button-wrapper">
-        <wa-button size="small" class="secondary" @click=${this.handlePreviousClick}>
+        <wa-button size="s" class="secondary" @click=${this.handlePreviousClick}>
           ← Previous
         </wa-button>
         <div class="main-buttons">
           <wa-button
-            size="small"
+            size="s"
             class="download"
             @click=${this.handleGcpFileDownload}
           >
@@ -311,7 +311,7 @@ export class GcpResult extends LitElement {
           ${
             this.customEvent
               ? html`
-                <wa-button size="small" class="primary" @click=${this.handleFinalButtonClick}>
+                <wa-button size="s" class="primary" @click=${this.handleFinalButtonClick}>
                   ${this.buttonText || "Save GCP"}
                 </wa-button>
               `

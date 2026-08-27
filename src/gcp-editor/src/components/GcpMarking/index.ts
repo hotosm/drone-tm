@@ -59,11 +59,11 @@ export class GcpMarking extends LitElement {
             <gcp-marking-table></gcp-marking-table>
           </div>
           <div class="tw-h-fit tw-py-5 tw-flex tw-justify-between">
-            <wa-button size="small" class="secondary" @click=${() => this.handlePreviousClick()}>
+            <wa-button size="s" class="secondary" @click=${() => this.handlePreviousClick()}>
               Previous
               <span slot="start" class="material-symbols-outlined !tw-text-lg">chevron_left</span>
             </wa-button>
-            <wa-button size="small" class="primary" @click=${() => this.handleNextClick()}>
+            <wa-button size="s" class="primary" @click=${() => this.handleNextClick()}>
               Next
               <span slot="end" class="material-symbols-outlined !tw-text-lg">chevron_right</span>
             </wa-button>

@@ -58,7 +58,7 @@ export class GcpDataInput extends LitElement {
           <csv-upload errorMessage=${this.errorMessage}></csv-upload>
 
           <div class="tw-absolute tw-bottom-4 tw-right-10">
-            <wa-button size="small" class="primary" @click=${() => this.handleNextClick()}>
+            <wa-button size="s" class="primary" @click=${() => this.handleNextClick()}>
               Next
               <span slot="end" class="material-symbols-outlined !tw-text-lg">chevron_right</span>
             </wa-button>
