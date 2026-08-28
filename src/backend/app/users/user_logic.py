@@ -60,13 +60,15 @@ async def authenticate(
     return db_user
 
 
-async def get_oam_token_for_user(db: Connection, user_id: str) -> str:
+async def get_organization_name_for_user(db: Connection, user_id: str) -> str | None:
     query = """
-            SELECT oam_api_token
+            SELECT organization_name
             FROM user_profile
-            where user_id = %(user_id)s;
+            WHERE user_id = %(user_id)s;
             """
     async with db.cursor() as cur:
         await cur.execute(query, {"user_id": user_id})
         data = await cur.fetchone()
-        return data[0]
+        if not data or not data[0]:
+            return None
+        return data[0].strip() or None

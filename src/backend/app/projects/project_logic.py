@@ -171,6 +171,32 @@ async def update_project_oam_status(
     return True
 
 
+async def set_project_oam_item(db: Connection, project_id: uuid.UUID, item_id: str):
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            UPDATE projects
+            SET oam_item_id = %s, oam_upload_status = %s
+            WHERE id = %s
+            """,
+            (item_id, OAMUploadStatus.UPLOADED.name, project_id),
+        )
+    await db.commit()
+    return True
+
+
+async def get_project_created_at(
+    db: Connection, project_id: uuid.UUID
+) -> datetime | None:
+    async with db.cursor() as cur:
+        await cur.execute(
+            "SELECT created_at FROM projects WHERE id = %s",
+            (project_id,),
+        )
+        data = await cur.fetchone()
+        return data[0] if data else None
+
+
 async def update_url(db: Connection, project_id: uuid.UUID, url: str):
     """Update the URL (DEM or image) for a project in the database.
 

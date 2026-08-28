@@ -64,7 +64,7 @@ export function getModalContent(content: ModalContentsType): ModalReturnType {
     case "upload-to-oam":
       return {
         className: "naxatw-w-[92vw] naxatw-max-w-[34rem]",
-        title: "Upload To OAM (Open Aerial Map)",
+        title: "Publish to OpenAerialMap",
         content: <UploadToOAM />,
       };
 

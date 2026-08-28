@@ -15,9 +15,9 @@ from app.models.enums import (
     ImageProcessingStatus,
     OAMUploadStatus,
     ProjectCompletionStatus,
+    RegulatorApprovalStatus,
 )
-from app.projects import project_deps, project_logic, project_schemas
-from app.projects.oam import upload_to_oam
+from app.projects import oam, project_deps, project_logic, project_schemas
 from app.projects.project_deps import normalize_aoi
 from app.projects.s3_paths import (
     cloudnative_project_root_prefix,
@@ -829,40 +829,110 @@ async def reconcile_assets_info(
     return {**summary, "assets": assets}
 
 
-@router.post("/{project_id}/upload-to-oam", tags=["OAM"])
-async def upload_imagery_to_oam(
+def _require_project_author(project, user_data) -> None:
+    if project.author_id != user_data.id:
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail="User not authorized to do this action",
+        )
+
+
+def _require_publish_prerequisites(project) -> None:
+    if (
+        project.requires_approval_from_regulator
+        and project.regulator_approval_status != RegulatorApprovalStatus.APPROVED.name
+    ):
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail=(
+                "This project needs regulator approval before its imagery can "
+                "be published to OpenAerialMap."
+            ),
+        )
+    # A failed re-run can leave an old orthophoto in place.
+    if project.image_processing_status != ImageProcessingStatus.SUCCESS.name:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail="Image processing must complete successfully before publishing.",
+        )
+
+
+async def _oam_handoff_or_404(db, project, user_data) -> oam.OAMHandoff:
+    try:
+        return await oam.build_handoff(db, project, user_data)
+    except FileNotFoundError as err:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="This project has no orthophoto to publish yet.",
+        ) from err
+
+
+@router.get("/{project_id}/oam-upload", tags=["OAM"])
+async def get_oam_upload_details(
     user_data: Annotated[AuthUser, Depends(login_required)],
     db: Annotated[Connection, Depends(database.get_db)],
     project: Annotated[
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
-    background_tasks: BackgroundTasks,
-    tags: dict[str, list[str]] = Body(default={"tags": []}),
-):
-    """Upload project orthophoto to OpenAerialMap."""
-    if project.author_id != user_data.id:
-        return HTTPException(
-            status_code=HTTPStatus.FORBIDDEN,
-            detail="User not authorized to do this action",
-        )
+) -> oam.OAMHandoff:
+    """Return the OAM review payload and refresh publication status."""
+    _require_project_author(project, user_data)
+    handoff = await _oam_handoff_or_404(db, project, user_data)
+    if not handoff.link:
+        _require_publish_prerequisites(project)
+    return handoff
 
-    # Check if upload is already in progress or already uploaded.
-    if (
-        project.oam_upload_status == OAMUploadStatus.UPLOADING
-        or project.oam_upload_status == OAMUploadStatus.UPLOADED
-    ):
-        return HTTPException(
+
+@router.post("/{project_id}/oam-upload", tags=["OAM"])
+async def start_oam_upload(
+    user_data: Annotated[AuthUser, Depends(login_required)],
+    db: Annotated[Connection, Depends(database.get_db)],
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+    republish_legacy: Annotated[
+        bool,
+        Query(
+            description=(
+                "Publish again despite this project having been published "
+                "through the retired OAM integration, whose item cannot be "
+                "resolved. Only set this after checking OAM: it will create a "
+                "second scene."
+            )
+        ),
+        # Keep direct-call defaults as bool rather than Query objects.
+    ] = False,
+) -> oam.OAMHandoff:
+    """Record and return a repeatable OAM handoff."""
+    _require_project_author(project, user_data)
+
+    handoff = await _oam_handoff_or_404(db, project, user_data)
+    if handoff.link:
+        raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
-            detail="Upload to OAM already in progress or already done",
+            detail=(
+                "This project is already published on OpenAerialMap as item "
+                f"{handoff.link.item_id}."
+            ),
+        )
+    _require_publish_prerequisites(project)
+    if handoff.legacy_publication and not republish_legacy:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail=(
+                "This project was already published to OpenAerialMap through "
+                "the old integration, which recorded no catalogue link. Search "
+                "OAM for it first; publishing again creates a second scene. "
+                "Pass republish_legacy=true to go ahead anyway."
+            ),
         )
 
-    # Update project status to UPLOADING
-    await project_logic.update_project_oam_status(
-        db, project.id, OAMUploadStatus.UPLOADING
-    )
-
-    background_tasks.add_task(upload_to_oam, db, project, user_data, tags)
-    return {"message": "Uploading to OAM Started", "status": OAMUploadStatus.UPLOADING}
+    if oam.status_name(project.oam_upload_status) != OAMUploadStatus.UPLOADING.name:
+        await project_logic.update_project_oam_status(
+            db, project.id, OAMUploadStatus.UPLOADING
+        )
+        handoff.status = OAMUploadStatus.UPLOADING.name
+    return handoff
 
 
 @router.post("/{project_id}/generate-qfield-project", tags=["Projects"])

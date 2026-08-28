@@ -324,6 +324,7 @@ env:
   API_PREFIX: ""
   DOMAIN: "api.drone.hotosm.org"
   EXTRA_CORS_ORIGINS: '["https://drone.hotosm.org"]'
+  # Set FRONTEND_DOMAIN only when it cannot be derived from DOMAIN.
 
 ingress:
   hosts:

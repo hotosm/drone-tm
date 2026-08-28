@@ -16,7 +16,6 @@ const OrganizationDetails = () => {
     organization_name: userProfile?.organization_name || null,
     organization_address: userProfile?.organization_address || null,
     job_title: userProfile?.job_title || null,
-    oam_api_token: userProfile?.oam_api_token || "",
   };
   const queryClient = useQueryClient();
 
@@ -78,18 +77,6 @@ const OrganizationDetails = () => {
             placeholder={m.profile_job_title_placeholder()}
             className="naxatw-mt-1"
             {...register("job_title", {
-              // required: 'Job Title is Required',
-            })}
-          />
-          <ErrorMessage message={formState.errors?.job_title?.message as string} />
-        </FormControl>
-
-        <FormControl>
-          <Label>{m.profile_oam_token_label()}</Label>
-          <Input
-            placeholder={m.profile_oam_token_placeholder()}
-            className="naxatw-mt-1"
-            {...register("oam_api_token", {
               // required: 'Job Title is Required',
             })}
           />

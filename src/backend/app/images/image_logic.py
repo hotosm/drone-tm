@@ -5,6 +5,8 @@ import hashlib
 import json
 import shutil
 import tempfile
+from collections import Counter
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -16,6 +18,28 @@ from loguru import logger as log
 from psycopg import Connection
 from psycopg.rows import dict_row
 from psycopg.types.json import Json
+
+# Capture timestamps in preference order, paired with offset tags.
+_CAPTURE_TIME_FIELDS = (
+    ("SubSecDateTimeOriginal", None),
+    ("DateTimeOriginal", "OffsetTimeOriginal"),
+    ("GPSDateTime", None),
+    ("SubSecCreateDate", None),
+    ("CreateDate", "OffsetTimeDigitized"),
+)
+
+_EXIF_DATETIME_FORMATS = (
+    "%Y:%m:%d %H:%M:%S.%f%z",
+    "%Y:%m:%d %H:%M:%S%z",
+    "%Y:%m:%d %H:%M:%S.%f",
+    "%Y:%m:%d %H:%M:%S",
+)
+
+_CAPTURE_EXIF_KEYS = [
+    "Make",
+    "Model",
+    *(field for pair in _CAPTURE_TIME_FIELDS for field in pair if field),
+]
 
 
 @functools.lru_cache(maxsize=1)
@@ -441,3 +465,127 @@ async def get_images_by_project(
         results = await cur.fetchall()
 
     return [ProjectImageOut(**row) for row in results]
+
+
+@dataclass
+class ProjectCaptureMetadata:
+    acquisition_start: datetime | None
+    acquisition_end: datetime | None
+    sensor: str | None
+    image_count: int
+    # Number of naive capture times interpreted as UTC.
+    timezone_assumed_count: int = 0
+
+
+def _parse_exif_datetime(
+    raw: Any, offset: Any = None, *, require_timezone: bool = False
+) -> datetime | None:
+    if not isinstance(raw, str):
+        return None
+
+    value = raw.strip()
+    if not value or value.startswith("0000"):
+        return None
+
+    candidates = [value]
+    if isinstance(offset, str) and offset.strip():
+        candidates.insert(0, value + offset.strip())
+
+    for candidate in candidates:
+        for fmt in _EXIF_DATETIME_FORMATS:
+            try:
+                parsed = datetime.strptime(candidate, fmt)  # noqa: DTZ007
+            except ValueError:
+                continue
+            if parsed.tzinfo:
+                return parsed
+            return None if require_timezone else parsed.replace(tzinfo=timezone.utc)
+
+    return None
+
+
+def _capture_time_from_exif(exif: dict[str, Any]) -> tuple[datetime | None, bool]:
+    """Prefer timezone-aware EXIF timestamps before assuming UTC."""
+    for require_timezone in (True, False):
+        for field, offset_field in _CAPTURE_TIME_FIELDS:
+            parsed = _parse_exif_datetime(
+                exif.get(field),
+                exif.get(offset_field) if offset_field else None,
+                require_timezone=require_timezone,
+            )
+            if parsed:
+                return parsed, not require_timezone
+    return None, False
+
+
+def _sensor_from_exif(exif: dict[str, Any]) -> str | None:
+    make = exif.get("Make")
+    model = exif.get("Model")
+    make = make.strip() if isinstance(make, str) else ""
+    model = model.strip() if isinstance(model, str) else ""
+
+    if not model:
+        return make or None
+    if make and not model.upper().startswith(make.upper()):
+        return f"{make} {model}"
+    return model
+
+
+async def get_project_capture_metadata(
+    db: Connection, project_id: UUID
+) -> ProjectCaptureMetadata:
+    """Derive metadata from the assigned photos used by ODM."""
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            SELECT (
+                SELECT jsonb_object_agg(key, value)
+                FROM jsonb_each(exif)
+                WHERE key = ANY(%(keys)s)
+            )
+            FROM project_images
+            WHERE project_id = %(project_id)s
+              AND exif IS NOT NULL
+              AND status::text = %(status)s
+            """,
+            {
+                "project_id": str(project_id),
+                "status": ImageStatus.ASSIGNED.value,
+                "keys": _CAPTURE_EXIF_KEYS,
+            },
+        )
+        rows = await cur.fetchall()
+
+    capture_times: list[datetime] = []
+    sensors: Counter[str] = Counter()
+    timezone_assumed = 0
+
+    for (exif,) in rows:
+        if not isinstance(exif, dict):
+            continue
+        captured, assumed_tz = _capture_time_from_exif(exif)
+        if captured:
+            capture_times.append(captured)
+            timezone_assumed += assumed_tz
+        sensor = _sensor_from_exif(exif)
+        if sensor:
+            sensors[sensor] += 1
+
+    if len(sensors) > 1:
+        log.warning(
+            f"Project {project_id} imagery reports multiple sensors, "
+            f"using the most common: {dict(sensors)}"
+        )
+    if timezone_assumed:
+        log.warning(
+            f"Project {project_id}: {timezone_assumed} of {len(capture_times)} "
+            "capture times carried no timezone and were read as UTC"
+        )
+
+    return ProjectCaptureMetadata(
+        acquisition_start=min(capture_times) if capture_times else None,
+        acquisition_end=max(capture_times) if capture_times else None,
+        sensor=sensors.most_common(1)[0][0] if sensors else None,
+        image_count=len(rows),
+        timezone_assumed_count=timezone_assumed,
+    )

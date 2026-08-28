@@ -117,9 +117,6 @@ const DescriptionSection = ({
     [projectData?.tasks],
   );
 
-  // OAM publishing is author-only, and only makes sense once final processing
-  // produced an orthophoto. The OAM API token itself is gated inside the
-  // upload dialog, which links the user to their profile if it is missing.
   const isProjectAuthor = String(projectData?.author_id || "") === String(userDetails?.id || "");
   const isRegulatorApproved =
     !projectData?.requires_approval_from_regulator ||
@@ -129,8 +126,9 @@ const DescriptionSection = ({
     isProjectAuthor &&
     isRegulatorApproved &&
     projectData?.image_processing_status === "SUCCESS" &&
-    Boolean(projectData?.orthophoto_url) &&
-    (oamUploadStatus === "NOT_STARTED" || oamUploadStatus === "FAILED");
+    Boolean(projectData?.orthophoto_url);
+  const isPublishedToOam = oamUploadStatus === "UPLOADED";
+  const canOpenOamDialog = isProjectAuthor && (isPublishedToOam || canUploadToOam);
 
   const localizedItems = getDescriptionItems();
 
@@ -182,7 +180,11 @@ const DescriptionSection = ({
             <div className="naxatw-flex naxatw-gap-2">
               <p className="naxatw-w-[146px]">{m.proj_desc_uploaded_to_oam()}</p>
               <p>:</p>
-              <p className="naxatw-font-semibold">{formatString(projectData?.oam_upload_status)}</p>
+              <p className="naxatw-font-semibold">
+                {projectData?.oam_upload_status === "UPLOADING"
+                  ? m.proj_desc_oam_status_awaiting()
+                  : formatString(projectData?.oam_upload_status)}
+              </p>
             </div>
           )}
         </div>
@@ -295,30 +297,35 @@ const DescriptionSection = ({
           {isProjectAuthor && (
             <button
               className={`naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-p-3 naxatw-text-left naxatw-transition-all ${
-                canUploadToOam
+                canOpenOamDialog
                   ? "naxatw-border-gray-200 naxatw-bg-white hover:naxatw-border-red-300 hover:naxatw-bg-red-50"
                   : "naxatw-border-gray-100 naxatw-bg-gray-50 naxatw-cursor-not-allowed naxatw-opacity-60"
               }`}
-              onClick={() => canUploadToOam && dispatch(toggleModal("upload-to-oam"))}
-              disabled={!canUploadToOam}
+              onClick={() => canOpenOamDialog && dispatch(toggleModal("upload-to-oam"))}
+              disabled={!canOpenOamDialog}
             >
               <div
-                className={`naxatw-flex naxatw-h-8 naxatw-w-8 naxatw-flex-shrink-0 naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-text-sm naxatw-font-bold naxatw-text-white ${canUploadToOam ? "naxatw-bg-red" : "naxatw-bg-gray-400"}`}
+                className={`naxatw-flex naxatw-h-8 naxatw-w-8 naxatw-flex-shrink-0 naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-text-sm naxatw-font-bold naxatw-text-white ${canOpenOamDialog ? "naxatw-bg-red" : "naxatw-bg-gray-400"}`}
               >
                 5
               </div>
               <div className="naxatw-flex-1">
                 <p className="naxatw-text-sm naxatw-font-medium naxatw-text-gray-900">
-                  {oamUploadStatus === "FAILED"
-                    ? m.proj_desc_reupload_to_oam()
-                    : m.proj_desc_upload_to_oam()}
+                  {isPublishedToOam
+                    ? m.proj_desc_oam_view_published()
+                    : oamUploadStatus === "FAILED"
+                      ? m.proj_desc_reupload_to_oam()
+                      : m.proj_desc_upload_to_oam()}
                 </p>
                 <p className="naxatw-text-xs naxatw-text-gray-500">
-                  {oamUploadStatus && oamUploadStatus !== "NOT_STARTED"
-                    ? m.proj_desc_step_upload_to_oam_status({
-                        status: formatString(oamUploadStatus),
-                      })
-                    : m.proj_desc_step_upload_to_oam_desc()}
+                  {/* UPLOADING means handed off; OAM does not report abandonment. */}
+                  {oamUploadStatus === "UPLOADING"
+                    ? m.proj_desc_step_oam_awaiting()
+                    : oamUploadStatus && oamUploadStatus !== "NOT_STARTED"
+                      ? m.proj_desc_step_upload_to_oam_status({
+                          status: formatString(oamUploadStatus),
+                        })
+                      : m.proj_desc_step_upload_to_oam_desc()}
                 </p>
               </div>
               <span className="material-icons naxatw-text-gray-400">chevron_right</span>

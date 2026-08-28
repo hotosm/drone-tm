@@ -130,7 +130,7 @@ services:
       retries: 3
 
   s3:
-    image: "rustfs/rustfs:1.0.0-alpha.90"
+    image: "rustfs/rustfs:1.0.0-rc.3"
     command: server /data --console-address ":9090" --address ":9000"
     volumes:
       - rustfs-data:/data

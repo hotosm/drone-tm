@@ -44,13 +44,12 @@ export const saveGcpFile = (data: { projectId: string; gcp_file: File }) => {
 export const deleteProject = (projectId: string) =>
   authenticated(api).delete(`/projects/${projectId}`);
 
-export const uploadToOAM = (payload: Record<string, any>) => {
-  const { projectId, tags } = payload;
-  return authenticated(api).post(
-    `/projects/${projectId}/upload-to-oam`,
-    {
-      tags,
-    },
-    { headers: { "Content-Type": "application/json" } },
+export const getOAMUploadDetails = (projectId: string) =>
+  authenticated(api).get(`/projects/${projectId}/oam-upload`);
+
+export const startOAMUpload = (projectId: string, republishLegacy = false) =>
+  authenticated(api).post(
+    `/projects/${projectId}/oam-upload`,
+    undefined,
+    republishLegacy ? { params: { republish_legacy: true } } : undefined,
   );
-};

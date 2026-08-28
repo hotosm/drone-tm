@@ -3,7 +3,7 @@ import uuid
 from typing import Any
 
 import psycopg
-from app.config import encrypt_token, get_password_hash, settings
+from app.config import get_password_hash, settings
 from app.models.enums import HTTPStatus, State, UserRole
 from app.s3 import generate_presigned_put_url, maybe_presign_s3_key
 from fastapi import HTTPException
@@ -104,7 +104,6 @@ class BaseUserProfile(BaseModel):
     registration_file: str | None = None
     certificate_url: str | None = None
     registration_certificate_url: str | None = None
-    oam_api_token: str | None = None
 
     @model_validator(mode="after")
     def set_urls(cls, values):
@@ -162,7 +161,6 @@ class DbUserProfile(BaseUserProfile):
     """UserProfile model for interacting with the user_profile table."""
 
     user_id: int
-    has_oam_token: bool = False
 
     @staticmethod
     async def _handle_file_upload(profile: UserProfileCreate, user_id: int):
@@ -279,12 +277,6 @@ class DbUserProfile(BaseUserProfile):
             exclude_none=True, exclude={"password", "old_password", "certificate_file"}
         )
 
-        # Encrypt OAM API token if present
-        if "oam_api_token" in model_data:
-            model_data["oam_api_token"] = encrypt_token(
-                str(user_id), model_data["oam_api_token"]
-            )
-
         results = await DbUserProfile._handle_file_upload(profile_update, user_id)
         for file_type, file_data in results.items():
             if file_data.get("s3_path"):
@@ -350,19 +342,6 @@ class DbUserProfile(BaseUserProfile):
             result = await cur.fetchone()
 
             if result:
-                # Check if 'oam_token' exists and set 'has_oam_token' accordingly
-                has_oam_token = (
-                    hasattr(result, "oam_api_token")
-                    and result.oam_api_token is not None
-                )
-
-                # Add 'has_oam_token' attribute
-                result.has_oam_token = has_oam_token
-
-                # Remove 'oam_token' from the object
-                if hasattr(result, "oam_api_token"):
-                    delattr(result, "oam_api_token")
-
                 log.info(f"Fetched user profile data: {result}")
                 return result
 

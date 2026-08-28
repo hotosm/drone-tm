@@ -502,18 +502,19 @@ def get_object_metadata(bucket_name: str, object_name: str):
     return client.stat_object(bucket_name, object_name)
 
 
-def get_orthophoto_url_for_project(project_id: str):
+def get_orthophoto_url_for_project(project_id: str, expires_hours: int = 12):
     """Generate browser URL for project orthophoto.
 
     Args:
         project_id: The unique identifier for the project
+        expires_hours: Presigned URL lifetime.
 
     Returns:
         str | None: URL to download the orthophoto, or None if not found
     """
     ortho_path = f"projects/{project_id}/odm/odm_orthophoto/odm_orthophoto.tif"
     if check_file_exists(settings.S3_BUCKET_NAME, ortho_path):
-        return maybe_presign_s3_key(ortho_path, expires_hours=12)
+        return maybe_presign_s3_key(ortho_path, expires_hours=expires_hours)
 
     log.warning("Orthophoto not found in S3 bucket")
     return None

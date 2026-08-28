@@ -260,6 +260,7 @@ class DbProject(BaseModel):
     regulator_approval_status: str | None = None
     image_processing_status: str | None = None
     oam_upload_status: str | None = None
+    oam_item_id: str | None = None
     cloud_ortho_ready: bool = False
     cloud_mesh_ready: bool = False
     cloud_ortho_generating: bool = False
@@ -806,6 +807,7 @@ class ProjectInfo(BaseModel):
     regulator_approval_status: str | None = None
     image_processing_status: str | None = None
     oam_upload_status: str | None = None
+    oam_item_id: str | None = None
     cloud_ortho_ready: bool = False
     cloud_mesh_ready: bool = False
     cloud_ortho_generating: bool = False
