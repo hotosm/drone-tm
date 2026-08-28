@@ -13,10 +13,15 @@ import flatten from "@turf/flatten";
 import area from "@turf/area";
 import type { AllGeoJSON } from "@turf/helpers";
 import type { FeatureCollection } from "geojson";
-import { validateGeoJSON } from "@Utils/convertLayerUtils";
+import {
+  formatCrsName,
+  getNonWgs84Crs,
+  hasOutOfRangeCoordinates,
+  validateGeoJSON,
+} from "@Utils/convertLayerUtils";
 import { toast } from "react-toastify";
 import SwitchTab from "@Components/common/SwitchTab";
-import { uploadOrDrawAreaOptions } from "@Constants/createProject";
+import { MAX_PROJECT_AREA_SQM, uploadOrDrawAreaOptions } from "@Constants/createProject";
 import prepareFormData from "@Utils/prepareFormData";
 import { postNormalizeAoi } from "@Services/createproject";
 import { m } from "@/paraglide/messages";
@@ -72,10 +77,22 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
       if (!file) return false;
       const geojson: any = await validateGeoJSON(file[0]?.file);
       if (isAllGeoJSON(geojson) && !Array.isArray(geojson)) {
+        // Must run before any turf measurement: turf assumes WGS84 degrees, so a
+        // projected file measures orders of magnitude too large and would
+        // otherwise be rejected with a misleading "area too big" error.
+        const declaredCrs = getNonWgs84Crs(geojson);
+        if (declaredCrs) {
+          toast.error(m.create_aoi_unsupported_crs({ crs: formatCrsName(declaredCrs) }));
+          return false;
+        }
+        if (hasOutOfRangeCoordinates(geojson)) {
+          toast.error(m.create_aoi_projected_coordinates());
+          return false;
+        }
         const convertedGeojson = flatten(geojson);
         const uploadedArea: any = convertedGeojson && area(convertedGeojson as FeatureCollection);
-        if (uploadedArea && uploadedArea > 100000000) {
-          toast.error(m.create_aoi_drawn_area_exceed());
+        if (uploadedArea && uploadedArea > MAX_PROJECT_AREA_SQM) {
+          toast.error(m.create_aoi_drawn_area_exceed({ area: m2ToKm2(MAX_PROJECT_AREA_SQM) }));
           return false;
         }
         return true;

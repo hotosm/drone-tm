@@ -15,6 +15,14 @@ import DTMIcon from "@Assets/images/DTM-Icon.svg";
 import DSMIcon from "@Assets/images/DSM-icon.svg";
 import { m } from "@/paraglide/messages";
 
+/**
+ * Maximum area, in square metres, for a project area or no-fly zone.
+ *
+ * This is a practical upper bound rather than a hard technical one: beyond this
+ * size an AOI should be subdivided into several smaller projects.
+ */
+export const MAX_PROJECT_AREA_SQM = 150 * 1000 * 1000;
+
 export type StepComponentMap = {
   [key: number]: any;
 };

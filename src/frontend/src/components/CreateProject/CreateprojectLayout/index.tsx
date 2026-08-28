@@ -16,11 +16,15 @@ import centroid from "@turf/centroid";
 import { resetUploadedAndDrawnAreas, setCreateProjectState } from "@Store/actions/createproject";
 import { getProjectsList, postCreateProject, postTaskBoundary } from "@Services/createproject";
 import { toast } from "react-toastify";
-import { StepComponentMap, stepDescriptionComponents } from "@Constants/createProject";
+import {
+  MAX_PROJECT_AREA_SQM,
+  StepComponentMap,
+  stepDescriptionComponents,
+} from "@Constants/createProject";
 import { convertGeojsonToFile } from "@Utils/convertLayerUtils";
 import prepareFormData from "@Utils/prepareFormData";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
-import { getFrontOverlap, getSideOverlap, gsdToAltitude } from "@Utils/index";
+import { getFrontOverlap, getSideOverlap, gsdToAltitude, m2ToKm2 } from "@Utils/index";
 import { useEffect, useState } from "react";
 import { getCountry } from "@Services/common";
 import { setCommonState } from "@Store/actions/common";
@@ -261,8 +265,8 @@ const CreateprojectLayout = () => {
         toast.error(m.create_aoi_upload_or_draw_save_project());
         return;
       }
-      if (totalProjectArea > 100000000) {
-        toast.error(m.create_aoi_project_area_exceed());
+      if (totalProjectArea > MAX_PROJECT_AREA_SQM) {
+        toast.error(m.create_aoi_project_area_exceed({ area: m2ToKm2(MAX_PROJECT_AREA_SQM) }));
         return;
       }
       if (

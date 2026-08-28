@@ -8,13 +8,27 @@ import { GeojsonType } from "@Components/common/MapLibreComponents/types";
 import { LngLatBoundsLike, Map } from "maplibre-gl";
 import { FeatureCollection } from "geojson";
 import getBbox from "@turf/bbox";
+import area from "@turf/area";
+import { toast } from "react-toastify";
 import useDrawTool from "@Components/common/MapLibreComponents/useDrawTool";
 import { drawStyles } from "@Constants/map";
+import { MAX_PROJECT_AREA_SQM } from "@Constants/createProject";
 import { setCreateProjectState } from "@Store/actions/createproject";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
+import { m2ToKm2 } from "@Utils/index";
 import BaseLayerSwitcherUI from "@Components/common/BaseLayerSwitcher";
 import LocateUser from "@Components/common/MapLibreComponents/LocateUser";
 import { m } from "@/paraglide/messages";
+
+/**
+ * Warn and reject when a drawn or edited area is larger than the project limit.
+ */
+const exceedsMaxArea = (geojson: GeojsonType | null) => {
+  if (!geojson) return false;
+  if (area(geojson as FeatureCollection) <= MAX_PROJECT_AREA_SQM) return false;
+  toast.error(m.create_aoi_drawn_area_exceed({ area: m2ToKm2(MAX_PROJECT_AREA_SQM) }));
+  return true;
+};
 
 const MapSection = ({ selectedTab, setValue }: { selectedTab: string; setValue: any }) => {
   const dispatch = useTypedDispatch();
@@ -41,6 +55,10 @@ const MapSection = ({ selectedTab, setValue }: { selectedTab: string; setValue: 
       if (projectArea && drawMode === "simple_select") {
         setBufferGeojson(geojson);
       } else {
+        if (exceedsMaxArea(geojson)) {
+          resetDraw();
+          return;
+        }
         dispatch(setCreateProjectState({ projectArea: geojson }));
         setDrawMode("static");
         setValue("outline", geojson);
@@ -48,6 +66,10 @@ const MapSection = ({ selectedTab, setValue }: { selectedTab: string; setValue: 
     } else if (noFlyZone && projectArea && drawMode === "simple_select") {
       setBufferGeojson(geojson);
     } else {
+      if (exceedsMaxArea(geojson)) {
+        resetDraw();
+        return;
+      }
       dispatch(setCreateProjectState({ noFlyZone: geojson }));
       setDrawMode("static");
       setValue("outline", geojson);
@@ -89,6 +111,7 @@ const MapSection = ({ selectedTab, setValue }: { selectedTab: string; setValue: 
     resetDraw();
   };
   const handleEditSave = () => {
+    if (exceedsMaxArea(bufferGeojson)) return;
     if (selectedTab === "project") {
       dispatch(setCreateProjectState({ projectArea: bufferGeojson }));
       setValue("outline", bufferGeojson);
