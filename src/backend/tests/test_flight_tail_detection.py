@@ -647,14 +647,17 @@ async def test_multi_batch_rejections(db, create_test_project, auth_user):
                     lat, lon = -8.301 + (8 * 0.0002), 115.46 + ((i - 8) * 0.0002)
                     alt = 200
 
+                current_yaw = 0.0 if (is_vertical or is_transit) else 90.0
+                current_pitch = 0.0 if (is_vertical or is_transit) else -90.0
+
                 file_name = f"{seg['label']}_{i:03d}.jpg"
                 s3_key = f"dtm-data/projects/{project_id}/user-uploads/{file_name}"
                 hash_md5 = hashlib.md5(file_name.encode("utf-8")).hexdigest()
 
                 exif_data = json.dumps(
                     {
-                        "FlightYawDegree": 90.0,
-                        "GimbalPitchDegree": -90.0,
+                        "FlightYawDegree": current_yaw,
+                        "GimbalPitchDegree": current_pitch,
                         "DateTimeOriginal": ts.strftime("%Y:%m:%d %H:%M:%S"),
                         "AbsoluteAltitude": str(alt),
                     }
