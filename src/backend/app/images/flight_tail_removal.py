@@ -9,6 +9,10 @@ from app.images.flight_segments import (
 from app.images.image_logic import reject_assigned_images
 from app.models.enums import ImageStatus
 
+from loguru import logger as log
+from psycopg import Connection
+from psycopg.rows import dict_row
+
 '''
 def _confirm_stable_heading(project_list: list, image_index: int, steps: int) -> bool:
     """
@@ -79,7 +83,7 @@ def _find_main_axis(flight_segment_images, field="yaw_deg"):
         photos_by_heading[heading].append(image)
 
     # Find the 10-degree sector where most flight headings fall
-    best_h, max_count = None, 0
+    best_h, max_count = 0, 0
     for h in range(180):
         count_in_sector = sum(len(photos_by_heading[i % 180]) for i in range(h, h + 10))
         if count_in_sector > max_count:
@@ -150,7 +154,7 @@ async def mark_and_remove_flight_tail_imagery(
     else:
         batch_filter = "AND batch_id IS NULL"
 
-    camera_serial = camera_serial_sql()
+    #camera_serial = camera_serial_sql()
     segment_break = segment_break_sql(
         "sort_ts", "prev_sort_ts", "location", "prev_location"
     )
@@ -185,13 +189,13 @@ async def mark_and_remove_flight_tail_imagery(
                 yaw_deg,
                 gimbal_pitch_deg,
                 altitude_m,
-                camera_serial,
+                'default' as camera_serial,
                 LAG(sort_ts, 1, sort_ts) OVER w AS prev_sort_ts,
                 LAG(location, 1, location) OVER w AS prev_location,
                 LAG(yaw_deg, 1, yaw_deg) OVER w AS prev_yaw_deg,
                 LAG(altitude_m, 1, altitude_m) OVER w AS prev_altitude_m
             FROM ordered
-            WINDOW w AS (PARTITION BY camera_serial ORDER BY {PASS_ORDER_SQL})
+            WINDOW w AS (PARTITION BY 'default' ORDER BY {PASS_ORDER_SQL})
         ),
         segmented AS (
             SELECT
@@ -230,7 +234,7 @@ async def mark_and_remove_flight_tail_imagery(
                 location,
                 ROW_NUMBER() OVER w as row_num
             FROM segmented
-            WINDOW w AS (PARTITION BY camera_serial, segment_id ORDER BY {PASS_ORDER_SQL})
+            WINDOW w AS (PARTITION BY segment_id ORDER BY {PASS_ORDER_SQL})
         )
         SELECT
             id,
@@ -245,7 +249,7 @@ async def mark_and_remove_flight_tail_imagery(
             END AS distance_moved,
             yaw_deg,
             previous_yaw_deg,
-            gimbal_pitch_deg
+            gimbal_pitch_deg,
             altitude_m,
             previous_altitude_m,
             camera_serial
