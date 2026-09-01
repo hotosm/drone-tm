@@ -12,9 +12,8 @@ signature, so what is asserted is what the SDK would have put on the wire.
 import inspect
 from io import BytesIO
 
-from minio import Minio
-
 from app import s3
+from minio import Minio
 
 
 class _Result:
