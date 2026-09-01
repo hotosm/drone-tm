@@ -7,7 +7,6 @@ import { FlexRow } from "../Layouts";
 import Icon from "../Icon";
 import Drawer from "../Drawer";
 import LanguageSwitcher from "../LanguageSwitcher";
-import "@hotosm/tool-menu";
 import { getRuntimeConfig } from "@/runtimeConfig";
 import { useGetUserDetailsQuery } from "@Api/projects";
 import { getLocalStorageValue } from "@Utils/getLocalStorageValue";
