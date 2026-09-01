@@ -26,9 +26,6 @@ importers:
       '@hotosm/hanko-auth':
         specifier: ^0.5.2
         version: 0.5.2
-      '@hotosm/tool-menu':
-        specifier: ^0.2.6
-        version: 0.2.7
       '@hotosm/ui':
         specifier: ^2.1.0
         version: 2.1.0(@awesome.me/webawesome@3.11.0(@floating-ui/utils@0.2.11)(@types/node@22.19.15)(@types/react@19.2.14))
@@ -1367,10 +1364,6 @@ packages:
 
   '@hotosm/hanko-auth@0.5.2':
     resolution: {integrity: sha512-dCCrNRyH2C2bS3TBDLJrX45rmHPgMzZHp8Il+LvEeh9mHzBB/iXro1bJZj5Fpmdhfy3HVN+v5PE2WhMK3ymznw==}
-
-  '@hotosm/tool-menu@0.2.7':
-    resolution: {integrity: sha512-idPmbJtBfAfmug+vVSKd5QN+ECzvZY+3XQTnO8Mt2tqhNSXFWeYdZg9HVieET2EndW35niwrtpMBQ6IxAaf+4w==}
-    engines: {node: '>=14.17.0'}
 
   '@hotosm/ui@2.1.0':
     resolution: {integrity: sha512-jgTdzyyCUPVtQBR4ZRfh2Mskw47ct0FmWd7abT8s6DbxhSL8NOw8/Rcla5rTBaln7bsPqrKsFSrXv9ytbkGucQ==}
@@ -6272,10 +6265,6 @@ snapshots:
   '@hotosm/hanko-auth@0.5.2':
     dependencies:
       '@teamhanko/hanko-elements': 2.5.0
-      lit: 3.3.2
-
-  '@hotosm/tool-menu@0.2.7':
-    dependencies:
       lit: 3.3.2
 
   '@hotosm/ui@2.1.0(@awesome.me/webawesome@3.11.0(@floating-ui/utils@0.2.11)(@types/node@22.19.15)(@types/react@19.2.14))':
