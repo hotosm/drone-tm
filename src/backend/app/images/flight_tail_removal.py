@@ -2,13 +2,11 @@ from uuid import UUID
 
 from app.images.flight_segments import (
     PASS_ORDER_SQL,
-    camera_serial_sql,
     group_by_pass,
     segment_break_sql,
 )
 from app.images.image_logic import reject_assigned_images
 from app.models.enums import ImageStatus
-
 from loguru import logger as log
 from psycopg import Connection
 from psycopg.rows import dict_row
@@ -154,7 +152,7 @@ async def mark_and_remove_flight_tail_imagery(
     else:
         batch_filter = "AND batch_id IS NULL"
 
-    #camera_serial = camera_serial_sql()
+    # camera_serial = camera_serial_sql()
     segment_break = segment_break_sql(
         "sort_ts", "prev_sort_ts", "location", "prev_location"
     )
