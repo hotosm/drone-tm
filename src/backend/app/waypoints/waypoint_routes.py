@@ -35,6 +35,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from psycopg import Connection
 from shapely.geometry import shape
+from starlette.background import BackgroundTask
 
 log = logging.getLogger(__name__)
 
@@ -185,13 +186,20 @@ async def get_task_flightplan(
     if download:
         # Output writers each treat `outfile` differently (some as a file path,
         # some as a base dir for a subdirectory tree). They all expect a unique
-        # non-existent path under a writable tmpdir.
-        outfile = os.path.join(tempfile.gettempdir(), f"flightplan-{uuid.uuid4()}")
-        outpath = write_flightplan_file(placemarks, drone_type, outfile, mode)
+        # non-existent path under a writable tmpdir, which is removed again
+        # once the response has been sent.
+        temp_dir = tempfile.mkdtemp(prefix="flightplan_")
+        try:
+            outfile = os.path.join(temp_dir, "flightplan")
+            outpath = write_flightplan_file(placemarks, drone_type, outfile, mode)
+        except Exception:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            raise
         return build_flightplan_download_response(
             outpath,
             drone_type=drone_type,
             filename_stem=f"task-{project_task_index}-{mode.name}-project-{project_id}",
+            cleanup_dir=temp_dir,
         )
 
     flight_data = calculate_flight_time_from_placemarks(placemarks)
@@ -262,6 +270,7 @@ async def generate_wmpl_kmz(
             detail="Either altitude or gsd is required",
         )
 
+    dem_path = None
     if terrain_follow:
         if not dem:
             raise HTTPException(
@@ -279,56 +288,70 @@ async def generate_wmpl_kmz(
         with open(dem_path, "wb") as buffer:
             shutil.copyfileobj(dem.file, buffer)
 
-    boundary = merge_multipolygon(geojson.loads(await project_geojson.read()))
+    try:
+        boundary = merge_multipolygon(geojson.loads(await project_geojson.read()))
 
-    # create a takeoff point in this format ["lon","lat"]
-    take_off_point = [take_off_point.longitude, take_off_point.latitude]
-    if not check_point_within_buffer(take_off_point, boundary, 200):
-        raise HTTPException(
-            status_code=400,
-            detail="Take off point should be within 200m of the boundary",
-        )
+        # create a takeoff point in this format ["lon","lat"]
+        take_off_point = [take_off_point.longitude, take_off_point.latitude]
+        if not check_point_within_buffer(take_off_point, boundary, 200):
+            raise HTTPException(
+                status_code=400,
+                detail="Take off point should be within 200m of the boundary",
+            )
 
-    if not download:
-        points = create_waypoint(
-            project_area=boundary,
-            agl=altitude,
-            gsd=gsd,
-            forward_overlap=forward_overlap,
-            side_overlap=side_overlap,
-            flight_mode=flight_mode,
-            generate_3d=generate_3d,
-            take_off_point=take_off_point,
-            drone_type=drone_type,
-        )
-        return geojson.loads(points)
-    else:
-        output_file = create_flightplan(
-            aoi=boundary,
-            forward_overlap=forward_overlap,
-            side_overlap=side_overlap,
-            agl=altitude,
-            gsd=gsd,
-            flight_mode=flight_mode,
-            dem=dem_path if dem else None,
-            outfile=os.path.join(tempfile.gettempdir(), str(uuid.uuid4())),
-            take_off_point=take_off_point,
-            drone_type=drone_type,
-        )
+        if not download:
+            points = create_waypoint(
+                project_area=boundary,
+                agl=altitude,
+                gsd=gsd,
+                forward_overlap=forward_overlap,
+                side_overlap=side_overlap,
+                flight_mode=flight_mode,
+                generate_3d=generate_3d,
+                take_off_point=take_off_point,
+                drone_type=drone_type,
+            )
+            return geojson.loads(points)
+        else:
+            # Removed again by the response background task, once sent
+            temp_dir = tempfile.mkdtemp(prefix="flightplan_")
+            try:
+                output_file = create_flightplan(
+                    aoi=boundary,
+                    forward_overlap=forward_overlap,
+                    side_overlap=side_overlap,
+                    agl=altitude,
+                    gsd=gsd,
+                    flight_mode=flight_mode,
+                    dem=dem_path,
+                    outfile=os.path.join(temp_dir, "flightplan"),
+                    take_off_point=take_off_point,
+                    drone_type=drone_type,
+                )
+            except Exception:
+                shutil.rmtree(temp_dir, ignore_errors=True)
+                raise
 
-        return build_flightplan_download_response(
-            output_file,
-            drone_type=drone_type,
-            filename_stem="output",
-        )
+            return build_flightplan_download_response(
+                output_file,
+                drone_type=drone_type,
+                filename_stem="output",
+                cleanup_dir=temp_dir,
+            )
+    finally:
+        # The uploaded DEM is only needed while the flightplan is generated
+        if dem_path and os.path.exists(dem_path):
+            os.remove(dem_path)
 
 
 @router.post("/{task_id}/generate-kmz/")
 async def generate_kmz_with_placemarks(
     task_id: uuid.UUID, data: waypoint_schemas.PlacemarksFeature
 ):
+    # Removed again by the response background task, once sent
+    temp_dir = tempfile.mkdtemp(prefix="flightplan_")
     try:
-        outfile = os.path.join(tempfile.gettempdir(), f"{task_id}_flight_plan.kmz")
+        outfile = os.path.join(temp_dir, f"{task_id}_flight_plan.kmz")
 
         kmz_file = create_wpml(data.model_dump(), outfile)
         if not os.path.exists(kmz_file):
@@ -337,7 +360,9 @@ async def generate_kmz_with_placemarks(
             kmz_file,
             media_type="application/zip",
             filename=f"{task_id}_flight_plan.kmz",
+            background=BackgroundTask(shutil.rmtree, temp_dir, ignore_errors=True),
         )
 
     except Exception as e:
+        shutil.rmtree(temp_dir, ignore_errors=True)
         raise HTTPException(status_code=500, detail=f"Error generating KMZ: {e!s}")

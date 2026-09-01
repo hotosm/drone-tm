@@ -275,22 +275,25 @@ async def process_task_metrics(db, tasks_data, project):
         }
 
         if project.is_terrain_follow:
-            dem_path = os.path.join(tempfile.gettempdir(), str(uuid.uuid4()), "dem.tif")
             points = create_waypoint(**waypoint_params)
-            try:
-                get_file_from_bucket(
-                    settings.S3_BUCKET_NAME,
-                    f"projects/{project.id}/dem.tif",
-                    dem_path,
-                )
+            # Scoped temp dir: the DEM directory was never removed, and the
+            # elevation file used a fixed name shared by every concurrent call
+            with tempfile.TemporaryDirectory(prefix="dem_") as temp_dir:
+                dem_path = os.path.join(temp_dir, "dem.tif")
                 outfile_with_elevation = os.path.join(
-                    tempfile.gettempdir(), "output_file_with_elevation.geojson"
+                    temp_dir, "output_file_with_elevation.geojson"
                 )
-                add_elevation_from_dem(dem_path, points, outfile_with_elevation)
-                with open(outfile_with_elevation) as inpointsfile:
-                    points_with_elevation = inpointsfile.read()
-            except Exception:
-                points_with_elevation = points
+                try:
+                    get_file_from_bucket(
+                        settings.S3_BUCKET_NAME,
+                        f"projects/{project.id}/dem.tif",
+                        dem_path,
+                    )
+                    add_elevation_from_dem(dem_path, points, outfile_with_elevation)
+                    with open(outfile_with_elevation) as inpointsfile:
+                        points_with_elevation = inpointsfile.read()
+                except Exception:
+                    points_with_elevation = points
 
             if (
                 isinstance(points_with_elevation, dict)

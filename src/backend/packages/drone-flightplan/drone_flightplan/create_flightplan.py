@@ -112,10 +112,14 @@ def build_placemarks(
 def write_flightplan_file(
     placemarks: dict,
     drone_type: DroneType,
-    outfile: str,
+    outfile: str | None = None,
     flight_mode: FlightMode = FlightMode.WAYLINES,
 ) -> str:
-    """Serialize placemarks to the drone-specific output format on disk."""
+    """Serialize placemarks to the drone-specific output format on disk.
+
+    When `outfile` is omitted the writer picks a temporary path, which the
+    caller then owns and must clean up once the file has been consumed.
+    """
     output_format = DRONE_PARAMS[drone_type].get("OUTPUT_FORMAT")
 
     if output_format == "DJI_WMPL":
