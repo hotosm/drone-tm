@@ -340,7 +340,12 @@ def add_obj_to_bucket(
     file_obj.seek(0)
 
     result = client.put_object(
-        bucket_name, s3_path, file_obj, file_obj.getbuffer().nbytes, **kwargs
+        bucket_name,
+        s3_path,
+        file_obj,
+        file_obj.getbuffer().nbytes,
+        content_type=content_type,
+        **kwargs,
     )
     log.debug(
         f"Created {result.object_name} object; etag: {result.etag}, "
