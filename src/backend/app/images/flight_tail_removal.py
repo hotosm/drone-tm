@@ -2,6 +2,7 @@ from uuid import UUID
 
 from app.images.flight_segments import (
     PASS_ORDER_SQL,
+    camera_serial_sql,
     group_by_pass,
     segment_break_sql,
 )
@@ -152,7 +153,7 @@ async def mark_and_remove_flight_tail_imagery(
     else:
         batch_filter = "AND batch_id IS NULL"
 
-    # camera_serial = camera_serial_sql()
+    camera_serial = camera_serial_sql()
     segment_break = segment_break_sql(
         "sort_ts", "prev_sort_ts", "location", "prev_location"
     )
@@ -163,6 +164,7 @@ async def mark_and_remove_flight_tail_imagery(
                 id,
                 location,
                 uploaded_at,
+                {camera_serial} AS camera_serial,
                 COALESCE(
                     to_timestamp(exif->>'DateTimeOriginal', 'YYYY:MM:DD HH24:MI:SS')::timestamptz,
                     uploaded_at
@@ -187,7 +189,7 @@ async def mark_and_remove_flight_tail_imagery(
                 yaw_deg,
                 gimbal_pitch_deg,
                 altitude_m,
-                'default' as camera_serial,
+                camera_serial, 
                 LAG(sort_ts, 1, sort_ts) OVER w AS prev_sort_ts,
                 LAG(location, 1, location) OVER w AS prev_location,
                 LAG(yaw_deg, 1, yaw_deg) OVER w AS prev_yaw_deg,
@@ -232,7 +234,7 @@ async def mark_and_remove_flight_tail_imagery(
                 location,
                 ROW_NUMBER() OVER w as row_num
             FROM segmented
-            WINDOW w AS (PARTITION BY segment_id ORDER BY {PASS_ORDER_SQL})
+            WINDOW w AS (PARTITION BY camera_serial, segment_id ORDER BY {PASS_ORDER_SQL})
         )
         SELECT
             id,
@@ -347,9 +349,9 @@ async def mark_and_remove_flight_tail_imagery(
                 takeoff_tails_indices.append(i)
                 continue
 
-            # Compare if current yaw degree is aligned with mission axis within 5 degrees
+            # Compare if current yaw degree is aligned with mission axis within 15 degrees
             yaw_diff_to = abs((image_yaw_to % 180) - global_mission_axis)
-            yaw_aligned_to = min(yaw_diff_to, 180 - yaw_diff_to) < 5
+            yaw_aligned_to = min(yaw_diff_to, 180 - yaw_diff_to) < 15
 
             # Check yaw alignment
             if yaw_aligned_to:
@@ -382,9 +384,9 @@ async def mark_and_remove_flight_tail_imagery(
                 landing_tails_indices.append(i)
                 continue
 
-            # Compare if current yaw degree is aligned with mission axis within 5 degrees
+            # Compare if current yaw degree is aligned with mission axis within 15 degrees
             yaw_diff_land = abs((image_yaw_land % 180) - global_mission_axis)
-            yaw_aligned_land = min(yaw_diff_land, 180 - yaw_diff_land) < 5
+            yaw_aligned_land = min(yaw_diff_land, 180 - yaw_diff_land) < 15
 
             # Check yaw alignment
             if yaw_aligned_land:
