@@ -189,7 +189,7 @@ async def mark_and_remove_flight_tail_imagery(
                 yaw_deg,
                 gimbal_pitch_deg,
                 altitude_m,
-                camera_serial, 
+                camera_serial,
                 LAG(sort_ts, 1, sort_ts) OVER w AS prev_sort_ts,
                 LAG(location, 1, location) OVER w AS prev_location,
                 LAG(yaw_deg, 1, yaw_deg) OVER w AS prev_yaw_deg,
