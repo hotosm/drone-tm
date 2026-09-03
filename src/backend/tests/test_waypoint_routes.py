@@ -2,24 +2,40 @@ import json
 import uuid
 
 import pytest
+from app.tasks.task_logic import get_take_off_point_from_db
 from app.waypoints import waypoint_routes
+from shapely.geometry import shape
+
+_TASK_OUTLINE = {
+    "type": "Polygon",
+    "coordinates": [
+        [
+            [-69.49779538720068, 18.629654277305633],
+            [-69.48497355306813, 18.616997544638636],
+            [-69.54053483430786, 18.608390428368665],
+            [-69.5410690773959, 18.614466085056165],
+            [-69.49779538720068, 18.629654277305633],
+        ]
+    ],
+}
+
+
+async def _setup_task(db, project_id: str) -> str:
+    """Insert a task with the shared test outline and no take off point."""
+    task_id = str(uuid.uuid4())
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO tasks (id, project_id, outline, project_task_index)
+            VALUES (%s, %s, ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326), %s)
+            """,
+            (task_id, project_id, json.dumps(_TASK_OUTLINE), 1),
+        )
+    await db.commit()
+    return task_id
 
 
 async def _setup_terrain_follow_task(db, project_id: str) -> str:
-    task_id = str(uuid.uuid4())
-    outline = {
-        "type": "Polygon",
-        "coordinates": [
-            [
-                [-69.49779538720068, 18.629654277305633],
-                [-69.48497355306813, 18.616997544638636],
-                [-69.54053483430786, 18.608390428368665],
-                [-69.5410690773959, 18.614466085056165],
-                [-69.49779538720068, 18.629654277305633],
-            ]
-        ],
-    }
-
     async with db.cursor() as cur:
         await cur.execute(
             """
@@ -29,15 +45,91 @@ async def _setup_terrain_follow_task(db, project_id: str) -> str:
             """,
             (project_id,),
         )
-        await cur.execute(
-            """
-            INSERT INTO tasks (id, project_id, outline, project_task_index)
-            VALUES (%s, %s, ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326), %s)
-            """,
-            (task_id, project_id, json.dumps(outline), 1),
-        )
     await db.commit()
-    return task_id
+    return await _setup_task(db, project_id)
+
+
+def _capturing_build_placemarks(captured: dict):
+    """Stand in for build_placemarks that records the take off point it got."""
+
+    def fake_build_placemarks(**kwargs):
+        captured["take_off_point"] = kwargs.get("take_off_point")
+        return {"type": "FeatureCollection", "features": []}, {
+            "battery_warning": False,
+            "estimated_flight_time_minutes": 0,
+        }
+
+    return fake_build_placemarks
+
+
+@pytest.mark.asyncio
+async def test_default_take_off_point_is_persisted(
+    client, db, create_test_project, monkeypatch
+):
+    """Keeping the default take off point must still write it to the db.
+
+    Regression for #826: when the user does not pick a take off point the
+    task centroid is used, but it was only computed in memory and the task
+    row kept a NULL take_off_point, so exports had no coordinate.
+    """
+    project_id = create_test_project
+    task_id = await _setup_task(db, project_id)
+    assert await get_take_off_point_from_db(db, task_id) is None
+
+    captured = {}
+    monkeypatch.setattr(
+        waypoint_routes, "build_placemarks", _capturing_build_placemarks(captured)
+    )
+
+    response = await client.post(
+        f"/api/waypoint/task/{task_id}/?project_id={project_id}&download=false"
+    )
+    assert response.status_code == 200
+
+    centroid = shape(_TASK_OUTLINE).centroid
+    stored = await get_take_off_point_from_db(db, task_id)
+    assert stored is not None
+    assert stored["type"] == "Point"
+    assert stored["coordinates"] == pytest.approx([centroid.x, centroid.y])
+    # The flight plan was generated with the very point that got persisted
+    assert captured["take_off_point"] == pytest.approx(stored["coordinates"])
+
+
+@pytest.mark.asyncio
+async def test_supplied_take_off_point_replaces_persisted_default(
+    client, db, create_test_project, monkeypatch
+):
+    """A user supplied point must win over a previously persisted default."""
+    project_id = create_test_project
+    task_id = await _setup_task(db, project_id)
+
+    captured = {}
+    monkeypatch.setattr(
+        waypoint_routes, "build_placemarks", _capturing_build_placemarks(captured)
+    )
+
+    # First call without a point persists the centroid default
+    response = await client.post(
+        f"/api/waypoint/task/{task_id}/?project_id={project_id}&download=false"
+    )
+    assert response.status_code == 200
+    default_point = await get_take_off_point_from_db(db, task_id)
+    assert default_point is not None
+
+    # Second call with an explicit point inside the task replaces it
+    manual_point = {"longitude": -69.51, "latitude": 18.62}
+    response = await client.post(
+        f"/api/waypoint/task/{task_id}/?project_id={project_id}&download=false",
+        json=manual_point,
+    )
+    assert response.status_code == 200
+
+    stored = await get_take_off_point_from_db(db, task_id)
+    assert stored["coordinates"] == pytest.approx(
+        [manual_point["longitude"], manual_point["latitude"]]
+    )
+    assert stored["coordinates"] != pytest.approx(default_point["coordinates"])
+    assert captured["take_off_point"] == pytest.approx(stored["coordinates"])
 
 
 @pytest.mark.asyncio
