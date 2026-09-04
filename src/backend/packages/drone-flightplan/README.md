@@ -107,7 +107,7 @@ create_waypoint(
     gsd,
     forward_overlap,
     side_overlap,
-    rotation_angle=0.0,
+    rotation_angle=None,  # or an angle in degrees
     flight_mode="waypoints",
     generate_3d=False,
     no_fly_zones=None,
@@ -185,7 +185,7 @@ create_flightplan(
     dem=None,
     outfile=None,
     flight_mode="waypoints",
-    rotation_angle=0.0,
+    rotation_angle=None,  # or an angle in degrees
     take_off_point=None,
 )
 ```

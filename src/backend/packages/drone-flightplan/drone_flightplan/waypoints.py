@@ -563,7 +563,7 @@ def create_waypoint(
     gsd: float,
     forward_overlap: float,
     side_overlap: float,
-    rotation_angle: float = 0.0,
+    rotation_angle: float | None = None,
     generate_3d: bool = False,
     no_fly_zones: dict | None = None,
     take_off_point: list[float] | None = None,
@@ -580,18 +580,20 @@ def create_waypoint(
         gsd (float): Ground Sampling Distance.
         forward_overlap (float): Forward overlap percentage for the waypoints.
         side_overlap (float): Side overlap percentage for the waypoints.
-        rotation_angle (float): The rotation angle for the flight grid in degrees.
+        rotation_angle (float | None): The rotation angle for the flight grid in
+            degrees, or None to let `auto_rotation` pick the optimal angle.
         generate_3d (bool): Flag to determine if 3D waypoints should be generated.
         no_fly_zones (dict, optional): GeoJSON dictionary representing no-fly zones.
         mode (str): "waypoints" for individual points, "waylines" for path lines.
         drone_type (DroneType): the drone to create the flightplan for.
         gimbal_angle (GimbalAngle): the gimbal angle to set for the flight.
-        auto_rotation (bool): If True and rotation_angle is 0.0 or 360.0, automatically
+        auto_rotation (bool): If True and rotation_angle is None, automatically
             align flight path with the longest edge of the polygon. Defaults to True.
 
     Returns:
         dict: A dictionary containing the generated waypoints in GeoJSON format,
-              a battery warning flag, and the estimated flight time.
+              the rotation angle actually applied to the grid, a battery warning
+              flag, and the estimated flight time.
     """
 
     parameters = calculate_parameters(
@@ -660,9 +662,11 @@ def create_waypoint(
 
     polygon_3857 = transform(transformer_to_3857, polygon)
 
-    # Auto-calculate optimal rotation angle if not specified
-    if rotation_angle in [0.0, 360.0] and auto_rotation:
-        rotation_angle = calculate_optimal_rotation_angle(polygon_3857)
+    # None, not 0.0, so an explicit 0 can still mean a north-aligned grid
+    if rotation_angle is None:
+        rotation_angle = (
+            calculate_optimal_rotation_angle(polygon_3857) if auto_rotation else 0.0
+        )
         log.info(f"Auto-calculated optimal rotation angle: {rotation_angle:.2f}°")
 
     # Generate grid within the rotated AOI
@@ -782,6 +786,7 @@ def create_waypoint(
 
     return {
         "geojson": geojson.dumps(feature_collection, indent=2),
+        "rotation_angle": rotation_angle,
         "battery_warning": battery_warning,
         "estimated_flight_time_minutes": round(estimated_flight_time_minutes, 2),
     }
@@ -835,8 +840,11 @@ def main():
     parser.add_argument(
         "--rotation_angle",
         type=float,
-        default=0.0,
-        help="The rotation angle for the flight grid in degrees.",
+        default=None,
+        help=(
+            "The rotation angle for the flight grid in degrees. "
+            "Omit to auto-align with the longest edge of the AOI."
+        ),
     )
     parser.add_argument(
         "--generate_3d", action="store_true", help="Generate 3D imagery."
@@ -866,7 +874,7 @@ def main():
         "--auto_rotation",
         action="store_true",
         default=True,
-        help="Automatically align flight path with longest edge when rotation_angle is 0.",
+        help="Automatically align flight path with longest edge when rotation_angle is omitted.",
     )
 
     args = parser.parse_args()

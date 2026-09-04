@@ -53,7 +53,7 @@ async def get_task_flightplan(
     download: bool = True,
     allow_missing_dem: bool = False,
     mode: FlightMode = FlightMode.WAYLINES,
-    rotation_angle: float = 0,
+    rotation_angle: float | None = None,
     drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
     take_off_point: waypoint_schemas.PointField = None,
     gimbal_angle: GimbalAngle = GimbalAngle.OFF_NADIR,
@@ -64,6 +64,9 @@ async def get_task_flightplan(
         project_id (uuid.UUID): The UUID of the project.
         task_id (uuid.UUID): The UUID of the task.
         download (bool): Flag to determine if the output should be downloaded or returned as GeoJSON. Defaults to True.
+        rotation_angle (float | None): Rotation of the flight grid in degrees,
+            or None to auto-align with the longest edge. Echoed back in the
+            response as the angle actually applied.
 
     Returns:
         geojson or FileResponse: If `download` is False, returns waypoints as a GeoJSON object.
@@ -200,6 +203,7 @@ async def get_task_flightplan(
         "results": placemarks,
         "flight_data": flight_data,
         "drones": list(DroneType.__members__.keys()),
+        "rotation_angle": waypoint_data["rotation_angle"],
         "battery_warning": waypoint_data["battery_warning"],
         "estimated_flight_time_minutes": waypoint_data["estimated_flight_time_minutes"],
     }

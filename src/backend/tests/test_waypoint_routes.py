@@ -72,6 +72,7 @@ async def test_terrain_follow_missing_dem_can_override(
     def fake_build_placemarks(**kwargs):
         captured["dem"] = kwargs.get("dem")
         return {"type": "FeatureCollection", "features": []}, {
+            "rotation_angle": 0,
             "battery_warning": False,
             "estimated_flight_time_minutes": 0,
         }
@@ -119,6 +120,7 @@ async def test_terrain_follow_dem_present_in_s3_downloads_before_generation(
     def fake_build_placemarks(**kwargs):
         captured["dem"] = kwargs["dem"]
         return {"type": "FeatureCollection", "features": []}, {
+            "rotation_angle": 0,
             "battery_warning": False,
             "estimated_flight_time_minutes": 0,
         }
@@ -171,6 +173,7 @@ async def test_terrain_follow_preview_passes_dem_to_placemarks(
     def fake_build_placemarks(**kwargs):
         captured["dem"] = kwargs["dem"]
         return {"type": "FeatureCollection", "features": []}, {
+            "rotation_angle": 0,
             "battery_warning": False,
             "estimated_flight_time_minutes": 0,
         }

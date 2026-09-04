@@ -190,7 +190,7 @@ def _generate_flightplan_for_geometry(
                 agl=average_altitude,
                 flight_mode=flight_mode,
                 drone_type=drone_type,
-                rotation_angle=rotation_angle or 0,
+                rotation_angle=rotation_angle,
                 outfile=temp_outfile,
             )
 

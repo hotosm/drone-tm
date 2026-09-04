@@ -33,7 +33,7 @@ def build_placemarks(
     image_interval: int = 2,
     dem: str | None = None,
     flight_mode: FlightMode = FlightMode.WAYLINES,
-    rotation_angle: float = 0.0,
+    rotation_angle: float | None = None,
     take_off_point: list[float] | None = None,
     drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
     gimbal_angle: GimbalAngle = GimbalAngle.OFF_NADIR,
@@ -45,10 +45,13 @@ def build_placemarks(
         (placemarks, waypoint_data) tuple. `placemarks` is a GeoJSON dict ready
         for either output-file writing or direct return to the frontend.
         `waypoint_data` retains battery/flight-time metadata from
-        `create_waypoint` for callers that surface it to the UI.
+        `create_waypoint` for callers that surface it to the UI, plus the
+        `rotation_angle` the grid was actually built at.
     """
-    # If the user says 30o clockwise rotation, we actually rotate 330o anticlockwise
-    rotation_angle = 360 - rotation_angle
+    # Raising the angle swings the flight lines anticlockwise; None means auto
+    grid_rotation_angle = (
+        None if rotation_angle is None else (360 - rotation_angle) % 360
+    )
     generate_3d = False  # TODO: For 3d imagery support, drone_flightplan package needs to be updated
 
     parameters = calculate_parameters(
@@ -75,7 +78,7 @@ def build_placemarks(
         gsd=gsd,
         forward_overlap=forward_overlap,
         side_overlap=side_overlap,
-        rotation_angle=rotation_angle,
+        rotation_angle=grid_rotation_angle,
         generate_3d=generate_3d,
         take_off_point=take_off_point,
         drone_type=drone_type,
@@ -83,6 +86,8 @@ def build_placemarks(
         gimbal_angle=gimbal_angle,
     )
     points_geojson = waypoint_data["geojson"]
+
+    waypoint_data["rotation_angle"] = (360 - waypoint_data["rotation_angle"]) % 360
 
     # ---- Terrain follow support ----
     if dem:
@@ -147,7 +152,7 @@ def create_flightplan(
     dem: str | None = None,
     outfile: str | None = None,
     flight_mode: FlightMode = FlightMode.WAYLINES,
-    rotation_angle: float = 0.0,
+    rotation_angle: float | None = None,
     take_off_point: list[float] | None = None,
     drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
     gimbal_angle: GimbalAngle = GimbalAngle.OFF_NADIR,
@@ -159,7 +164,8 @@ def create_flightplan(
         agl: The altitude above ground level in meters.
         gsd: The ground sampling distance in cm/px.
         image_interval: The time interval between two consecutive images in seconds.
-        rotation_angle: The rotation angle for the flight grid in degrees.
+        rotation_angle: The rotation angle for the flight grid in degrees, or
+            None to auto-align with the longest edge of the AOI.
 
     Returns:
         Path to the generated drone flightplan file (e.g. kmz).
@@ -263,8 +269,11 @@ def main():
     parser.add_argument(
         "--rotation_angle",
         type=float,
-        default=0.0,
-        help="The rotation angle for the flight grid in degrees.",
+        default=None,
+        help=(
+            "The rotation angle for the flight grid in degrees. "
+            "Omit to auto-align with the longest edge of the AOI."
+        ),
     )
 
     takeoff_group = parser.add_mutually_exclusive_group(required=True)

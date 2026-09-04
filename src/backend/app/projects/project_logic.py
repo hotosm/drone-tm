@@ -269,7 +269,7 @@ async def process_task_metrics(db, tasks_data, project):
             "gsd": gsd,
             "forward_overlap": forward_overlap,
             "side_overlap": side_overlap,
-            "rotation_angle": 0,
+            "rotation_angle": None,
             "generate_3d": False,
             "mode": FlightMode.WAYPOINTS,
         }
@@ -1639,7 +1639,7 @@ async def process_waypoints_and_waylines(
         "gsd": gsd_cm_px,
         "forward_overlap": forward_overlap,
         "side_overlap": side_overlap,
-        "rotation_angle": 0,
+        "rotation_angle": None,
         "generate_3d": False,  # TODO: For 3d imageries drone_flightplan package needs to be updated.
         "take_off_point": None,
     }
