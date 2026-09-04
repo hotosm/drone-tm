@@ -4,7 +4,7 @@ import useAuth from "@Hooks/useAuth";
 import { FlexColumn, FlexRow } from "@Components/common/Layouts";
 import { Button } from "@Components/RadixComponents/Button";
 import Image from "@Components/RadixComponents/Image";
-import droneTMLogo from "@Assets/images/DTM-logo-black.svg";
+import DtmLogo from "@Components/common/DtmLogo";
 import projectCreator from "@Assets/images/LandingPage/project-creator.svg";
 import droneOperator from "@Assets/images/LandingPage/drone-operator.svg";
 import Icon from "@Components/common/Icon";
@@ -34,7 +34,7 @@ export default function SignInOverlay() {
       className="naxatw-font-manrope naxatw-absolute naxatw-top-7 naxatw-z-20 naxatw-h-screen naxatw-w-full naxatw-bg-white naxatw-px-8 naxatw-py-8 md:naxatw-px-16 lg:naxatw-px-36 lg:naxatw-py-12"
     >
       <FlexRow className="naxatw-items-center naxatw-justify-between">
-        <Image src={droneTMLogo} />
+        <DtmLogo />
         <Icon
           name="close"
           onClick={() => {

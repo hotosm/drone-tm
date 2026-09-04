@@ -2,6 +2,7 @@ import { useState } from "react";
 import Image from "@Components/RadixComponents/Image";
 import { NavLink, useLocation } from "react-router-dom";
 import dtmLogo from "@Assets/images/drone-tasking-manager.svg";
+import DtmLogo from "@Components/common/DtmLogo";
 import UserProfile from "../UserProfile";
 import { FlexRow } from "../Layouts";
 import Icon from "../Icon";
@@ -96,14 +97,7 @@ export default function Navbar() {
               aria-label={m.nav_home_aria_label()}
               href="/"
             >
-              <Image
-                src={dtmLogo}
-                alt={m.common_dtm_logo_alt()}
-                className="naxatw-h-8 naxatw-w-8"
-              />
-              <span className="naxatw-text-hot-gray-950 naxatw-text-[20px] naxatw-font-bold naxatw-leading-tight">
-                Drone Tasking Manager
-              </span>
+              <DtmLogo />
             </a>
             {!isApprovalPage && (
               <FlexRow className="naxatw-hidden naxatw-items-center naxatw-gap-4 md:naxatw-flex">

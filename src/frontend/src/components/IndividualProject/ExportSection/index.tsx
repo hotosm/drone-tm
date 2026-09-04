@@ -1,6 +1,5 @@
 import MapSection from "@Components/IndividualProject/ExportSection/MapSection";
-import dtmLogo from "@Assets/images/DTM-logo-black.svg";
-import Image from "@Components/RadixComponents/Image";
+import DtmLogo from "@Components/common/DtmLogo";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
 import { m } from "@/paraglide/messages";
 
@@ -61,7 +60,7 @@ const ExportSection = ({ projectData }: IExportSectionProps) => {
         </div>
       </div>
       <div className="naxatw-flex naxatw-items-end naxatw-justify-center naxatw-py-5">
-        <Image src={dtmLogo} alt={m.common_dtm_logo_alt()} className="naxatw-h-8 naxatw-w-40" />
+        <DtmLogo />
       </div>
     </section>
   );

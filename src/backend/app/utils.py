@@ -607,7 +607,7 @@ async def send_project_approval_email_to_regulator(
     for email in emails:
         encoded_email = base64.urlsafe_b64encode(email.encode()).decode()
         project_link = f"{settings.PUBLIC_BASE_URL}/projects/{project_id}/approval/?token={encoded_email}"
-        logo_url = f"{settings.PUBLIC_BASE_URL}/static/DTM-logo-black.svg"
+        logo_url = f"{settings.PUBLIC_BASE_URL}/static/drone-tasking-manager.png"
         context = {
             "project_link": project_link,
             "project_name": project_name,

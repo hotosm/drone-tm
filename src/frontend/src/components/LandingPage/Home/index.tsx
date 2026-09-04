@@ -1,9 +1,8 @@
 import { useTypedDispatch } from "@Store/hooks";
 import { FlexColumn } from "@Components/common/Layouts";
-import Image from "@Components/RadixComponents/Image";
+import DtmLogo from "@Components/common/DtmLogo";
 import { Button } from "@Components/RadixComponents/Button";
 import { motion } from "framer-motion";
-import droneTaskingManagerLogo from "@Assets/images/DTM-logo-white.svg";
 // Served from public/ dir with <link rel="preload"> in index.html for fast LCP
 const droneBackgroundImage = "/images/DroneTM-bg.jpg";
 import arrowSouth from "@Assets/images/LandingPage/arrow_south.svg";
@@ -62,7 +61,7 @@ export default function Home() {
     >
       <div className="naxatw-container naxatw-h-full !naxatw-max-w-full naxatw-py-12">
         <div className="naxatw-flex naxatw-animate-fade-up naxatw-flex-row naxatw-justify-between">
-          <Image src={droneTaskingManagerLogo} />
+          <DtmLogo className="naxatw-text-landing-white" />
           {isAuthenticated() && role !== "REGULATOR" ? (
             <Button
               onClick={() => navigate("/projects")}
