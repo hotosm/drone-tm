@@ -64,6 +64,7 @@ from fastapi import (
 from fastapi.responses import StreamingResponse
 from geojson_pydantic import FeatureCollection
 from loguru import logger as log
+from pg_nearest_city import AsyncNearestCity
 from psycopg import Connection
 from stream_zip import NO_COMPRESSION_64, stream_zip
 
@@ -109,6 +110,32 @@ async def read_project_centroids(
     return await project_logic.get_centroids(
         db,
     )
+
+
+@router.get("/nearest-city/", tags=["Projects"])
+async def get_nearest_city(
+    lon: float,
+    lat: float,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user_data: Annotated[AuthUser, Depends(login_required)],
+):
+    """Reverse geocode a point to the nearest city and country.
+
+    Runs entirely offline against the PostGIS database via pg-nearest-city,
+    replacing the previous Nominatim-based lookup (reducing load on the
+    OSM-hosted service). The underlying dataset is loaded into the database
+    on the first call, which can take a little longer.
+    """
+    async with AsyncNearestCity(db) as geocoder:
+        location = await geocoder.query(lon, lat)
+
+    if location is None:
+        return {"city": None, "country": None}
+
+    return {
+        "city": location.city,
+        "country": location.country_name or location.country,
+    }
 
 
 @router.get("/{project_id}/download-boundaries", tags=["Projects"])

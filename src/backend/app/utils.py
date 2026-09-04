@@ -12,7 +12,6 @@ from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import geojson
-import requests
 import shapely
 from aiosmtplib import send as send_email
 from app.config import settings
@@ -292,45 +291,6 @@ def parse_featcol(features: Feature | FeatCol | MultiPolygon | Polygon):
     elif isinstance(features, Feature):
         feat_col = geojson.FeatureCollection([feat_col])
     return feat_col
-
-
-def get_address_from_lat_lon(latitude, longitude):
-    """Get address using Nominatim, using lat,lon."""
-    base_url = "https://nominatim.openstreetmap.org/reverse"
-
-    params = {
-        "format": "json",
-        "lat": latitude,
-        "lon": longitude,
-        "zoom": 18,
-    }
-    headers = {"Accept-Language": "en"}  # Set the language to English
-
-    log.debug("Getting Nominatim address from project centroid")
-    response = requests.get(base_url, params=params, headers=headers)
-    if (status_code := response.status_code) != 200:
-        log.error(f"Getting address string failed: {status_code}")
-        return None
-
-    data = response.json()
-    log.debug(f"Nominatim response: {data}")
-
-    address = data.get("address", None)
-    if not address:
-        log.error(f"Getting address string failed: {status_code}")
-        return None
-
-    country = address.get("country", "")
-    city = address.get("city", "")
-    state = address.get("state", "")
-
-    address_str = f"{city},{country}" if city else f"{state},{country}"
-
-    if not address_str or address_str == ",":
-        log.error("Getting address string failed")
-        return None
-
-    return address_str
 
 
 def multipolygon_to_polygon(features: Feature | FeatCol | MultiPolygon | Polygon):
