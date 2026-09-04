@@ -16,3 +16,4 @@ from the projects inception.
 - [0005 - Simple Mobile Flightplan Copy](./0005-flightplan-copy.md)
 - [0006 - Reconciling Processing Status From ScaleODM](./0006-processing-status-reconciliation.md)
 - [0007 - In-browser 3D Viewer For ODM Mesh Output](./0007-3d-viewer.md)
+- [0008 - Serving DEM Data For Terrain Following](./0008-browser-dem-sampling.md)
