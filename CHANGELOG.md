@@ -1,3 +1,10 @@
+## 2026.9.4 (2026-09-04)
+
+### Fix
+
+- **frontend**: blank page due to rollup dep conflicts
+- replace old logo with new hot stack logo
+
 ## 2026.9.3 (2026-09-04)
 
 ### Feat
