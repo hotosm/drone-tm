@@ -1,3 +1,24 @@
+## 2026.9.3 (2026-09-04)
+
+### Feat
+
+- replace old API key based OAM upload to old uploader with new OAM uploader form
+
+### Fix
+
+- **frontend**: new logic to properly pass rotated flightplan and display
+- **drone-flightplan**: correctly pass modified flightplan angles, else use longest edge calc
+- **s3**: add_obj_to_bucket drops content_type, storing every upload as octet-stream (#882)
+- **frontend**: drop duplicate hotosm-tool-menu registration breaking dev (#880)
+- **frontend**: better handle invalid geojson aois not in epsg:4326
+- **backend**: ensure exif gimbal angle check 2 is enabled, DRY code with check 1
+- **frontend**: fix up the 'Has Imagery' filter display for better user experience
+
+### Refactor
+
+- **frontend**: remove webfonts in line with hotosm/ui and use system-sans
+- update hotosm/ui usage to align with other apps, load all components
+
 ## 2026.9.2 (2026-08-22)
 
 ### Feat
