@@ -97,11 +97,9 @@ export default defineConfig({
     target: "esnext",
     sourcemap: process.env.NODE_ENV === "development",
     rollupOptions: {
-      // A manual chunk can carve a package out of the graph while leaving its
-      // dependencies behind, so the two chunks end up importing each other. ESM
-      // then evaluates one against the other's uninitialised bindings and the app
-      // dies before rendering (blank screen, 2026.9.3). Rollup warns about this;
-      // make it fatal so it can never ship again.
+      // Chunks importing each other evaluate against uninitialised bindings and
+      // blank the page (2026.9.3). Rollup warns; make it fatal.
+      // TODO replace with circularChunkGuard() from @hotosm/ui/vite on 2.2.0.
       onwarn(warning, defaultHandler) {
         if (warning.code === "CIRCULAR_CHUNK") throw new Error(warning.message);
         defaultHandler(warning);
