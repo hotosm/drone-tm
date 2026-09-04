@@ -11,7 +11,7 @@ export interface IDroneOperatorTaskState {
   secondPageState: string;
   popOver: boolean;
   selectedTakeOffPointOption: string;
-  selectedTakeOffPoint: any[] | string | null;
+  selectedTakeOffPoint: Record<string, any> | string | null;
   uploadedImagesType: "add" | "replace";
   filesExifData: IFilesExifData[];
   uploadProgress: Record<string, any>;
@@ -27,7 +27,8 @@ export interface IDroneOperatorTaskState {
   gimbalAngle: "-80" | "-90" | "-45";
   taskAssetsInformation: Record<string, any>;
   rotatedFlightPlan: Record<string, any>;
-  rotationAngle: number;
+  // null lets the backend auto-align the grid with the longest edge
+  rotationAngle: number | null;
   taskAreaPolygon: Record<string, any>;
 }
 
@@ -52,7 +53,7 @@ const initialState: IDroneOperatorTaskState = {
     geojsonListOfPoint: {},
     geojsonAsLineString: {},
   },
-  rotationAngle: 0,
+  rotationAngle: null,
   taskAreaPolygon: {},
 };
 

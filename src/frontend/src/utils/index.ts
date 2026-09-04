@@ -256,3 +256,35 @@ export function swapFirstAndLast<T>(arr: T[]): T[] {
 
   return arr;
 }
+
+// A null rotationAngle is omitted, which the backend reads as "auto-align"
+export function buildFlightPlanQuery({
+  projectId,
+  mode,
+  droneModel,
+  rotationAngle,
+  gimbalAngle,
+  download,
+  allowMissingDem = false,
+}: {
+  projectId: string;
+  mode: string;
+  droneModel: string;
+  rotationAngle: number | null;
+  gimbalAngle: string;
+  download: boolean;
+  allowMissingDem?: boolean;
+}): string {
+  const params = new URLSearchParams({
+    project_id: projectId,
+    download: String(download),
+    mode,
+    drone_type: droneModel,
+    gimbal_angle: gimbalAngle,
+    allow_missing_dem: String(allowMissingDem),
+  });
+  if (rotationAngle !== null && rotationAngle !== undefined) {
+    params.set("rotation_angle", String(rotationAngle));
+  }
+  return params.toString();
+}

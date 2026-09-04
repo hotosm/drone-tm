@@ -26,13 +26,14 @@ const DescriptionBox = () => {
   const uploadProgress = useTypedSelector((state) => state.droneOperatorTask.uploadProgress);
   const droneModel = useTypedSelector((state) => state.droneOperatorTask.droneModel);
   const gimbalAngle = useTypedSelector((state) => state.droneOperatorTask.gimbalAngle);
+  const rotationAngle = useTypedSelector((state) => state.droneOperatorTask.rotationAngle);
 
   const { data: taskWayPoints }: any = useGetTaskWaypointQuery(
     projectId as string,
     taskId as string,
     waypointMode as string,
     droneModel as string,
-    0,
+    rotationAngle,
     gimbalAngle as string,
     {
       select: (data: any) => {

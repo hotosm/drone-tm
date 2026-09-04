@@ -1,6 +1,6 @@
 /* eslint-disable no-param-reassign */
 import { useEffect, useMemo, useRef } from "react";
-import { LngLatLike, MapMouseEvent } from "maplibre-gl";
+import { GeoJSONSource, LngLatLike, MapMouseEvent } from "maplibre-gl";
 import bbox from "@turf/bbox";
 import { toast } from "react-toastify";
 import { Feature, FeatureCollection } from "geojson";
@@ -32,36 +32,50 @@ export default function VectorLayer({
   const firstRender = useRef(true);
   const imageId = `${sourceId}-image/logo`;
 
+  // Inline object literals, so depend on their value or every render rebuilds the layers
+  const optionsSignature = JSON.stringify([
+    layerOptions ?? null,
+    imageLayerOptions ?? null,
+    imageLayoutOptions ?? null,
+  ]);
+  const optionsRef = useRef({ layerOptions, imageLayerOptions, imageLayoutOptions });
+  optionsRef.current = { layerOptions, imageLayerOptions, imageLayoutOptions };
+
+  // MapLibre fetches a string `data` as a URL, so reject non-GeoJSON strings
+  const sourceData = geojson && typeof geojson !== "string" ? geojson : null;
+  const sourceDataRef = useRef(sourceData);
+  sourceDataRef.current = sourceData;
+  const hasData = !!sourceData;
+
   useEffect(() => {
     hasInteractions.current = !!interactions.length;
   }, [interactions]);
 
+  // Lifecycle only; data changes go through setData below
   useEffect(() => {
-    if (!map || !isMapLoaded || !geojson) return () => {};
+    if (!map || !isMapLoaded || !hasData) return () => {};
     // Ensure map style is loaded before accessing sources/layers
     if (!map.getStyle()) return () => {};
 
     let isCancelled = false;
     const layerId = `${sourceId}-layer`;
+    const { layerOptions: layerOpts, imageLayerOptions: imageLayerOpts } = optionsRef.current;
+    const { imageLayoutOptions: imageLayoutOpts } = optionsRef.current;
 
     if (!map.getSource(sourceId)) {
       map.addSource(sourceId, {
         type: "geojson",
-        data: geojson,
+        data: sourceDataRef.current as any,
       });
     }
 
-    if (visibleOnMap && !map.getLayer(layerId)) {
-      // Check if source exists before adding layer to prevent error
-      if (!map.getSource(sourceId)) {
-        return;
-      }
+    if (visibleOnMap && !map.getLayer(layerId) && map.getSource(sourceId)) {
       map.addLayer({
         id: layerId,
         type: "line",
         source: sourceId,
         layout: {},
-        ...layerOptions,
+        ...layerOpts,
       });
     }
 
@@ -73,29 +87,34 @@ export default function VectorLayer({
       // });
 
       // changes on map libre 4
-      map.loadImage(image).then(({ data }) => {
-        if (isCancelled || !map.getStyle()) return;
+      map
+        .loadImage(image)
+        .then(({ data }) => {
+          if (isCancelled || !map.getStyle()) return;
 
-        if (!map.hasImage(imageId)) {
-          map.addImage(imageId, data);
-        }
-        if (visibleOnMap && !map.getLayer(imageId) && map.getSource(sourceId)) {
-          map.addLayer({
-            id: imageId,
-            type: "symbol",
-            source: sourceId,
-            layout: {
-              "symbol-placement": symbolPlacement,
-              "icon-image": imageId,
-              "icon-size": 0.8,
-              "icon-overlap": "always",
-              "icon-anchor": iconAnchor,
-              ...imageLayoutOptions,
-            },
-            ...imageLayerOptions,
-          });
-        }
-      });
+          if (!map.hasImage(imageId)) {
+            map.addImage(imageId, data);
+          }
+          if (visibleOnMap && !map.getLayer(imageId) && map.getSource(sourceId)) {
+            map.addLayer({
+              id: imageId,
+              type: "symbol",
+              source: sourceId,
+              layout: {
+                "symbol-placement": symbolPlacement,
+                "icon-image": imageId,
+                "icon-size": 0.8,
+                "icon-overlap": "always",
+                "icon-anchor": iconAnchor,
+                ...imageLayoutOpts,
+              },
+              ...imageLayerOpts,
+            });
+          }
+        })
+        .catch(() => {
+          // A failed icon load leaves the layer un-decorated
+        });
     }
 
     return () => {
@@ -118,18 +137,24 @@ export default function VectorLayer({
   }, [
     map,
     isMapLoaded,
-    geojson,
+    hasData,
     sourceId,
     visibleOnMap,
-    layerOptions,
     hasImage,
     image,
     imageId,
     symbolPlacement,
     iconAnchor,
-    imageLayoutOptions,
-    imageLayerOptions,
+    optionsSignature,
   ]);
+
+  useEffect(() => {
+    if (!map || !isMapLoaded || !sourceData || !map.getStyle()) return;
+    const source = map.getSource(sourceId);
+    if (source instanceof GeoJSONSource) {
+      source.setData(sourceData as any);
+    }
+  }, [map, isMapLoaded, sourceId, sourceData]);
 
   // change cursor to pointer on feature hover
   useEffect(() => {
@@ -260,17 +285,6 @@ export default function VectorLayer({
       map.off("mouseup", onMouseUp);
     };
   }, [map, geojson, sourceId, onDrag, onDragEnd, needDragEvent]);
-
-  useEffect(
-    () => () => {
-      if (map && isMapLoaded && map.getStyle() && map.getSource(sourceId)) {
-        if (map.getLayer(imageId)) map.removeLayer(imageId);
-        if (map.getLayer(`${sourceId}-layer`)) map.removeLayer(`${sourceId}-layer`);
-        map.removeSource(sourceId);
-      }
-    },
-    [map, isMapLoaded, sourceId, imageId],
-  );
 
   return null;
 }

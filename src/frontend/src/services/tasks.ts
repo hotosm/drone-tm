@@ -1,3 +1,4 @@
+import { buildFlightPlanQuery } from "@Utils/index";
 import { api, authenticated } from ".";
 
 export const getTaskWaypoint = (
@@ -5,12 +6,20 @@ export const getTaskWaypoint = (
   taskId: string,
   mode: string,
   droneModel: string,
-  rotationAngle: number,
+  rotationAngle: number | null,
   gimbalAngle: string,
   allowMissingDem = false,
 ) =>
   authenticated(api).post(
-    `/waypoint/task/${taskId}/?project_id=${projectId}&download=false&mode=${mode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}&gimbal_angle=${gimbalAngle}&allow_missing_dem=${allowMissingDem}`,
+    `/waypoint/task/${taskId}/?${buildFlightPlanQuery({
+      projectId,
+      mode,
+      droneModel,
+      rotationAngle,
+      gimbalAngle,
+      download: false,
+      allowMissingDem,
+    })}`,
   );
 
 export const getIndividualTask = (taskId: string) => authenticated(api).get(`/tasks/${taskId}`);
@@ -33,7 +42,15 @@ export const postTaskWaypoint = (payload: Record<string, any>) => {
   } = payload;
 
   return authenticated(api).post(
-    `/waypoint/task/${taskId}/?project_id=${projectId}&download=false&mode=${mode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}&gimbal_angle=${gimbalAngle}&allow_missing_dem=${allowMissingDem}`,
+    `/waypoint/task/${taskId}/?${buildFlightPlanQuery({
+      projectId,
+      mode,
+      droneModel,
+      rotationAngle,
+      gimbalAngle,
+      download: false,
+      allowMissingDem,
+    })}`,
     takeOffPoint,
     {
       headers: { "Content-Type": "application/json" },

@@ -7,6 +7,7 @@ import Modal from "@Components/common/Modal";
 import useWindowDimensions from "@Hooks/useWindowDimensions";
 import { sendDjiGoFileViaAdb, sendPotensicProFileViaAdb } from "@Utils/adb";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
+import { buildFlightPlanQuery } from "@Utils/index";
 import useTaskParams from "@Hooks/useTaskParams";
 import { getRuntimeConfig } from "@/runtimeConfig";
 import { m } from "@/paraglide/messages";
@@ -32,7 +33,15 @@ const DroneOperatorDescriptionBox = () => {
   );
 
   const buildFlightPlanUrl = (allowMissingDem = false) =>
-    `${API_URL}/waypoint/task/${taskId}/?project_id=${projectId}&download=true&mode=${waypointMode}&drone_type=${droneModel}&rotation_angle=${rotationAngle}&gimbal_angle=${gimbalAngle}&allow_missing_dem=${allowMissingDem}`;
+    `${API_URL}/waypoint/task/${taskId}/?${buildFlightPlanQuery({
+      projectId: projectId as string,
+      mode: waypointMode,
+      droneModel,
+      rotationAngle,
+      gimbalAngle,
+      download: true,
+      allowMissingDem,
+    })}`;
 
   const askMissingDemOverride = async (): Promise<boolean> =>
     new Promise((resolve) => {

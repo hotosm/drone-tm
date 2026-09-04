@@ -13,7 +13,7 @@ export const useGetTaskWaypointQuery = (
   taskId: string,
   mode: string,
   droneModel: string,
-  rotationAngle: number,
+  rotationAngle: number | null,
   gimbalAngle: string,
   queryOptions?: Partial<UseQueryOptions>,
   allowMissingDem = false,
@@ -30,6 +30,11 @@ export const useGetTaskWaypointQuery = (
       allowMissingDem,
     ],
     enabled: !!(projectId && taskId),
+    // Keep the old plan up while a rotated one regenerates, but not across tasks
+    placeholderData: (previous: any, previousQuery: any) => {
+      const [, , previousTaskId] = previousQuery?.queryKey ?? [];
+      return previousTaskId === taskId ? previous : undefined;
+    },
     queryFn: () =>
       getTaskWaypoint(
         projectId,

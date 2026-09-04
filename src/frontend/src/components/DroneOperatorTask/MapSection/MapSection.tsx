@@ -1,12 +1,12 @@
-/* eslint-disable no-underscore-dangle */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import useTaskParams from "@Hooks/useTaskParams";
 import { FeatureCollection } from "geojson";
 import { toast } from "react-toastify";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { GeoJSONSource, LngLatBoundsLike, Map } from "maplibre-gl";
+import { LngLatBoundsLike, Map } from "maplibre-gl";
 import getBbox from "@turf/bbox";
+import centroid from "@turf/centroid";
 import { point } from "@turf/helpers";
 import { coordAll } from "@turf/meta";
 import { useTypedSelector } from "@Store/hooks";
@@ -33,7 +33,6 @@ import {
   setGimbalAngle,
 } from "@Store/actions/droneOperatorTask";
 import rotateGeoJSON from "@Utils/rotateGeojsonData";
-import { findNearestCoordinate, swapFirstAndLast } from "@Utils/index";
 import RotatingCircle from "@Components/common/RotationCue";
 import marker from "@Assets/images/marker.png";
 import right from "@Assets/images/rightArrow.png";
@@ -73,7 +72,6 @@ const MapSection = ({ className }: { className?: string }) => {
     useState(getWaypointModeOptions());
 
   const centroidRef = useRef<[number, number]>(null);
-  const takeOffPointRef = useRef<[number, number]>(null);
 
   const waypointMode = useTypedSelector((state) => state.droneOperatorTask.waypointMode);
   const droneModel = useTypedSelector((state) => state.droneOperatorTask.droneModel);
@@ -82,9 +80,6 @@ const MapSection = ({ className }: { className?: string }) => {
   // const taskAssetsInformation = useTypedSelector(
   //   state => state.droneOperatorTask.taskAssetsInformation,
   // );
-  const rotatedFlightPlanData = useTypedSelector(
-    (state) => state.droneOperatorTask.rotatedFlightPlan,
-  );
   const finalRotationAngle = useTypedSelector((state) => state.droneOperatorTask.rotationAngle);
 
   const { map, isMapLoaded }: any = useMapLibreGLMap({
@@ -116,6 +111,7 @@ const MapSection = ({ className }: { className?: string }) => {
   const {
     data: taskWayPointsData,
     isLoading: taskWayPointsLoading,
+    isFetching: taskWayPointsFetching,
     isError: isTaskWaypointsError,
     error: taskWaypointsError,
   }: any = useGetTaskWaypointQuery(
@@ -146,10 +142,9 @@ const MapSection = ({ className }: { className?: string }) => {
           },
           battery_warning: data.battery_warning,
           estimated_flight_time_minutes: data.estimated_flight_time_minutes,
+          rotationAngle: data.rotation_angle ?? 0,
         };
 
-        takeOffPointRef.current =
-          modifiedTaskWayPointsData?.geojsonListOfPoints?.features[0]?.geometry?.coordinates;
         return modifiedTaskWayPointsData;
       },
     },
@@ -271,160 +266,67 @@ const MapSection = ({ className }: { className?: string }) => {
   }, [map, isMapLoaded, taskWayPointsData, taskDataPolygon]);
 
   // rotation***start**************************
-  const rotateLayerGeoJSON = (
-    layerIds: string[],
-    rotationDegreeParam: number,
-    baseLayerIds: string[],
-    excludeFirstFeature?: boolean,
-  ) => {
-    if (!map || !isMapLoaded) return;
 
-    baseLayerIds.forEach((baseLayerId, index) => {
-      const source = map?.getSource(baseLayerId);
-      const sourceToRotate = map?.getSource(layerIds[index]);
+  // The angle the rendered plan was built at, which auto-alignment makes non-zero
+  const effectiveRotationAngle: number = taskWayPointsData?.rotationAngle ?? 0;
 
-      if (source && source instanceof GeoJSONSource) {
-        const baseGeoData = source._data;
-        if (!baseGeoData) return;
-        const [firstFeature, ...restFeatures] = (baseGeoData as Record<string, any>).features;
-        if (firstFeature.geometry.type === "Point") {
-          const pointRotatedGeoJson = rotateGeoJSON(
-            // @ts-ignore
-            {
-              ...(baseGeoData as object),
-              features: excludeFirstFeature ? restFeatures : [firstFeature, ...restFeatures],
-            },
-            rotationDegreeParam,
-            centroidRef.current,
-          );
-          if (sourceToRotate && sourceToRotate instanceof GeoJSONSource) {
-            // @ts-ignore
-            sourceToRotate.setData(pointRotatedGeoJson);
-          }
-        }
-        if (firstFeature.geometry.type === "LineString") {
-          const [firstCoordinate, ...restCoordinates] = firstFeature.geometry.coordinates;
-          const rotatedGeoJson = rotateGeoJSON(
-            {
-              features: [
-                // @ts-ignore
-                {
-                  type: "Feature",
-                  geometry: {
-                    type: "LineString",
-                    coordinates: excludeFirstFeature
-                      ? restCoordinates
-                      : [firstCoordinate, ...restCoordinates],
-                  },
-                },
-              ],
-              type: "FeatureCollection",
-            },
-            rotationDegreeParam,
-            centroidRef.current,
-          );
-          if (sourceToRotate && sourceToRotate instanceof GeoJSONSource) {
-            // @ts-ignore
-            sourceToRotate.setData(rotatedGeoJson);
-          }
-        }
-      }
-    });
-  };
-
-  function updateLayerCoordinates(layerIds: Record<string, any>[], coordinate: [number, number]) {
-    // Iterate over the array of layer IDs
-    if (!map || !isMapLoaded) return;
-    layerIds.forEach((layerId) => {
-      // Check if the layer is of type 'symbol' (or any other type)
-      const source = map.getSource(layerId.id); // Get the source of the layer
-
-      // Update the feature on the map
-
-      if (source && source instanceof GeoJSONSource) {
-        const geoJsonData = source._data;
-        // @ts-ignore
-        const { features, ...restGeoData } = geoJsonData;
-        // eslint-disable-next-line prefer-destructuring
-        const coordinates = features[0].geometry.coordinates;
-        if (layerId.type === "MultiString") {
-          const nearestCoordinate = findNearestCoordinate(
-            coordinates[0],
-            coordinates[coordinates.length - 1],
-            takeOffPointRef.current || [0, 0],
-          );
-          let indexToReplace = 0;
-          if (nearestCoordinate === "second") {
-            indexToReplace = coordinates.length;
-          }
-          features[0].geometry.coordinates[indexToReplace] = coordinate;
-          const updatedLineStringData = features[0].geometry.coordinates;
-          if (indexToReplace !== 0) {
-            updatedLineStringData.reverse().pop();
-          }
-          source.setData({ features, ...restGeoData });
-        }
-        if (layerId.type === "Points") {
-          const nearestPoint = findNearestCoordinate(
-            coordinates,
-            features[features.length - 1].geometry.coordinates,
-            takeOffPointRef.current || [0, 0],
-          );
-          let pointIndexToReplace = 0;
-          if (nearestPoint === "second") {
-            pointIndexToReplace = features.length;
-          }
-          if (pointIndexToReplace !== 0) {
-            features.push({
-              type: "Feature",
-              geometry: {
-                type: "Point",
-                coordinates: [],
-              },
-              properties: {},
-            });
-          }
-          features[pointIndexToReplace].geometry.coordinates = coordinate;
-          const rotatedFeatures = features;
-          if (pointIndexToReplace !== 0) {
-            swapFirstAndLast(rotatedFeatures);
-            features.pop();
-          }
-          source.setData({ features, ...restGeoData });
-        }
-      }
-    });
-  }
+  // Match the pivot the backend grids around
+  useEffect(() => {
+    if (!taskDataPolygon) return;
+    centroidRef.current = centroid(taskDataPolygon as FeatureCollection).geometry.coordinates as [
+      number,
+      number,
+    ];
+  }, [taskDataPolygon]);
 
   useEffect(() => {
-    if (rotationAngle === finalRotationAngle) return;
-
-    if (!dragging) {
-      rotateLayerGeoJSON(
-        ["waypoint-line", "waypoint-points"],
-        rotationAngle - finalRotationAngle,
-        ["waypoint-line", "waypoint-points"],
-        false,
-      );
-      updateLayerCoordinates(
-        [
-          { id: "waypoint-line", type: "MultiString" },
-          { id: "waypoint-points", type: "Points" },
-        ],
-        takeOffPointRef.current || [0, 0],
-      );
-
-      return;
-    }
-
-    rotateLayerGeoJSON(
-      ["rotated-waypoint-line", "rotated-waypoint-points"],
-      rotationAngle - finalRotationAngle,
-      ["waypoint-line", "waypoint-points"],
-      true,
-    );
+    if (dragging) return;
+    setRotationAngle(effectiveRotationAngle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rotationAngle, dragging]);
+  }, [effectiveRotationAngle]);
+
+  const previewRotation = rotationAngle - effectiveRotationAngle;
+
+  // Approximates the regenerated grid until the operator saves, pinning the take off point
+  const previewWaypointData = useMemo(() => {
+    if (!previewRotation || !taskWayPointsData) return null;
+
+    const pivot = centroidRef.current ?? undefined;
+    const pointFeatures = taskWayPointsData.geojsonListOfPoints?.features ?? [];
+    if (pointFeatures.length < 2) return null;
+
+    const [takeOffFeature, ...flightFeatures] = pointFeatures;
+    const rotatedPoints = rotateGeoJSON(
+      { type: "FeatureCollection", features: flightFeatures } as FeatureCollection,
+      -previewRotation, // turf rotates clockwise, the backend anticlockwise
+      pivot,
+    ) as FeatureCollection;
+
+    const features = [takeOffFeature, ...rotatedPoints.features];
+
+    return {
+      ...taskWayPointsData,
+      geojsonListOfPoints: { type: "FeatureCollection", features },
+      geojsonAsLineString: {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            properties: {},
+            geometry: {
+              type: "LineString",
+              coordinates: coordAll({
+                type: "FeatureCollection",
+                features,
+              } as FeatureCollection),
+            },
+          },
+        ],
+      },
+    };
+  }, [previewRotation, taskWayPointsData]);
+
+  const displayedWaypointData = previewWaypointData ?? taskWayPointsData;
 
   useEffect(() => {
     if (!taskWayPointsData) {
@@ -463,18 +365,6 @@ const MapSection = ({ className }: { className?: string }) => {
       }
     });
   }
-
-  useEffect(() => {
-    if (!map || !isMapLoaded) return;
-
-    if (!dragging) {
-      setVisibilityOfLayers(mapLayerIDs, "visible");
-      if (rotationAngle !== finalRotationAngle) dispatch(setFinalRotationAngle(rotationAngle));
-      return;
-    }
-    setVisibilityOfLayers(mapLayerIDs, "none");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dragging, isMapLoaded, map]);
 
   useEffect(() => {
     if (!taskWayPointsData) return;
@@ -617,8 +507,14 @@ const MapSection = ({ className }: { className?: string }) => {
 
   function handleRotationToggle() {
     if (!map || !isMapLoaded) return;
+    if (isRotationEnabled) setRotationAngle(effectiveRotationAngle); // discard preview
     setIsRotationEnabled(!isRotationEnabled);
   }
+
+  const handleSaveRotation = () => {
+    dispatch(setFinalRotationAngle(rotationAngle));
+    setIsRotationEnabled(false);
+  };
 
   const handleToggleFlightPlan = () => {
     if (!map || !isMapLoaded) return;
@@ -676,7 +572,7 @@ const MapSection = ({ className }: { className?: string }) => {
     () => () => {
       dispatch(setSelectedTakeOffPoint(null));
       dispatch(setSelectedTakeOffPointOption("current_location"));
-      dispatch(setFinalRotationAngle(0));
+      dispatch(setFinalRotationAngle(null));
       dispatch(
         setTaskAssetsInformation({
           total_image_uploaded: 0,
@@ -761,13 +657,13 @@ const MapSection = ({ className }: { className?: string }) => {
 
         {/* task waypoints/way lines plot */}
         {/* render line, points and image (only if index is 0)  */}
-        {taskWayPointsData &&
+        {displayedWaypointData &&
           !taskWayPointsLoading && [
             <VectorLayer
               key="waypoint-line"
               id="waypoint-line"
-              geojson={taskWayPointsData?.geojsonAsLineString as GeojsonType}
-              visibleOnMap={!!taskWayPointsData}
+              geojson={displayedWaypointData?.geojsonAsLineString as GeojsonType}
+              visibleOnMap={!!displayedWaypointData}
               layerOptions={{
                 type: "line",
                 paint: {
@@ -784,8 +680,8 @@ const MapSection = ({ className }: { className?: string }) => {
             <VectorLayer
               key="waypoint-points"
               id="waypoint-points"
-              geojson={taskWayPointsData?.geojsonListOfPoints as GeojsonType}
-              visibleOnMap={!!taskWayPointsData}
+              geojson={displayedWaypointData?.geojsonListOfPoints as GeojsonType}
+              visibleOnMap={!!displayedWaypointData}
               interactions={["feature"]}
               layerOptions={{
                 type: "circle",
@@ -802,7 +698,7 @@ const MapSection = ({ className }: { className?: string }) => {
                     Number(
                       // @ts-ignore
                       // eslint-disable-next-line no-unsafe-optional-chaining
-                      taskWayPointsData?.geojsonListOfPoints?.features?.length - 1,
+                      displayedWaypointData?.geojsonListOfPoints?.features?.length - 1,
                     ),
                     0,
                     1,
@@ -813,8 +709,8 @@ const MapSection = ({ className }: { className?: string }) => {
             <VectorLayer
               key="waypoint-points-image"
               id="waypoint-points-image"
-              geojson={taskWayPointsData?.geojsonListOfPoints as GeojsonType}
-              visibleOnMap={!!taskWayPointsData}
+              geojson={displayedWaypointData?.geojsonListOfPoints as GeojsonType}
+              visibleOnMap={!!displayedWaypointData}
               layerOptions={{}}
               hasImage
               image={marker}
@@ -826,65 +722,6 @@ const MapSection = ({ className }: { className?: string }) => {
           ]}
 
         {/* end of waypoint/way line plot */}
-
-        {/* Visible only on rotation */}
-        {isRotationEnabled && dragging && (
-          <>
-            {/* render line */}
-            <VectorLayer
-              map={map as Map}
-              isMapLoaded={isMapLoaded}
-              id="rotated-waypoint-line"
-              geojson={rotatedFlightPlanData?.geojsonAsLineString as GeojsonType}
-              visibleOnMap={!!taskWayPointsData}
-              layerOptions={{
-                type: "line",
-                paint: {
-                  "line-color": "#000000",
-                  "line-width": 1,
-                  "line-dasharray": [6, 3],
-                },
-              }}
-              hasImage
-              image={right}
-              symbolPlacement="line"
-              iconAnchor="center"
-            />
-            {/* render points */}
-            <VectorLayer
-              map={map as Map}
-              isMapLoaded={isMapLoaded}
-              id="rotated-waypoint-points"
-              geojson={rotatedFlightPlanData?.geojsonListOfPoints as GeojsonType}
-              visibleOnMap={!!taskWayPointsData}
-              interactions={["feature"]}
-              layerOptions={{
-                type: "circle",
-                paint: {
-                  "circle-color": "#176149",
-                  "circle-stroke-width": 2,
-                  "circle-stroke-color": "red",
-                  "circle-stroke-opacity": 1,
-                  "circle-opacity": [
-                    "match",
-                    ["get", "index"],
-                    0,
-                    0,
-                    Number(
-                      // @ts-ignore
-                      // eslint-disable-next-line no-unsafe-optional-chaining
-                      rotatedFlightPlanData?.geojsonListOfPoints?.features?.length - 1,
-                    ),
-                    0,
-                    1,
-                  ],
-                },
-              }}
-            />
-          </>
-        )}
-
-        {/* rotation ends */}
 
         {/* Update take off point */}
         <div className="naxatw-absolute naxatw-bottom-3 naxatw-right-[calc(50%-5.4rem)] naxatw-z-30 naxatw-h-fit lg:naxatw-right-3 lg:naxatw-top-3">
@@ -904,7 +741,7 @@ const MapSection = ({ className }: { className?: string }) => {
             {newTakeOffPoint ? m.task_takeoff_save() : m.task_takeoff_change()}
           </Button>
         </div>
-        {newTakeOffPoint && (
+        {newTakeOffPoint && typeof newTakeOffPoint !== "string" && (
           <VectorLayer
             map={map as Map}
             isMapLoaded={isMapLoaded}
@@ -952,10 +789,9 @@ const MapSection = ({ className }: { className?: string }) => {
               withLoader
               leftIcon="rotate_90_degrees_cw"
               className="naxatw-w-[11.8rem] naxatw-bg-red"
-              onClick={() => {
-                setIsRotationEnabled(false);
-              }}
-              isLoading={isUpdatingTakeOffPoint}
+              onClick={handleSaveRotation}
+              disabled={previewRotation === 0}
+              isLoading={taskWayPointsFetching}
             >
               {m.drone_task_save_rotation()}
             </Button>
