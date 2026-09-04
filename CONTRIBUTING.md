@@ -106,7 +106,7 @@ uv python install
 
 - Python adheres mostly to PEP8 convention, amongst others, using the
   tool `ruff`.
-- TypeScript / JavaScript code is formatted using `prettier`.
+- TypeScript / JavaScript code is formatted using `oxfmt`.
 - Markdown files are formatted using `markdownlint`.
 - Raq SQL is formatted using `sqlfluff`.
 

@@ -31,7 +31,7 @@ Web app for crowdsourcing surface labels (roof/wall/road/…) on drone-photogram
 - A canvas `click` fires after every look-drag (mouseup precedes click), so selection handlers must gate on pointer travel (done in `setupSurfaceSelection`) - don't "simplify" that away.
 - `package.json` has no `"type": "module"` - node prints a harmless reparse warning when running headless test scripts.
 - Git: branch `guesswork` = `performance` + a junk commit of linux-arm64 `node_modules` binaries from a cloud agent (`node_modules` is partially tracked - needs a `.gitignore` cleanup someday).
-- Repo style: double quotes, semicolons, prettier-ish.
+- Repo style: double quotes and semicolons, enforced by oxfmt.
 
 ## Roadmap (post-demo Jul 6 2026 - client priorities, in order)
 
