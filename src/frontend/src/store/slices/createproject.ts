@@ -61,7 +61,7 @@ const initialState: CreateProjectState = {
   projectsFilterHasImagery: false,
   requiresApprovalFromRegulator: "not_required",
   regulatorEmails: [],
-  demType: "auto",
+  demType: "GLO30",
   selectedProjectStatus: "",
   totalProjectArea: 0,
   totalNoFlyZoneArea: 0,

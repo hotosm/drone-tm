@@ -399,7 +399,7 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                 </FormControl>
               )}
 
-              {demType === "manual" && isTerrainFollow && (
+              {demType === "UPLOAD" && isTerrainFollow && (
                 <FormControl>
                   <Controller
                     control={control}
