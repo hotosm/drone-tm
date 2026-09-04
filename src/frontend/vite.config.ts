@@ -97,27 +97,19 @@ export default defineConfig({
     target: "esnext",
     sourcemap: process.env.NODE_ENV === "development",
     rollupOptions: {
+      // A manual chunk can carve a package out of the graph while leaving its
+      // dependencies behind, so the two chunks end up importing each other. ESM
+      // then evaluates one against the other's uninitialised bindings and the app
+      // dies before rendering (blank screen, 2026.9.3). Rollup warns about this;
+      // make it fatal so it can never ship again.
+      onwarn(warning, defaultHandler) {
+        if (warning.code === "CIRCULAR_CHUNK") throw new Error(warning.message);
+        defaultHandler(warning);
+      },
       output: {
-        // Split large vendor dependencies into separate cacheable chunks
         manualChunks(id: string) {
-          if (!id.includes("node_modules")) return undefined;
-          if (id.includes("@awesome.me/webawesome")) return "vendor-webawesome";
-          if (id.includes("maplibre-gl")) return "vendor-map";
-          if (
-            id.includes("@reduxjs/toolkit") ||
-            id.includes("react-redux") ||
-            id.includes("redux-persist")
-          ) {
-            return "vendor-redux";
-          }
-          if (
-            id.includes("react-router-dom") ||
-            id.includes("/react/") ||
-            id.includes("/react-dom/") ||
-            id.includes("/scheduler/")
-          ) {
-            return "vendor-react";
-          }
+          // keep WebAwesome cached independently of app deploys
+          if (id.includes("@awesome.me/webawesome")) return "webawesome";
           return undefined;
         },
       },
