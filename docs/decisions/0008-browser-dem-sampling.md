@@ -42,7 +42,9 @@ pixel at the equator, which is coarser than the 30 m source data.
 ## Decision Outcome
 
 Use **option 1**. Index GLO-30 in pgSTAC and serve it through our existing
-TiTiler, with CloudFront caching and CORS enabled.
+TiTiler, which already sends `Access-Control-Allow-Origin: *`. There is no CDN
+in front of it today; adding one would help the browser tile path but the
+backend does not need it.
 
 - The backend will request a GeoTIFF crop for the project area and pass it to
   the existing elevation code. This replaces the JAXA scraper, its background
@@ -54,9 +56,13 @@ Fetching per project avoids downloading the same tiles again for each task,
 because tasks are subdivisions of the project area.
 
 This approach uses one service for both clients, keeps the backend data in its
-native projection, and adds no DEM storage or conversion pipeline. Tests against
-the public TiTiler demo returned a small GeoTIFF crop in 2.4 seconds cold and
-0.17 seconds warm, which is acceptable for a once-per-project request.
+native projection, and adds no DEM storage or conversion pipeline. TiTiler
+resamples onto whatever grid the requested bbox describes, so the backend must
+snap its bbox to the 1/3600 degree source grid and pass the matching `width` and
+`height`; done that way the crop is pixel-identical to reading the COGs
+directly, including where two tiles are mosaicked across a 1 degree seam. A
+crop takes a few seconds cold and is cached warm, which is acceptable for a
+once-per-project request.
 
 ## Consequences
 
