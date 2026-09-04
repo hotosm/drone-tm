@@ -24,6 +24,7 @@ from app.arq.cloudnative import (
 )
 from app.config import settings
 from app.db.database import get_db_connection_pool
+from app.dem.glo30 import download_and_upload_glo30_dem
 from app.images.flight_gimbal_deviation import mark_and_remove_off_axis_imagery
 from app.images.flight_stationary_removal import mark_and_remove_stationary_imagery
 from app.images.flight_tail_removal import mark_and_remove_flight_tail_imagery
@@ -2120,6 +2121,7 @@ class WorkerSettings:
         delete_invalid_images,
         process_project_task_metrics,
         download_and_upload_dem,
+        download_and_upload_glo30_dem,
         generate_qfield_project,
         process_imported_odm_assets,
         create_project_from_imagery_exif,
