@@ -30,6 +30,7 @@ export const droneModelOptions = [
   { label: "DJI Air 3", value: "DJI_AIR_3" },
   { label: "Potensic Atom 1", value: "POTENSIC_ATOM_1" },
   { label: "Potensic Atom 2", value: "POTENSIC_ATOM_2" },
+  { label: "Potensic Atom 3", value: "POTENSIC_ATOM_3" },
   { label: "Litchi", value: "LITCHI" },
   { label: "QGroundControl", value: "QGROUNDCONTROL" },
 ];

@@ -20,7 +20,8 @@
 See drone specific advice under:
 
 - [DJI](./dji/overview.md)
-- Potensic [Atom 1](./potensic/atom-1.md) / [Atom 2](./potensic/atom-2.md)
+- Potensic [Atom 1](./potensic/atom-1.md) / [Atom 2](./potensic/atom-2.md) /
+  [Atom 3](./potensic/atom-3.md)
 
 ## Setup
 

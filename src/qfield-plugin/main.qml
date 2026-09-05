@@ -9,6 +9,7 @@ import "generate/drone_specs.js" as Specs
 import "output/dji.js" as DjiOutput
 import "output/kmz.js" as Kmz
 import "output/potensic_v2.js" as PotensicV2Output
+import "output/potensic_v3.js" as PotensicV3Output
 
 Item {
   id: plugin
@@ -27,13 +28,14 @@ Item {
   // needing extra arguments through _outputDji / _outputPotensicV2.
   property string lastPathGeojsonPath: ""
 
-  // Potensic Atom 2 output state
+  // Potensic output state
   property string lastPotensicZipPath: ""
   property var lastPotensicZipData: null
   property string lastPotensicGlobalJson: ""
   property string lastPotensicMissionJson: ""
   property string lastPotensicMissionDirName: ""
   property string lastPotensicTsSubDir: ""
+  property string lastPotensicOutputDirName: ""
 
   // Last generated drone type (persists until next generation, used by export logic)
   property string lastDroneType: ""
@@ -188,6 +190,10 @@ Item {
 
   function log(msg) {
     iface.logMessage("DroneTM: " + msg)
+  }
+
+  function isPotensicJsonDrone(droneType) {
+    return droneType === "POTENSIC_ATOM_2" || droneType === "POTENSIC_ATOM_3"
   }
 
   function discoverPointHandler() {
@@ -452,7 +458,8 @@ Item {
     flightplanDialog.lastDroneType = droneType
 
     // GeoJSONs live under workspace/ so operators only see the
-    // drone-specific output dirs (flightplans_dji, flightplans_potensic2)
+    // drone-specific output dirs (flightplans_dji, flightplans_potensic2,
+    // and flightplans_potensic3)
     // when browsing the project folder. platformUtilities.createDir is
     // non-recursive (QDir::mkdir), so create the parent first.
     var geojsonDir = qgisProject.homePath + '/workspace/flightplans'
@@ -490,6 +497,11 @@ Item {
       platformUtilities.createDir(qgisProject.homePath, 'flightplans_potensic2')
       log("Saving Potensic files to " + potensicDir)
       _outputPotensicV2(placemarks, filename, potensicDir, geojsonPath, geojsonOk, taskId)
+    } else if (droneType === "POTENSIC_ATOM_3") {
+      var potensicV3Dir = qgisProject.homePath + '/flightplans_potensic3'
+      platformUtilities.createDir(qgisProject.homePath, 'flightplans_potensic3')
+      log("Saving Potensic files to " + potensicV3Dir)
+      _outputPotensicV3(placemarks, filename, potensicV3Dir, geojsonPath, geojsonOk, taskId)
     } else {
       var djiDir = qgisProject.homePath + '/flightplans_dji'
       platformUtilities.createDir(qgisProject.homePath, 'flightplans_dji')
@@ -557,7 +569,23 @@ Item {
   }
 
   function _outputPotensicV2(placemarks, filename, outputDir, geojsonPath, geojsonOk, taskId) {
-    var defaultSpeed = 11.5
+    _outputPotensicJson(
+      placemarks, filename, outputDir, geojsonPath, geojsonOk, taskId,
+      false, 11.5, "Potensic Atom 2", "flightplans_potensic2"
+    )
+  }
+
+  function _outputPotensicV3(placemarks, filename, outputDir, geojsonPath, geojsonOk, taskId) {
+    _outputPotensicJson(
+      placemarks, filename, outputDir, geojsonPath, geojsonOk, taskId,
+      true, 10.0, "Potensic Atom 3", "flightplans_potensic3"
+    )
+  }
+
+  function _outputPotensicJson(placemarks, filename, outputDir, geojsonPath, geojsonOk,
+                               taskId, isAtom3, fallbackSpeed, formatLabel,
+                               outputDirName) {
+    var defaultSpeed = fallbackSpeed
     if (placemarks.features.length > 0) {
       var s = placemarks.features[0].properties.speed
       if (s) defaultSpeed = s
@@ -566,9 +594,11 @@ Item {
     var tsMs = Date.now()
     var potensic
     try {
-      potensic = PotensicV2Output.createPotensicZip(placemarks, defaultSpeed, tsMs)
+      potensic = isAtom3
+        ? PotensicV3Output.createPotensicZip(placemarks, defaultSpeed, tsMs)
+        : PotensicV2Output.createPotensicZip(placemarks, defaultSpeed, tsMs)
     } catch (e) {
-      log("Potensic V2 ZIP creation error: " + e)
+      log(formatLabel + " ZIP creation error: " + e)
       flightplanDialog.generationState = "error"
       flightplanDialog.resultMessage = qsTr('Flightplan generation failed: %1').arg(e)
       return
@@ -605,6 +635,7 @@ Item {
       lastPotensicMissionJson = potensic.missionJson
       lastPotensicMissionDirName = tsStr
       lastPotensicTsSubDir = tsSubDir
+      lastPotensicOutputDirName = outputDirName
 
       var msg = qsTr('Saved: %1').arg(filename)
       mainWindow.displayToast(msg)
@@ -893,7 +924,7 @@ Item {
   }
 
   function exportFlightplanToDevice() {
-    if (lastDroneType === "POTENSIC_ATOM_2") {
+    if (isPotensicJsonDrone(lastDroneType)) {
       _exportPotensicToDevice()
       return
     }
@@ -1096,7 +1127,9 @@ Item {
     // Last resort: point user at the saved JSON files
     mainWindow.displayToast(qsTr('File picker not available'))
     flightplanDialog.generationState = "manual_transfer"
-    flightplanDialog.resultMessage = qsTr('Find mission files in flightplans_potensic2/%1/ in the project folder').arg(lastPotensicMissionDirName)
+    flightplanDialog.resultMessage = qsTr('Find mission files in %1/%2/ in the project folder')
+      .arg(lastPotensicOutputDirName)
+      .arg(lastPotensicMissionDirName)
   }
 
 }

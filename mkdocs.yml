@@ -101,6 +101,7 @@ nav:
           - Flying with Potensic:
               - Atom 1: manuals/potensic/atom-1.md
               - Atom 2: manuals/potensic/atom-2.md
+              - Atom 3: manuals/potensic/atom-3.md
           - Alternative Transfer Methods: manuals/alternative-transfer.md
           - Manual Flightplan Generation: manuals/generate-flightplans.md
       - Processing Imagery:

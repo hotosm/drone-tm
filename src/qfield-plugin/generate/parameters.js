@@ -53,6 +53,8 @@ function calculateParameters(forwardOverlap, sideOverlap, agl, gsd, imageInterva
         groundSpeed = 11.5;
     } else if (droneType === Specs.DroneType.POTENSIC_ATOM_1) {
         groundSpeed = 8.0;
+    } else if (droneType === Specs.DroneType.POTENSIC_ATOM_3) {
+        groundSpeed = Math.max(0.5, Math.min(groundSpeed, 10.0));
     } else if (groundSpeed > 12) {
         groundSpeed = 11.5;
     }
