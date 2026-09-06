@@ -310,13 +310,19 @@ export const taskGenerationGuidelines = () => ({
   conclusion: m.create_generate_guidelines_conclusion(),
 });
 
+// Values are the backend DEMSource enum, sent as `dem_source`.
 export const demFileOptions = () => [
+  {
+    name: "Copernicus GLO-30",
+    label: m.create_params_dem_glo30(),
+    value: "GLO30",
+  },
   {
     name: "Download DEM file from JAXA",
     label: m.create_params_dem_jaxa(),
-    value: "auto",
+    value: "JAXA",
   },
-  { name: "Upload DEM File", label: m.create_params_dem_upload(), value: "manual" },
+  { name: "Upload DEM File", label: m.create_params_dem_upload(), value: "UPLOAD" },
 ];
 
 export const uploadOrDrawAreaOptions = (): Record<string, any>[] => [

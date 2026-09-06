@@ -240,6 +240,9 @@ class Settings(BaseSettings):
     OAM_STAC_BROWSER_URL: str = "https://api.imagery.hotosm.org/browser"
     OAM_BROWSE_URL: str = "https://imagery.hotosm.org"
     OAM_STAC_COLLECTION: str = "openaerialmap"
+    # Terrain-following DEM, served from OAM ingested GLO-30 dataset
+    OAM_RASTER_API_URL: str = "https://api.imagery.hotosm.org/raster"
+    DEM_STAC_COLLECTION: str = "cop-dem-glo-30"
     # Covers OAM queueing and server-side download.
     OAM_SOURCE_URL_EXPIRY_HOURS: int = 24
     DRAGONFLY_DSN: str = "redis://dragonfly:6379/0"

@@ -297,6 +297,7 @@
   "create_params_follow_terrain_desc": "Membuat drone mempertahankan ketinggian yang sama dari permukaan tanah saat terbang di atas perbukitan, sehingga mencegah kecelakaan dan meningkatkan kualitas data.",
   "create_params_follow_terrain_warning": "PERINGATAN: pastikan opsi ini diaktifkan jika medannya berbukit. Catatan: ini tidak memperhitungkan bangunan tinggi; pastikan Anda terbang pada ketinggian di atas bangunan tertinggi di area penerbangan.",
   "create_params_dem_required": "Data DEM wajib diisi",
+  "create_params_dem_glo30": "Copernicus GLO-30 (direkomendasikan)",
   "create_params_dem_jaxa": "Unduh file DEM dari JAXA",
   "create_params_dem_upload": "Unggah Berkas DEM",
   "create_params_dem_upload_placeholder": "Unggah data DEM (file tif/tiff)",

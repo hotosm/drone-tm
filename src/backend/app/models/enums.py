@@ -185,6 +185,14 @@ class EventType(StrEnum):
     IMAGE_PROCESSING_START = "image_processing_start"
 
 
+class DEMSource(StrEnum):
+    """Enum to describe where a project's terrain-following DEM comes from."""
+
+    GLO30 = "GLO30"
+    JAXA = "JAXA"
+    UPLOAD = "UPLOAD"
+
+
 class ProjectCompletionStatus(StrEnum):
     """Enum to describe all possible project completion status."""
 

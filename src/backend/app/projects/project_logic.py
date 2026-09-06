@@ -19,6 +19,7 @@ from app.images.image_processing import (
     submit_scaleodm_task,
 )
 from app.models.enums import (
+    DEMSource,
     FinalOutput,
     ImageProcessingStatus,
     ImageStatus,
@@ -216,6 +217,40 @@ async def update_url(db: Connection, project_id: uuid.UUID, url: str):
             SET dem_url = %(url)s
             WHERE id = %(project_id)s""",
             {"url": url, "project_id": project_id},
+        )
+
+    return True
+
+
+def resolve_dem_source(
+    requested: DEMSource | None,
+    is_terrain_follow: bool,
+    dem_stored: bool,
+) -> DEMSource | None:
+    """Resolve the DEM source after any upload attempt."""
+    if not is_terrain_follow:
+        return None
+    if dem_stored:
+        return DEMSource.UPLOAD
+    if requested == DEMSource.JAXA:
+        return DEMSource.JAXA
+    return DEMSource.GLO30
+
+
+async def update_dem_source(
+    db: Connection, project_id: uuid.UUID, dem_source: DEMSource | None
+):
+    """Update a project's recorded DEM source."""
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            UPDATE projects
+            SET dem_source = %(dem_source)s
+            WHERE id = %(project_id)s""",
+            {
+                "dem_source": dem_source.name if dem_source else None,
+                "project_id": project_id,
+            },
         )
 
     return True

@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import cast
 
 from app.models.enums import (
+    DEMSource,
     FinalOutput,
     ImageProcessingStatus,
     ImageStatus,
@@ -145,6 +146,8 @@ class DbProject(Base):
     camera_bearings = cast(list[int], Column(ARRAY(SmallInteger), nullable=True))
     gimble_angles_degrees = cast(list, Column(ARRAY(SmallInteger), nullable=True))
     is_terrain_follow = cast(bool, Column(Boolean, default=False))
+    # Existing projects have no reliable DEM source history.
+    dem_source = cast(DEMSource, Column(Enum(DEMSource), nullable=True))
     dem_url = cast(str, Column(String, nullable=True))
     hashtags = cast(list, Column(ARRAY(String)))  # Project hashtag
     output_orthophoto_url = cast(str, Column(String, nullable=True))

@@ -297,6 +297,7 @@
   "create_params_follow_terrain_desc": "Hace que el dron mantenga la misma altura sobre el suelo al volar sobre colinas, evitando accidentes y mejorando la calidad de los datos.",
   "create_params_follow_terrain_warning": "ADVERTENCIA: asegúrate de activar esta opción si el terreno es montañoso. Nota: esto no tiene en cuenta los edificios altos; asegúrate de volar a una altura superior al edificio más alto del área de vuelo.",
   "create_params_dem_required": "Los datos del DEM son obligatorios",
+  "create_params_dem_glo30": "Copernicus GLO-30 (recomendado)",
   "create_params_dem_jaxa": "Descargar archivo DEM desde JAXA",
   "create_params_dem_upload": "Cargar archivo DEM",
   "create_params_dem_upload_placeholder": "Cargar datos del DEM (archivos tif/tiff)",

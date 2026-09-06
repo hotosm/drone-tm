@@ -8,9 +8,11 @@ import geojson
 from app.arq.tasks import MoveEnqueue, _enqueue_task_move, get_redis_pool
 from app.config import settings
 from app.db import database
+from app.dem.glo30 import enqueue_glo30_dem_download
 from app.images.image_classification import ImageClassifier
 from app.jaxa.upload_dem import enqueue_dem_download
 from app.models.enums import (
+    DEMSource,
     HTTPStatus,
     ImageProcessingStatus,
     OAMUploadStatus,
@@ -65,6 +67,7 @@ from fastapi.responses import StreamingResponse
 from geojson_pydantic import FeatureCollection
 from loguru import logger as log
 from psycopg import Connection
+from shapely.geometry import shape
 from stream_zip import NO_COMPRESSION_64, stream_zip
 
 router = APIRouter(
@@ -303,6 +306,12 @@ async def create_project(
     image: UploadFile = File(None),
 ):
     """Create a project in the database."""
+    # Correct this source below if the upload fails.
+    requested_dem_source = project_info.dem_source
+    project_info.dem_source = project_logic.resolve_dem_source(
+        requested_dem_source, project_info.is_terrain_follow, bool(dem)
+    )
+
     # Create project in database first
     project_id = await project_schemas.DbProject.create(db, project_info, user_data.id)
 
@@ -323,6 +332,20 @@ async def create_project(
     if dem_url:
         await project_logic.update_url(db, project_id, dem_url)
 
+    # Fall back when an upload does not reach S3.
+    dem_source = project_logic.resolve_dem_source(
+        requested_dem_source, project_info.is_terrain_follow, dem_url is not None
+    )
+    if dem_source != project_info.dem_source:
+        log.warning(
+            "Project {} wanted an uploaded DEM but it did not reach S3; "
+            "falling back to {}",
+            project_id,
+            dem_source,
+        )
+        project_info.dem_source = dem_source
+        await project_logic.update_dem_source(db, project_id, dem_source)
+
     # The frontend immediately follows this response with
     # /upload-task-boundaries. Commit here so that dependency can read the
     # project from a new DB transaction.
@@ -338,20 +361,42 @@ async def create_project(
             project_info.name,
         )
 
-    if project_info.is_terrain_follow and not dem:
-        geometry = project_info.outline["features"][0]["geometry"]
-        try:
-            redis = await get_redis_pool()
-            background_tasks.add_task(enqueue_dem_download, geometry, project_id, redis)
-        except HTTPException as e:
-            # Project creation should succeed even if DEM background queue is unavailable.
-            log.warning(
-                "Project {} created but DEM enqueue skipped (Redis unavailable): {}",
-                project_id,
-                e.detail,
-            )
+    if project_info.is_terrain_follow:
+        await _enqueue_terrain_dem(
+            dem_source, project_info, project_id, background_tasks
+        )
 
     return {"message": "Project successfully created", "project_id": project_id}
+
+
+async def _enqueue_terrain_dem(
+    dem_source: DEMSource | None,
+    project_info: project_schemas.ProjectIn,
+    project_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+) -> None:
+    """Queue a resolved DEM source when it needs downloading."""
+    if dem_source in (None, DEMSource.UPLOAD):
+        return
+
+    geometry = project_info.outline["features"][0]["geometry"]
+    try:
+        redis = await get_redis_pool()
+    except HTTPException as e:
+        log.warning(
+            "Project {} created but DEM enqueue skipped (Redis unavailable): {}",
+            project_id,
+            e.detail,
+        )
+        return
+
+    if dem_source == DEMSource.JAXA:
+        background_tasks.add_task(enqueue_dem_download, geometry, project_id, redis)
+        return
+
+    background_tasks.add_task(
+        enqueue_glo30_dem_download, shape(geometry).bounds, project_id, redis
+    )
 
 
 @router.post("/{project_id}/upload-task-boundaries", tags=["Projects"])

@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 import geojson
 from app.config import settings
 from app.models.enums import (
+    DEMSource,
     FinalOutput,
     HTTPStatus,
     IntEnum,
@@ -15,6 +16,7 @@ from app.models.enums import (
     ProjectVisibility,
     RegulatorApprovalStatus,
     State,
+    StrEnum,
 )
 from app.projects.s3_paths import (
     cloudnative_3d_tileset_browser_url,
@@ -98,14 +100,15 @@ def validate_geojson(
         return None
 
 
-def enum_to_str(value: IntEnum | str) -> str:
+def enum_to_str(value: IntEnum | StrEnum | str) -> str:
     """Get the string value of the enum for db insert.
-    Handles both IntEnum objects and string values.
+    Handles IntEnum and StrEnum objects, and string values.
     """
+    # StrEnum is also a str, so handle enum members first.
+    if isinstance(value, (IntEnum, StrEnum)):
+        return value.name
     if isinstance(value, str):
         return value
-    if isinstance(value, IntEnum):
-        return value.name
     return value
 
 
@@ -147,6 +150,7 @@ class ProjectIn(BaseModel):
     side_overlap: float | None = None
     gimble_angles_degrees: list[int] | None = None
     is_terrain_follow: bool = False
+    dem_source: Annotated[DEMSource, PlainSerializer(enum_to_str)] = DEMSource.GLO30
     outline: Annotated[
         FeatureCollection | Feature | Polygon, AfterValidator(validate_geojson)
     ]
@@ -301,6 +305,7 @@ class DbProject(BaseModel):
     altitude_from_ground: float | None = None
     gimble_angles_degrees: list[int] | None = None
     is_terrain_follow: bool = False
+    dem_source: DEMSource | None = None
     final_output: list[FinalOutput] | None = None
     image_url: str | None = None
     created_at: datetime

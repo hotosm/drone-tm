@@ -77,7 +77,7 @@ const defaultWizardState = {
   requireApprovalFromManagerForLocking: "not_required",
   requiresApprovalFromRegulator: "not_required",
   regulatorEmails: [],
-  demType: "auto",
+  demType: "GLO30",
   imageMergeType: "overlap",
   measurementType: "gsd",
   totalProjectArea: 0,
@@ -331,6 +331,7 @@ const CreateprojectLayout = () => {
 
       requires_approval_from_regulator: requiresApprovalFromRegulator === "required",
       regulator_emails: regulatorEmails,
+      ...(isTerrainFollow ? { dem_source: demType } : {}),
     };
     delete refactoredData?.forward_spacing;
     delete refactoredData?.side_spacing;
@@ -350,7 +351,7 @@ const CreateprojectLayout = () => {
     formData.append("project_info", JSON.stringify({ ...refactoredData }));
     formData.append("image", projectImage.projectMapImage);
 
-    if (isTerrainFollow && demType === "manual") {
+    if (isTerrainFollow && demType === "UPLOAD") {
       formData.append("dem", data?.dem?.[0]?.file);
     }
     createProject(formData);

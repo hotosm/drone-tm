@@ -297,6 +297,7 @@
   "create_params_follow_terrain_desc": "Makes the drone maintain the same height from the ground when flying over hills, preventing crashes and improving data quality.",
   "create_params_follow_terrain_warning": "WARNING: ensure this is enabled if the terrain is hilly. Note: this does not account for tall buildings - make sure you are flying at a height above the tallest building in the flight area.",
   "create_params_dem_required": "Dem data is Required",
+  "create_params_dem_glo30": "Copernicus GLO-30 (recommended)",
   "create_params_dem_jaxa": "Download DEM file from JAXA",
   "create_params_dem_upload": "Upload DEM File",
   "create_params_dem_upload_placeholder": "Upload dem data (tif/tiff files)",

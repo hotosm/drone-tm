@@ -118,7 +118,7 @@ export default function GenerateTasks({ formProps }: { formProps: any }) {
               meters: task_split_dimension,
               project_geojson: convertGeojsonToFile(outline),
               is_terrain_follow: isTerrainFollow,
-              dem: isTerrainFollow && demType === "manual" ? demFile[0]?.file : null,
+              dem: isTerrainFollow && demType === "UPLOAD" ? demFile[0]?.file : null,
             };
             mutateProjectWayPoints(projectWayPointsPayload);
             return mutate(payload);

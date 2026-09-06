@@ -47,8 +47,12 @@ in front of it today; adding one would help the browser tile path but the
 backend does not need it.
 
 - The backend will request a GeoTIFF crop for the project area and pass it to
-  the existing elevation code. This replaces the JAXA scraper, its background
-  job, and the stored per-project `dem.tif` files.
+  the existing elevation code, writing it to the same per-project `dem.tif` so
+  every downstream consumer is unchanged and still works offline.
+- GLO-30 becomes the default rather than the only option. Project creation
+  takes a `dem_source` of `GLO30`, `JAXA` or `UPLOAD`, with the last two behind
+  the advanced toggle. The JAXA scraper has served us well and is kept as a
+  fallback for as long as it keeps working.
 - The browser will request Terrarium tiles and cache them per project. The same
   tiles can be used by MapLibre for terrain display.
 
@@ -66,7 +70,9 @@ once-per-project request.
 
 ## Consequences
 
-- GLO-30 replaces AW3D30 as the elevation source and should improve accuracy.
+- GLO-30 becomes the default elevation source and should improve accuracy.
+  AW3D30 stays selectable, so a project can fall back if GLO-30 has a void
+  or the OAM raster service is down.
 - Generated flightplans may differ slightly from existing plans. Elevation is
   measured relative to the takeoff point, so datum differences should mostly
   cancel and remain within the current 5 m AGL threshold.
