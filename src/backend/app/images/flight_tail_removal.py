@@ -195,7 +195,7 @@ async def mark_and_remove_flight_tail_imagery(
                 LAG(yaw_deg, 1, yaw_deg) OVER w AS prev_yaw_deg,
                 LAG(altitude_m, 1, altitude_m) OVER w AS prev_altitude_m
             FROM ordered
-            WINDOW w AS (PARTITION BY 'default' ORDER BY {PASS_ORDER_SQL})
+            WINDOW w AS (PARTITION BY camera_serial ORDER BY {PASS_ORDER_SQL})
         ),
         segmented AS (
             SELECT
