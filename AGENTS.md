@@ -229,3 +229,14 @@ A change is "done" when all are true:
 4. File-level summary and risk notes are provided.
 
 When uncertain, ask instead of assuming.
+
+---
+
+# 13) Responsible AI Contribution Policy
+
+- Org guidance for AI-assisted contributions: <https://responsibleai.guide>
+- Declare the AI assistance level (0-5) in the PR template honestly. Never
+  lower the declared level to get a PR reviewed.
+- If nobody has read the result, that is level 5: open the PR as a draft.
+- Do not work on issues labelled `good first issue` - they exist for humans.
+- A human is accountable for every merged change.
