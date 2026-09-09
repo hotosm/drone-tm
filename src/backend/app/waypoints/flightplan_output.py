@@ -15,6 +15,10 @@ FLIGHTPLAN_OUTPUTS = {
         "suffix": ".zip",
         "media_type": "application/zip",
     },
+    "POTENSIC_JSON_V2": {
+        "suffix": ".zip",
+        "media_type": "application/zip",
+    },
     "QGROUNDCONTROL": {
         "suffix": ".plan",
         "media_type": "application/json",
