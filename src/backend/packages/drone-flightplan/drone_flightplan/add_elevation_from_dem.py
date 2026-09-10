@@ -56,6 +56,7 @@ def add_elevation_from_dem(raster_file, points, outfile) -> int:
     rasterSR = osr.SpatialReference()
     rasterSR.ImportFromProj4(r.GetProjection())
     log.info(f"\nRaster Coordinate Reference System: \n{rasterSR}")
+    rasterSR.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
 
     # Get the raster band (if it's a DEM, this should be the only band)
     # TODO this would be a good time to check that it's a single-band
@@ -80,6 +81,7 @@ def add_elevation_from_dem(raster_file, points, outfile) -> int:
     p = ogr.Open(points)
     lyr = p.GetLayer()
     pointSR = lyr.GetSpatialRef()
+    pointSR.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
     pointLD = lyr.GetLayerDefn()
     log.info(f"\nPoint layer Coordinate Reference System: {pointSR.GetName()}")
 
@@ -107,8 +109,8 @@ def add_elevation_from_dem(raster_file, points, outfile) -> int:
     for feature in lyr:
         geom = feature.GetGeometryRef()
         pointXYRasterCRS = transform.TransformPoint(geom.GetX(), geom.GetY())
-        mapX = pointXYRasterCRS[1]
-        mapY = pointXYRasterCRS[0]
+        mapX = pointXYRasterCRS[0]
+        mapY = pointXYRasterCRS[1]
         pixcoords = gdal.ApplyGeoTransform(reverse, mapX, mapY)
         pixX = math.floor(pixcoords[0])
         pixY = math.floor(pixcoords[1])
