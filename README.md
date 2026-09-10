@@ -111,13 +111,16 @@ To get started with DroneTM:
 |✅| 🖥️ scaling of ODM imagery processing to thousands of images in parallel | [v2026.5.0][11] |
 |✅| 🖥️ visualise the 2D and 3D products at the end of processing | [v2026.6.0][12] |
 |✅| 🖥️ separate ODM workflows for task images vs. large project image batches | [v2026.7.0][13] |
+|✅| 🖥️ access to alternative high quality terrain models such as Copernicus GLO-30 | |
+|⚙️| 📱 [flight plans working on Potensic Atom 3](https://github.com/hotosm/drone-tm/issues/870) | |
+|⚙️| 📱 [flight plans working on DJI Lito X1](https://github.com/hotosm/drone-tm/issues/885) | |
+|⚙️| 📱 [flight plans working on SkyRover X1](https://github.com/hotosm/drone-tm/issues/886) | |
 |⚙️| 📱 send flightplans straight to the drone, instead of copying files by hand | |
 |⚙️| 📱 capture of imagery at multiple (configurable) angles from the drone camera | |
 | | 📱 let users edit and split flightplans before flying | |
 | | 🖥️ DroneTM Lite: a simplified interface for demos and community use | |
 | | 🖥️ thermal imagery processing, plus accuracy improvements for city-scale projects | |
 | | 🖥️ role-based access control for each part of the UI | |
-| | 🖥️ access to alternative high quality terrain models such as Copernicus GLO-30 | |
 | | 📱 & 🖥️ real-time notifications for drone flight progress & task status | |
 | | 📱 HOT community mapping drone: cheap, mapping optimized, materials sourced locally | |
 <!-- prettier-ignore-end -->
@@ -129,40 +132,50 @@ To get started with DroneTM:
 
 ## Drone Support
 
-We currently recommend the **DJI Mini 5 Pro** or **Mini 4 Pro**, as the
-drones with the best waypoint support, and high quality cameras on board.
-
-The **Potensic Atom 2** is also a solid choice, for a lower pricetag,
-but similar quality.
+We recommend the **DJI Mini 5 Pro** as the best overall option. The
+**DJI Mini 4 Pro** is the next-best premium choice where it is still available,
+while the widely available **Potensic Atom 2** offers the best budget value.
+The **DJI Lito X1** should become another good option once its DroneTM support
+is complete.
 
 For now, most other drones have a compromise of some kind.
 
-The list below is ordered best-supported first. Drones marked ✅ work
-directly in DroneTM: generate a flight plan, then upload the waypoint file
-to the drone's own app - no third-party software needed.
+The list below puts drones under 250 g first, then orders each weight group by
+our recommendation. Drones marked ✅ work directly in DroneTM: generate a
+flight plan, then upload the waypoint file to the drone's own app - no
+third-party software needed.
 
 <!-- prettier-ignore-start -->
-| Drone | <250g | Supported | Notes |
-|:------|:-----:|:---------:|:------|
-| DJI Mini 5 Pro | ✅ | ✅ | Waypoint files, flown in the DJI Fly app |
-| DJI Mini 4 Pro | ✅ | ✅ | Waypoint files, flown in the DJI Fly app |
-| DJI Mini 3 Pro | ✅ | ✅ | Waypoint files, flown in the DJI Fly app. Also supports Litchi |
-| Potensic Atom 2 | ✅ | ✅ | Waypoint files, flown in the Potensic app |
-| DJI Mini 3 | ✅ | ❔ | Via Litchi only |
-| DJI Mini SE (version 1 only) | ✅ | ❔ | Via Litchi only |
-| DJI Mini 2 | ✅ | ❔ | Via Litchi only |
-| Potensic Atom 1 | ✅ | ❔ | Works but has no terrain following capability |
-| DJI Mavic Air/Pro | ❌ | ❔ | Via Litchi or DroneDeploy only |
-| DJI Mavic 2 Pro | ❌ | ❔ | Via Litchi or DroneDeploy only |
-| DJI Air 2S | ❌ | ❔ | Via Litchi or DroneDeploy only |
-| DJI Air 3/3S | ❌ | ❔ | Waypoint files should work, but untested - please help confirm! |
-| DJI Mavic 3/3P/3C | ❌ | ❔ | Waypoint files should work, but untested - please help confirm! |
-| DJI Mini 4k | ✅ | ❔ | Untested - please help confirm! |
+| Drone | <250g | Approx. price (USD) | Supported | Notes |
+|:------|:-----:|:-------------------:|:---------:|:------|
+| DJI Mini 5 Pro | ✅ | ~$720 | ✅ | Waypoint files, flown in the DJI Fly app |
+| DJI Mini 4 Pro | ✅ | ~$600 | ✅ | Waypoint files, flown in the DJI Fly app |
+| Potensic Atom 2 | ✅ | ~$330 | ✅ | Waypoint files, flown in the Potensic app |
+| DJI Lito X1 | ✅ | ~$490 | ⚙️ | [Support in progress](https://github.com/hotosm/drone-tm/issues/885); waypoint files will be flown in the DJI Fly app |
+| DJI Mini 3 Pro | ✅ | — | ✅ | Waypoint files, flown in the DJI Fly app. Also supports Litchi |
+| DJI Mini 3 | ✅ | — | ❔ | Via Litchi only |
+| DJI Mini 2 | ✅ | — | ❔ | Via Litchi only |
+| DJI Mini SE (version 1 only) | ✅ | — | ❔ | Via Litchi only |
+| Potensic Atom 1 | ✅ | — | ❔ | Works but has no terrain following capability |
+| Potensic Atom 3 | ✅ | ~$430 | ⚙️ | [Support in progress](https://github.com/hotosm/drone-tm/issues/870) |
+| SkyRover X1 | ✅ | ~$500 | ⚙️ | [Support in progress](https://github.com/hotosm/drone-tm/issues/886); waypoint files will be flown in the SkyRover app; availability is currently US-centric and may require importing elsewhere |
+| DJI Air 3 / Air 3S | ❌ | — | ✅ | Waypoint files, flown in the DJI Fly app |
+| DJI Mavic 4 Pro | ❌ | — | ✅ | Waypoint files, flown in the DJI Fly app |
+| DJI Mavic 3 / Mavic 3 Classic / Mavic 3 Pro | ❌ | — | ✅ | Waypoint files, flown in the DJI Fly app |
+| DJI Air 2S | ❌ | — | ❔ | Via Litchi or DroneDeploy only |
+| DJI Mavic 2 Pro | ❌ | — | ❔ | Via Litchi or DroneDeploy only |
+| DJI Mavic Air/Pro | ❌ | — | ❔ | Via Litchi or DroneDeploy only |
 <!-- prettier-ignore-end -->
+
+Approximate prices are indicative September 2026 base-kit figures, using
+regional medians converted to USD where needed. Prices and availability vary;
+— means no current estimate is listed.
 
 > [!Note]
 > ✅ works directly in DroneTM - upload the generated waypoint file to the
 > drone's own app.
+>
+> ⚙️ support is in progress - see the linked issue in the Notes column.
 >
 > ❔ works, but with a caveat - see the Notes column (needs a third-party
 > app such as Litchi, is untested, or has limited features).
