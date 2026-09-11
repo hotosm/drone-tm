@@ -1,8 +1,5 @@
 import { UserProfileDetailsType } from "@Components/GoogleAuth/types";
-import axios from "axios";
 import { api, authenticated } from ".";
-
-const OSM_NOMINATIM_URL = "https://nominatim.openstreetmap.org";
 
 export const signInUser = (data: any) => api.post("/users/login/", data);
 
@@ -34,5 +31,5 @@ export const patchUserProfile = ({ userId, data }: Record<string, any>) =>
     headers: { "Content-Type": "application/json" },
   });
 
-export const getCountry = (params: { lat: number; lon: number; format: string }) =>
-  axios.get(`${OSM_NOMINATIM_URL}/reverse`, { params });
+export const getNearestCity = (params: { lat: number; lon: number }) =>
+  authenticated(api).get("/projects/nearest-city/", { params });

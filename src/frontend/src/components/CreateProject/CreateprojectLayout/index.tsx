@@ -26,7 +26,7 @@ import prepareFormData from "@Utils/prepareFormData";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
 import { getFrontOverlap, getSideOverlap, gsdToAltitude, m2ToKm2 } from "@Utils/index";
 import { useEffect, useState } from "react";
-import { getCountry } from "@Services/common";
+import { getNearestCity } from "@Services/common";
 import { setCommonState } from "@Store/actions/common";
 import { m } from "@/paraglide/messages";
 
@@ -205,19 +205,18 @@ const CreateprojectLayout = () => {
 
   const { data: countryResponse, isFetching: isFetchingCountry } = useQuery({
     queryFn: () =>
-      getCountry({
+      getNearestCity({
         lon: projectCentroid?.[0] || 0,
         lat: projectCentroid?.[1] || 0,
-        format: "json",
       }),
-    queryKey: ["country", projectCentroid?.[0], projectCentroid?.[1]],
+    queryKey: ["nearest-city", projectCentroid?.[0], projectCentroid?.[1]],
     enabled: !!projectCentroid,
   });
 
   useEffect(() => {
     dispatch(
       setCommonState({
-        projectCountry: countryResponse?.data?.address?.country || null,
+        projectCountry: countryResponse?.data?.country || null,
       }),
     );
   }, [countryResponse, dispatch]);
