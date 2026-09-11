@@ -219,3 +219,20 @@ TBC
 9b-litchi-flightplans.mp4
 Litchi workflow
 Confirm & add DJI Mavic 2 Pro to the list of supported drones?
+
+## Additional Videos
+
+### 08-09-2026 In Person Training
+
+A small intro to DroneTM as a platform, covering flightplan theory, project creation and
+considerations.
+
+<iframe
+    width="720"
+    height="500"
+    src="https://drive.google.com/file/d/1YXGyYiZ0Ro5jdPn9-HCnUSj_odLifLZN/preview" title="DroneTM In Person Demo"
+    frameborder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    referrerpolicy="strict-origin-when-cross-origin"
+    allowfullscreen>
+</iframe>
