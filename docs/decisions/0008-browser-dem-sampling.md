@@ -55,8 +55,11 @@ endpoint for browser sampling and terrain display.
   takes a `dem_source` of `GLO30`, `JAXA` or `UPLOAD`, with the last two behind
   the advanced toggle. The JAXA scraper has served us well and is kept as a
   fallback for as long as it keeps working.
-- The browser will sample and cache Mapterhorn's Terrarium tiles per plan. The
-  same tiles can be used by MapLibre for terrain display.
+- The browser will request the same GeoTIFF crop and cache it per plan, so it
+  samples the identical grid as the backend and the two cannot disagree about
+  the altitude of a waypoint. Terrarium tiles remain useful for MapLibre
+  terrain display only, never for sampling: they quantise elevation to 0.1 m
+  and reproject to EPSG:3857, which at zoom 12 is coarser than the 30 m source.
 
 Fetching per project avoids downloading the same tiles again for each task,
 because tasks are subdivisions of the project area.
