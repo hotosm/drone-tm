@@ -32,19 +32,21 @@ This would let the browser read the files with `geotiff.js`, but it would
 duplicate about 549 GiB of public data. It also offers no clear benefit to the
 backend over TiTiler.
 
-### 3. Build a global terrain-RGB PMTiles archive
+### 3. Use Mapterhorn terrain tiles
 
-A single archive would work well with MapLibre, but building it means converting
-more than 26,000 source tiles and handling seams, oceans, and missing data. It
-would also reproject the data to EPSG:3857. At zoom 12 this is about 38 m per
-pixel at the equator, which is coarser than the 30 m source data.
+[Mapterhorn](https://mapterhorn.com/) already runs the
+[open-source pipeline](https://github.com/mapterhorn/mapterhorn) to combine the
+best available DEM per region. It provides global 30 m and higher resolution
+regional coverage as 512 px Terrarium WebP tiles through
+`https://tiles.mapterhorn.com/{z}/{x}/{y}.webp` and downloadable
+[PMTiles archives](https://mapterhorn.com/data-access/), which we can self-host
+if needed. Building our own archive would duplicate this.
 
 ## Decision Outcome
 
-Use **option 1**. Index GLO-30 in pgSTAC and serve it through our existing
-TiTiler, which already sends `Access-Control-Allow-Origin: *`. There is no CDN
-in front of it today; adding one would help the browser tile path but the
-backend does not need it.
+Use **option 1 for the backend and option 3 for the browser**. Index GLO-30 in
+pgSTAC and serve it through our existing TiTiler; use Mapterhorn's public tile
+endpoint for browser sampling and terrain display.
 
 - The backend will request a GeoTIFF crop for the project area and pass it to
   the existing elevation code, writing it to the same per-project `dem.tif` so
@@ -53,16 +55,16 @@ backend does not need it.
   takes a `dem_source` of `GLO30`, `JAXA` or `UPLOAD`, with the last two behind
   the advanced toggle. The JAXA scraper has served us well and is kept as a
   fallback for as long as it keeps working.
-- The browser will request Terrarium tiles and cache them per project. The same
-  tiles can be used by MapLibre for terrain display.
+- The browser will sample and cache Mapterhorn's Terrarium tiles per plan. The
+  same tiles can be used by MapLibre for terrain display.
 
 Fetching per project avoids downloading the same tiles again for each task,
 because tasks are subdivisions of the project area.
 
-This approach uses one service for both clients, keeps the backend data in its
-native projection, and adds no DEM storage or conversion pipeline. TiTiler
-resamples onto whatever grid the requested bbox describes, so the backend must
-snap its bbox to the 1/3600 degree source grid and pass the matching `width` and
+This keeps the backend data in its native projection and adds no DEM conversion
+pipeline of our own. TiTiler resamples onto whatever grid the requested bbox
+describes, so the backend must snap its bbox to the 1/3600 degree source grid
+and pass the matching `width` and
 `height`; done that way the crop is pixel-identical to reading the COGs
 directly, including where two tiles are mosaicked across a 1 degree seam. A
 crop takes a few seconds cold and is cached warm, which is acceptable for a
@@ -73,9 +75,9 @@ once-per-project request.
 - GLO-30 becomes the default elevation source and should improve accuracy.
   AW3D30 stays selectable, so a project can fall back if GLO-30 has a void
   or the OAM raster service is down.
-- Generated flightplans may differ slightly from existing plans. Elevation is
-  measured relative to the takeoff point, so datum differences should mostly
-  cancel and remain within the current 5 m AGL threshold.
-- The static site will depend on our TiTiler service and the public AWS dataset.
+- Browser and backend plans may differ where Mapterhorn uses a higher-resolution
+  regional DEM because they no longer sample identical grids.
+- The static site will depend on Mapterhorn's public service. If needed, we can
+  self-host its published PMTiles archives without maintaining an ingest pipeline.
 - If the public dataset becomes unavailable, we can copy the same COGs to our
-  own bucket without changing either client.
+  own bucket without changing the backend.
