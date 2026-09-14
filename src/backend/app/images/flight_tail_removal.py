@@ -7,10 +7,13 @@ from app.images.flight_segments import (
     segment_break_sql,
 )
 from app.images.image_logic import reject_assigned_images
+from app.utils import calculate_angular_difference
 from app.models.enums import ImageStatus
 from loguru import logger as log
 from psycopg import Connection
 from psycopg.rows import dict_row
+
+import numpy as np
 
 '''
 def _confirm_stable_heading(project_list: list, image_index: int, steps: int) -> bool:
@@ -66,10 +69,15 @@ def _confirm_stable_heading(project_list: list, image_index: int, steps: int) ->
         return True
 '''
 
+def _angle_diff_axis(yaw_deg:float, axis: float):
+    """ Calcualtes difference on an axis """
+    diff = calculate_angular_difference(yaw_deg, axis)
+    return min(diff, 180 - diff)
+
 
 def _find_main_axis(flight_segment_images, field="yaw_deg"):
     """
-    Follows same logic from 'find_axis' suggested flight tail removal focused on 'FlightYawDegree' to find
+    Follows same logic from the 'find_axis' suggested flight tail removal focused on 'FlightYawDegree' to find
     main axis/baseline for flight segment.
     """
     # Count up flight headings, treating 180-degree rotations as equivalent
@@ -101,6 +109,40 @@ def _find_main_axis(flight_segment_images, field="yaw_deg"):
     average_heading = sum(aligned_headings) / len(aligned_headings)
 
     return (best_h + average_heading) % 180
+
+
+def _is_already_in_mission(flight_segment_row: dict, median_alt: float):
+    """
+    Returns true whether image is already in mid-air flight mission based on altitude, gimbal pitch and if vertical candidate. 
+    """ 
+    image_alt = flight_segment_row.get("altitude_m")
+    image_gimbal = flight_segment_row.get("gimbal_pitch_deg")
+    image_vertical = flight_segment_row.get("vertical_candidate")
+
+    if not flight_segment_row: 
+        return False
+
+    if image_vertical:
+        return False
+
+    if image_alt is None or np.isnan(median_alt) or float(image_alt) < (median_alt * 0.85):
+        return False
+
+    if image_gimbal is None or float(image_gimbal) > -65.0:
+        return False
+
+    return True
+
+
+def is_aligned_with_axis(yaw_deg: float, axis: float):
+    """ Checks if current yaw degree is aligned with main and perpendicular axis.
+    """
+    if yaw_deg is None:
+        return False
+    diff_main = _angle_diff_axis(yaw_deg, axis)
+    diff_perp = _angle_diff_axis(yaw_deg, axis + 90)
+
+    return min(diff_main, diff_perp) < 18
 
 
 async def _flag_flight_tail_images(
@@ -294,8 +336,9 @@ async def mark_and_remove_flight_tail_imagery(
             )
             continue
 
-        # Find global mission axis for the flight segment based on yaw_deg
+        # Find global mission axis and median altitude for the flight segment based on yaw_deg ant altitude_m
         global_mission_axis = _find_main_axis(segment, "yaw_deg")
+        median_alt = np.median([float(row.get('altitude_m')) for row in segment if row.get("altitude_m") is not None])
 
         # Mark vertical candidates
         for i, row in enumerate(segment):
@@ -332,75 +375,46 @@ async def mark_and_remove_flight_tail_imagery(
 
         takeoff_tails_indices = []
         landing_tails_indices = []
-
-        takeoff_aligned_with_mission_counter = 0
+   
+        # TAKEOFF DETECTION
         for i in range(search_limit):
+            # Grab takeoff parameters
             image_yaw_to = segment[i].get("yaw_deg")
-            image_gimbal_to = segment[i].get("gimbal_pitch_deg")
-            image_vertical_to = segment[i].get("vertical_candidate")
 
-            # Skip none values
-            if image_yaw_to is None:
-                continue
-
-            # Check gimbal pitch and if vertical candidate
-            if (image_gimbal_to == 0) or (image_vertical_to is True):
-                takeoff_aligned_with_mission_counter = 0
-                takeoff_tails_indices.append(i)
-                continue
-
-            # Compare if current yaw degree is aligned with mission axis within 15 degrees
-            yaw_diff_to = abs((image_yaw_to % 180) - global_mission_axis)
-            yaw_aligned_to = min(yaw_diff_to, 180 - yaw_diff_to) < 15
-
-            # Check yaw alignment
-            if yaw_aligned_to:
-                takeoff_aligned_with_mission_counter += 1
-            else:
-                takeoff_aligned_with_mission_counter = 0
-                takeoff_tails_indices.append(i)
-
-            # Check at least 3 photos are within the mission-axis dimensions
-            if takeoff_aligned_with_mission_counter >= 3:
+            # Check if image is already in mission and whether if aligned with  main and perpendicular axis
+            if _is_already_in_mission(segment[i], median_alt) and is_aligned_with_axis(image_yaw_to, global_mission_axis):
                 break
+
+            # If not append as a takeoff tail
+            takeoff_tails_indices.append(i)
+
+        # Clear if only one photo marked as takeoff tail
+        if len(takeoff_tails_indices) == 1:
+            if _is_already_in_mission(segment[takeoff_tails_indices[0]], median_alt):
+                takeoff_tails_indices.clear()
 
         # LANDING DETECTION (similar logic, working backwards)
         landing_search_start = segment_length - 1
         landing_search_end = max(segment_length - search_limit, 0)
-
-        landing_aligned_with_mission_counter = 0
-        for i in range(landing_search_start, landing_search_end, -1):
+        
+        for i in range(landing_search_start, landing_search_end - 1, -1):
+            # Grab landing parameters
             image_yaw_land = segment[i].get("yaw_deg")
-            image_gimbal_land = segment[i].get("gimbal_pitch_deg")
-            image_vertical_land = segment[i].get("vertical_candidate")
 
-            # Skip none values
-            if image_yaw_land is None:
-                continue
-
-            # Check gimbal pitch and if vertical candidate
-            if (image_gimbal_land == 0) or (image_vertical_land is True):
-                landing_aligned_with_mission_counter = 0
-                landing_tails_indices.append(i)
-                continue
-
-            # Compare if current yaw degree is aligned with mission axis within 15 degrees
-            yaw_diff_land = abs((image_yaw_land % 180) - global_mission_axis)
-            yaw_aligned_land = min(yaw_diff_land, 180 - yaw_diff_land) < 15
-
-            # Check yaw alignment
-            if yaw_aligned_land:
-                landing_aligned_with_mission_counter += 1
-            else:
-                landing_aligned_with_mission_counter = 0
-                landing_tails_indices.append(i)
-
-            # Check at least 3 photos are within the mission-axis dimensions
-            if landing_aligned_with_mission_counter >= 3:
+             # Check if image is already in mission and whether if aligned with main and perpendicular axis
+            if _is_already_in_mission(segment[i], median_alt) and is_aligned_with_axis(image_yaw_land, global_mission_axis):
                 break
 
+             # If not append as a landing tail
+            landing_tails_indices.append(i)
+
+        # Clear if only one photo marked as landing tail
+        if len(landing_tails_indices) == 1:
+            if _is_already_in_mission(segment[landing_tails_indices[0]], median_alt):
+                landing_tails_indices.clear()
+
         # Apply safety checks
-        all_tail_indices = takeoff_tails_indices + landing_tails_indices
+        all_tail_indices = set(takeoff_tails_indices + landing_tails_indices)
         print(f"Mission Axis: {global_mission_axis}")
         print(f"Total tails found: {len(all_tail_indices)}")
         if all_tail_indices:
