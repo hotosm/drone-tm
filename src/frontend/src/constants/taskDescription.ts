@@ -34,6 +34,21 @@ export const droneModelOptions = [
   { label: "QGroundControl", value: "QGROUNDCONTROL" },
 ];
 
+// Flightplan file extension per drone model, mirroring the backend
+// OUTPUT_FORMAT mapping (app/waypoints/flightplan_output.py).
+const flightplanFileExtensions: Record<string, string> = {
+  DJI_MINI_4_PRO: ".kmz",
+  DJI_MINI_5_PRO: ".kmz",
+  DJI_AIR_3: ".kmz",
+  POTENSIC_ATOM_1: ".db",
+  POTENSIC_ATOM_2: ".zip",
+  LITCHI: ".csv",
+  QGROUNDCONTROL: ".plan",
+};
+
+export const getFlightplanFileExtension = (droneModel: string) =>
+  flightplanFileExtensions[droneModel] ?? ".kmz";
+
 // Numeric gimbal angle values - not localized.
 export const gimbalAngleOptions = [
   { label: "-80", value: "-80" },

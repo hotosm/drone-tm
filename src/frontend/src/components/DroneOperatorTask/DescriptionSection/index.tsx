@@ -9,6 +9,7 @@ import { sendDjiGoFileViaAdb, sendPotensicProFileViaAdb } from "@Utils/adb";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
 import { buildFlightPlanQuery } from "@Utils/index";
 import useTaskParams from "@Hooks/useTaskParams";
+import { getFlightplanFileExtension } from "@Constants/taskDescription";
 import { getRuntimeConfig } from "@/runtimeConfig";
 import { m } from "@/paraglide/messages";
 import MapSection from "../MapSection/MapSection";
@@ -288,7 +289,9 @@ const DroneOperatorDescriptionBox = () => {
                   }}
                 >
                   {"💾 "}
-                  {m.drone_task_download_flightplan_controller()}
+                  {m.drone_task_download_flightplan_controller({
+                    extension: getFlightplanFileExtension(droneModel),
+                  })}
                 </div>
                 <div
                   className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
