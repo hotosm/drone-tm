@@ -1,0 +1,21 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Small rotated AOI" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [85.3001, 27.7001],
+            [85.3062, 27.7028],
+            [85.3041, 27.7079],
+            [85.2981, 27.7052],
+            [85.3001, 27.7001]
+          ]
+        ]
+      }
+    }
+  ]
+}

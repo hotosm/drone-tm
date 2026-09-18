@@ -1,0 +1,30 @@
+{
+  "name": "drone-tm-flight-planner",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Standalone offline-capable drone flightplan generator (plan.drone.hotosm.org)",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@awesome.me/webawesome": "3.11.0",
+    "@hotosm/ui": "^2.1.3",
+    "@mapbox/mapbox-gl-draw": "^1.5.0",
+    "geotiff": "^2.1.3",
+    "maplibre-gl": "^4.7.1"
+  },
+  "devDependencies": {
+    "@types/mapbox__mapbox-gl-draw": "^1.4.8",
+    "@types/node": "^22.20.1",
+    "typescript": "^5.9.2",
+    "vite": "^5.4.11",
+    "vite-plugin-pwa": "^0.21.1",
+    "vitest": "^2.1.9"
+  }
+}

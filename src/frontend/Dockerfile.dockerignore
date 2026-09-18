@@ -5,6 +5,10 @@
 !gcp-editor/**
 !drone-mesh
 !drone-mesh/**
+!flight-planner
+!flight-planner/**
+!qfield-plugin
+!qfield-plugin/**
 !pnpm-workspace.yaml
 !pnpm-lock.yaml
 # Do not include node_modules & dists

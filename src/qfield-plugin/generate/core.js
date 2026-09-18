@@ -97,9 +97,9 @@ function generate(polygonCoords, config) {
         rotationAngle = Grid.calculateOptimalRotationAngle(poly3857);
     }
 
-    // Generate grid within AOI
+    // Omit sideOverlap to match the Python grid's default corner threshold.
     var grid = Grid.generateGridInAoi(
-        poly3857, forwardSpacing, sideSpacing, rotationAngle, sideOverlap
+        poly3857, forwardSpacing, sideSpacing, rotationAngle
     );
 
     // Create flight path with snake pattern

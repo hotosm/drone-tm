@@ -100,17 +100,7 @@ polygon_3857 = transform(transformer_to_3857, polygon)
 auto_angle = calculate_optimal_rotation_angle(polygon_3857)
 print(f"\nAuto-calculated rotation angle: {auto_angle:.4f} degrees")
 
-# Note: create_flightplan.py does `rotation_angle = 360 - rotation_angle` before calling create_waypoint.
-# But create_waypoint itself handles auto_rotation independently when rotation_angle is 0 or 360.
-# So for auto-rotation, we pass rotation_angle=360 (which is 360-0=360 from create_flightplan).
-# Actually, looking more carefully:
-#   - create_flightplan: rotation_angle = 360 - rotation_angle (so 0 -> 360)
-#   - create_waypoint: if rotation_angle in [0.0, 360.0] and auto_rotation: calculate auto
-# The JS core.js does the same: rotationAngle = 360 - rotationAngle, then
-#   if autoRotation && (rotationAngle === 0 || rotationAngle === 360): auto-calculate
-# So we need to pass rotation_angle=360 (simulating the 360-0 transform) to create_waypoint,
-# OR pass rotation_angle=0 and let auto_rotation handle it.
-# Actually create_waypoint checks `rotation_angle in [0.0, 360.0]` so passing 360 works fine.
+# create_waypoint uses None to enable auto-rotation.
 
 # Run 1: Auto rotation, GSD=3.5, 75% overlap, waylines, no take_off_point
 result1 = create_waypoint(
@@ -119,7 +109,7 @@ result1 = create_waypoint(
     gsd=3.5,
     forward_overlap=75,
     side_overlap=75,
-    rotation_angle=360.0,  # 360 - 0 = 360, triggers auto_rotation
+    rotation_angle=None,
     generate_3d=False,
     take_off_point=None,
     mode=FlightMode.WAYLINES,
@@ -158,7 +148,7 @@ result3 = create_waypoint(
     gsd=3.5,
     forward_overlap=75,
     side_overlap=75,
-    rotation_angle=360.0,
+    rotation_angle=None,
     generate_3d=False,
     take_off_point=None,
     mode=FlightMode.WAYPOINTS,

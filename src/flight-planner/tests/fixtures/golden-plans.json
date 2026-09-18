@@ -1,0 +1,116 @@
+{
+  "kathmandu-auto-waylines": {
+    "waypointCount": 308,
+    "photoCount": 0,
+    "parameters": {
+      "forward_photo_height": 111,
+      "side_photo_width": 140,
+      "forward_spacing": 27.67,
+      "side_spacing": 34.94,
+      "ground_speed": 11.5,
+      "altitude_above_ground_level": 111.8,
+      "adjusted_max_battery_life": 17.98
+    },
+    "batteryWarning": true,
+    "estimatedFlightTimeMinutes": 1140.9,
+    "firstWaypoint": [85.3199057, 27.6798527, 111.8],
+    "lastWaypoint": [85.2800351, 27.6798527, 111.8],
+    "firstHeading": 90,
+    "lastHeading": -90
+  },
+  "small-auto-waylines": {
+    "waypointCount": 48,
+    "photoCount": 0,
+    "parameters": {
+      "forward_photo_height": 111,
+      "side_photo_width": 140,
+      "forward_spacing": 27.67,
+      "side_spacing": 34.94,
+      "ground_speed": 11.5,
+      "altitude_above_ground_level": 111.8,
+      "adjusted_max_battery_life": 17.98
+    },
+    "batteryWarning": true,
+    "estimatedFlightTimeMinutes": 28.95,
+    "firstWaypoint": [85.2999091, 27.7001089, 111.8],
+    "lastWaypoint": [85.2979682, 27.7051826, 111.8],
+    "firstHeading": 90,
+    "lastHeading": -90
+  },
+  "small-fixed-rotation-45": {
+    "waypointCount": 60,
+    "photoCount": 0,
+    "parameters": {
+      "forward_photo_height": 111,
+      "side_photo_width": 140,
+      "forward_spacing": 27.67,
+      "side_spacing": 34.94,
+      "ground_speed": 11.5,
+      "altitude_above_ground_level": 111.8,
+      "adjusted_max_battery_life": 17.98
+    },
+    "batteryWarning": true,
+    "estimatedFlightTimeMinutes": 29.87,
+    "firstWaypoint": [85.3055317, 27.7023264, 111.8],
+    "lastWaypoint": [85.2978504, 27.7049879, 111.8],
+    "firstHeading": 90,
+    "lastHeading": -90
+  },
+  "small-waypoints-mode": {
+    "waypointCount": 609,
+    "photoCount": 569,
+    "parameters": {
+      "forward_photo_height": 111,
+      "side_photo_width": 140,
+      "forward_spacing": 27.67,
+      "side_spacing": 34.94,
+      "ground_speed": 11.5,
+      "altitude_above_ground_level": 111.8,
+      "adjusted_max_battery_life": 17.98
+    },
+    "batteryWarning": true,
+    "estimatedFlightTimeMinutes": 24.61,
+    "firstWaypoint": [85.2998701, 27.7001108, 111.8],
+    "lastWaypoint": [85.2978704, 27.7051287, 111.8],
+    "firstHeading": 90,
+    "lastHeading": -90
+  },
+  "small-explicit-agl": {
+    "waypointCount": 48,
+    "photoCount": 0,
+    "parameters": {
+      "forward_photo_height": 119,
+      "side_photo_width": 150,
+      "forward_spacing": 29.7,
+      "side_spacing": 37.5,
+      "ground_speed": 11.5,
+      "altitude_above_ground_level": 120,
+      "adjusted_max_battery_life": 17.98
+    },
+    "batteryWarning": true,
+    "estimatedFlightTimeMinutes": 28.94,
+    "firstWaypoint": [85.2999092, 27.7001088, 120],
+    "lastWaypoint": [85.2979699, 27.7051797, 120],
+    "firstHeading": 90,
+    "lastHeading": -90
+  },
+  "small-potensic": {
+    "waypointCount": 48,
+    "photoCount": 0,
+    "parameters": {
+      "forward_photo_height": 129,
+      "side_photo_width": 162,
+      "forward_spacing": 32.19,
+      "side_spacing": 40.49,
+      "ground_speed": 11.5,
+      "altitude_above_ground_level": 138.44,
+      "adjusted_max_battery_life": 20.24
+    },
+    "batteryWarning": true,
+    "estimatedFlightTimeMinutes": 28.97,
+    "firstWaypoint": [85.2999098, 27.7001085, 138.44],
+    "lastWaypoint": [85.2977957, 27.7050799, 138.44],
+    "firstHeading": 90,
+    "lastHeading": -90
+  }
+}
