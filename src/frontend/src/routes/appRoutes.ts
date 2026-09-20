@@ -43,8 +43,6 @@ const appRoutes: IRoute[] = [
     component: Tutorials,
   },
   {
-    // The project list endpoint is login-only, so an anonymous visitor would
-    // otherwise land on an empty page. Send them to log in instead.
     path: "/projects",
     name: "Projects ",
     component: Projects,
