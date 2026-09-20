@@ -288,3 +288,48 @@ export function buildFlightPlanQuery({
   }
   return params.toString();
 }
+
+/** Build a planner URL for a project or task handoff. */
+export function buildFlightPlannerUrl({
+  projectId,
+  taskId,
+}: {
+  projectId: string;
+  taskId?: string;
+}): string {
+  const apiUrl = getRuntimeConfig("VITE_API_URL", "/api");
+  const plannerUrl = getRuntimeConfig("VITE_FLIGHT_PLANNER_URL", "/plan/");
+  const boundaries = `${apiUrl}/projects/${projectId}/download-boundaries`;
+
+  // Use the project bounds for the DEM extent.
+  const projectAoi = `${boundaries}?export_type=geojson`;
+  const aoi = taskId
+    ? `${boundaries}?task_id=${taskId}&split_area=true&export_type=geojson`
+    : projectAoi;
+
+  const params = new URLSearchParams({
+    project: projectId,
+    aoi: new URL(aoi, window.location.origin).toString(),
+    project_aoi: new URL(projectAoi, window.location.origin).toString(),
+  });
+  if (taskId) params.set("task", taskId);
+
+  return `${plannerUrl}${plannerUrl.includes("?") ? "&" : "?"}${params.toString()}`;
+}
+
+/** Build a URL that saves every project task for offline planning. */
+export function buildFlightPlannerSeedUrl(projectId: string): string {
+  const apiUrl = getRuntimeConfig("VITE_API_URL", "/api");
+  const plannerUrl = getRuntimeConfig("VITE_FLIGHT_PLANNER_URL", "/plan/");
+  const project = `${apiUrl}/projects/${projectId}`;
+  const absolute = (path: string) => new URL(path, window.location.origin).toString();
+
+  const params = new URLSearchParams({
+    project: projectId,
+    tasks: absolute(`${project}/download-boundaries?split_area=true&export_type=geojson`),
+    project_aoi: absolute(`${project}/download-boundaries?export_type=geojson`),
+    params: absolute(`${project}/flightplanner-params`),
+  });
+
+  return `${plannerUrl}${plannerUrl.includes("?") ? "&" : "?"}${params.toString()}`;
+}

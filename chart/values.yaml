@@ -133,10 +133,9 @@ frontend:
     pullPolicy: IfNotPresent
   # Runtime config injected into `/config.js` at pod start.
   # VITE_API_URL defaults to `/api` (same-origin, path-based).
-  # VITE_FLIGHT_PLANNER_URL defaults to the bundled `/plan/` app.
+  # VITE_FLIGHT_PLANNER_URL defaults to `/plan/`.
   runtimeEnv: {}
   #   VITE_API_URL: "/api"
-  #   VITE_FLIGHT_PLANNER_URL: "https://plan.drone.hotosm.org"
 
   mode: "bundleWithBackend"
 
@@ -153,9 +152,6 @@ frontend:
     # Only used when auto-creating a new distribution:
     aliases: []                 # e.g. ["tasks.hotosm.org"]
     acmCertificateArn: ""       # Required when aliases are set.
-    # Each hostname must also be listed in `aliases` and covered by the ACM cert.
-    subdomainApps: {}
-    #   plan.drone.hotosm.org: plan
     # Difference between:
     # - _100 (USA, Canada, Europe, and Israel)
     # - _200 (+ Africa, Middle East, most of Asia)

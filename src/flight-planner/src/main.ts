@@ -24,6 +24,7 @@ import { step4 } from "./steps/step4-generate";
 import { escapeHtml } from "./steps/ui";
 import { fetchAoi, formatArea, validateRing } from "./core/aoi";
 import { fetchParams, parseParams } from "./core/params";
+import { fetchTasks, seedTaskPlans, tasksBbox } from "./core/seed";
 import { DemSampler } from "./core/dem";
 import {
   demUsage,
@@ -601,12 +602,48 @@ async function showStoredPlans(): Promise<void> {
   planDialog.open = true;
 }
 
+async function applyTaskSeeding(tasksUrl: string, projectId: string | null): Promise<void> {
+  if (!projectId) {
+    toast("That link is missing its project.", "warning");
+    return;
+  }
+
+  try {
+    const tasks = await fetchTasks(tasksUrl);
+    const bbox = state.projectBbox ?? tasksBbox(tasks);
+    const { added, skipped } = await seedTaskPlans({
+      projectId,
+      tasks,
+      params: state.params,
+      projectBbox: bbox,
+    });
+
+    // Use one terrain extent for the full project.
+    state.projectBbox = bbox;
+    state.meta.projectBbox = bbox;
+
+    if (added === 0) {
+      toast(`All ${skipped} tasks are already saved for offline use.`, "success");
+    } else {
+      toast(
+        `Saved ${added} task${added === 1 ? "" : "s"} for offline use. ` +
+          `Download the terrain to finish.`,
+        "success",
+      );
+    }
+    await showStoredPlans();
+  } catch (error) {
+    toast(error instanceof Error ? error.message : "Could not load the task areas.", "warning");
+  }
+}
+
 async function applyUrlHandoff(): Promise<void> {
   const search = new URLSearchParams(location.search);
   const aoiUrl = search.get("aoi");
   const paramsUrl = search.get("params");
   const projectAoiUrl = search.get("project_aoi");
-  if (!aoiUrl && !paramsUrl && !projectAoiUrl) return;
+  const tasksUrl = search.get("tasks");
+  if (!aoiUrl && !paramsUrl && !projectAoiUrl && !tasksUrl) return;
 
   if (projectAoiUrl) {
     try {
@@ -614,7 +651,7 @@ async function applyUrlHandoff(): Promise<void> {
       state.projectBbox = project.bbox;
       state.meta.projectBbox = project.bbox;
     } catch {
-      /* Without it the download falls back to a fixed radius. */
+      /* Fall back to the default DEM radius. */
     }
   }
 
@@ -630,14 +667,29 @@ async function applyUrlHandoff(): Promise<void> {
     }
   }
 
+  let paramsFailed = false;
   if (paramsUrl) {
     try {
       state.params = await fetchParams(paramsUrl);
       map.setTakeoff(state.params.takeoffPoint);
       if (state.aoi) state.step = 3;
     } catch (error) {
+      paramsFailed = true;
       toast(error instanceof Error ? error.message : "Could not load the settings.", "warning");
     }
+  }
+
+  if (tasksUrl) {
+    // Do not seed tasks with defaults when project settings fail.
+    if (paramsFailed) {
+      toast(
+        "Nothing was saved offline - the project's flight settings could not be read.",
+        "danger",
+      );
+      return;
+    }
+    await applyTaskSeeding(tasksUrl, search.get("project"));
+    return;
   }
 
   await context.save();

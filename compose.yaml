@@ -81,6 +81,8 @@ services:
       context: src
       dockerfile: frontend/Dockerfile
       target: development
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:${BACKEND_WEB_APP_PORT:-8000}/api}
     ports:
       - ${FRONTEND_WEB_APP_PORT:-3040}:3040
     depends_on:

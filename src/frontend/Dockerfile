@@ -21,6 +21,8 @@ RUN pnpm install && pnpm run build
 # Build the flight planner with the shared QField JavaScript.
 FROM base AS planner-build
 ARG VITE_MAIN_SITE_URL
+# API origin allowed to receive the planner session token.
+ARG VITE_API_URL
 COPY ./qfield-plugin /app/qfield-plugin
 COPY ./flight-planner /app/flight-planner
 WORKDIR /app/flight-planner

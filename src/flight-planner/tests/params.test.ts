@@ -24,8 +24,26 @@ describe("parseParams", () => {
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(ParamsError);
-      expect((error as ParamsError).message).toMatch(/0\.3-20/);
+      expect((error as ParamsError).message).toMatch(/0\.1-20/);
     }
+  });
+
+  it("accepts the settings a DroneTM project can legally hold", () => {
+    expect(parseParams({ forwardOverlap: 10, sideOverlap: 15 })).toMatchObject({
+      forwardOverlap: 10,
+      sideOverlap: 15,
+    });
+    expect(parseParams({ forwardOverlap: 0, sideOverlap: 0 })).toMatchObject({
+      forwardOverlap: 0,
+      sideOverlap: 0,
+    });
+    expect(parseParams({ gsd: 0.5 })).toMatchObject({ gsd: 0.5 });
+  });
+
+  it("still refuses settings that cannot produce a flightplan", () => {
+    expect(() => parseParams({ sideOverlap: 100 })).toThrow(ParamsError);
+    expect(() => parseParams({ forwardOverlap: 100 })).toThrow(ParamsError);
+    expect(() => parseParams({ gsd: 0.05 })).toThrow(ParamsError);
   });
 
   it("rejects a non-numeric value", () => {
@@ -55,7 +73,7 @@ describe("parseParams", () => {
   });
 
   it("blocks invalid values entered in the form", () => {
-    expect(paramsBlocker({ ...DEFAULT_PARAMS, forwardOverlap: 0 })).toMatch(/20-95/);
+    expect(paramsBlocker({ ...DEFAULT_PARAMS, forwardOverlap: 100 })).toMatch(/0-99/);
     expect(paramsBlocker(DEFAULT_PARAMS)).toBeNull();
   });
 });

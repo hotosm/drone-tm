@@ -1,7 +1,7 @@
 # DroneTM Flight Planner
 
-A standalone, offline-capable flight plan generator for
-[plan.drone.hotosm.org](https://plan.drone.hotosm.org). Pilots can draw or
+An offline-capable flight plan generator, served at
+[drone.hotosm.org/plan](https://drone.hotosm.org/plan). Pilots can draw or
 upload an area, configure a flight, fetch terrain data, and export `.kmz`,
 `.wpml`, or `.geojson` mission files.
 
@@ -56,6 +56,13 @@ the canonical implementation.
 Terrain sampling mirrors the backend's Copernicus GLO-30 grid logic. Plans and
 terrain data are stored locally in OPFS.
 
-The frontend image builds the planner and serves it at `/plan`. The main
-frontend links to it through `VITE_FLIGHT_PLANNER_URL`, which defaults to
-`/plan/`.
+The frontend image builds the planner and serves it at `/plan`, on the main
+app's origin. That is what makes the handoff work: the URL parameters above
+point at the DroneTM API, and the planner authenticates those fetches with the
+session token the React app keeps in `localStorage`, reading the API origin
+from the `/config.js` the deployment generates.
+
+The `dist/` output is also a complete static site, so it can be hosted anywhere
+on its own. Without `/config.js` it trusts no other origin and sends no token,
+so handoff links degrade to drawing the area by hand - everything else, terrain
+included, works the same.

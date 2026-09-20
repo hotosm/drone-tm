@@ -67,25 +67,10 @@ The distribution combines two rules:
   They don't conflict: the function runs first and only touches sub-app paths;
   everything else falls through to the SPA fallback.
 
-  The same function can give a sub-app its own hostname via
-  `frontend.cloudfront.subdomainApps`, which prefixes every URI on that host:
-
-  ```yaml
-  frontend:
-    runtimeEnv:
-      VITE_FLIGHT_PLANNER_URL: "https://plan.drone.hotosm.org"
-    cloudfront:
-      aliases: ["drone.hotosm.org", "plan.drone.hotosm.org"]
-      acmCertificateArn: "arn:aws:acm:us-east-1:...:certificate/..."
-      subdomainApps:
-        plan.drone.hotosm.org: plan
-  ```
-
-  No second bucket or distribution: `plan.drone.hotosm.org` is an alias on the
-  same distribution, pointed at the `plan/` prefix of the same S3 path.
-  `subdomainApps` is reconciled on every deploy, but `aliases` is not (see the
-  note below), so on an *existing* distribution add the alias and the Route53
-  record yourself; only `subdomainApps` needs to be in values.
+  Sub-apps are served from the main app's origin on purpose: `/plan` reads the
+  session token the React app stores, which is what lets a project or task hand
+  off to the planner. On a separate host the planner still works, but only as a
+  standalone tool with the area drawn by hand.
 
 #### DNS Architecture
 
@@ -114,7 +99,6 @@ and configure CORS so the frontend can call the API cross-origin.
 | `frontend.cloudfront.version` | S3 path prefix (defaults to `appVersion`; set to older version to rollback) | `""` |
 | `frontend.cloudfront.aliases` | Custom domain aliases, applied only when the distribution is created | `[]` |
 | `frontend.cloudfront.acmCertificateArn` | ACM certificate ARN (required when `aliases` is set) | `""` |
-| `frontend.cloudfront.subdomainApps` | Map of hostname → bundled sub-app served at that host's root | `{}` |
 | `frontend.cloudfront.priceClass` | CloudFront price class | `"PriceClass_All"` |
 
 #### Versioned Deployments & Rollback

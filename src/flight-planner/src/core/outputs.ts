@@ -117,7 +117,7 @@ export function buildPlanBundle(
         `Created:   ${meta.createdAt}\n` +
         `DEM:       ${meta.dem ? `${meta.dem.source}, ${meta.dem.width}x${meta.dem.height} px` : "none"}\n\n` +
         "aoi.geojson    the flight area\n" +
-        "params.json    the flight parameters, re-uploadable to plan.drone.hotosm.org\n" +
+        "params.json    the flight parameters, re-uploadable to the flight planner\n" +
         "dem.tif        the terrain the altitudes were sampled from, cropped to this area\n" +
         "*.geojson      the generated waypoints and flight path\n" +
         "*.kmz / *.wpml the mission files for the controller\n",

@@ -86,21 +86,15 @@ spec:
 
               # ── 1b. Ensure the sub-app router CloudFront Function ───────────
               # Route bundled apps before the main SPA fallback.
-              # Prefix requests when a hostname is dedicated to a sub-app.
+              #   /<app>   -> 301 to /<app>/
+              #   /<app>/  -> /<app>/index.html
               FUNC_NAME="${RELEASE}-router"
               cat > /tmp/router.js <<'EOF'
               var APPS = ['mesh', 'plan'];
-              var HOST_APPS = {{ $cf.subdomainApps | default dict | toJson }};
 
               function handler(event) {
                 var request = event.request;
                 var uri = request.uri;
-
-                var hostApp = HOST_APPS[request.headers.host.value];
-                if (hostApp) {
-                  request.uri = uri === '/' ? '/' + hostApp + '/index.html' : '/' + hostApp + uri;
-                  return request;
-                }
 
                 for (var i = 0; i < APPS.length; i++) {
                   if (uri === '/' + APPS[i]) {

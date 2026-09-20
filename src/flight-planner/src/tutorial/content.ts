@@ -102,8 +102,9 @@ export const HINTS = {
   agl: "Metres above the takeoff point.",
   detailMode:
     "Most pilots set detail. Set altitude directly if you have a height limit to respect.",
-  forwardOverlap: "How much each photo overlaps the next along a line. 75% is safe.",
-  sideOverlap: "How much neighbouring lines overlap. 75% is safe.",
+  forwardOverlap:
+    "How much each photo overlaps the next along a line. 75% is safe; below 60% risks gaps.",
+  sideOverlap: "How much neighbouring lines overlap. 75% is safe; below 60% risks gaps.",
   flightMode:
     "Waylines is fewer waypoints and smoother flying. Waypoints gives the controller every single point.",
   gimbalAngle: "How far the camera tilts down.",

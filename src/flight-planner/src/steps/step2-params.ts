@@ -88,11 +88,11 @@ export const step2: Step = {
         <div class="pair">
           <wa-input id="forward-overlap" type="number" label="Forward overlap"
             hint="${escapeHtml(HINTS.forwardOverlap)}"
-            value="${p.forwardOverlap}" min="20" max="95" step="1"
+            value="${p.forwardOverlap}" min="0" max="99" step="1"
           ><span slot="end">%</span></wa-input>
           <wa-input id="side-overlap" type="number" label="Side overlap"
             hint="${escapeHtml(HINTS.sideOverlap)}"
-            value="${p.sideOverlap}" min="20" max="95" step="1"
+            value="${p.sideOverlap}" min="0" max="99" step="1"
           ><span slot="end">%</span></wa-input>
         </div>
 

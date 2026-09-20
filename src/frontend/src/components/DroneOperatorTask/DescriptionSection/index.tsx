@@ -7,7 +7,7 @@ import Modal from "@Components/common/Modal";
 import useWindowDimensions from "@Hooks/useWindowDimensions";
 import { sendDjiGoFileViaAdb, sendPotensicProFileViaAdb } from "@Utils/adb";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
-import { buildFlightPlanQuery } from "@Utils/index";
+import { buildFlightPlannerUrl, buildFlightPlanQuery } from "@Utils/index";
 import useTaskParams from "@Hooks/useTaskParams";
 import { getFlightplanFileExtension } from "@Constants/taskDescription";
 import { getRuntimeConfig } from "@/runtimeConfig";
@@ -346,6 +346,18 @@ const DroneOperatorDescriptionBox = () => {
                   {"📍 "}
                   {m.drone_task_area_geojson()}
                 </div>
+                <hr />
+                <a
+                  className="naxatw-block naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 naxatw-text-inherit naxatw-no-underline hover:naxatw-bg-redlight"
+                  href={buildFlightPlannerUrl({
+                    projectId: projectId as string,
+                    taskId: taskId as string,
+                  })}
+                  onClick={() => setShowDownloadOptions(false)}
+                >
+                  {"🛩️ "}
+                  {m.drone_task_open_flight_planner()}
+                </a>
               </div>
             )}
           </div>

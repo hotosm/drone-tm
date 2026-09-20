@@ -1,6 +1,7 @@
 import { DEFAULT_PARAMS, type PlanParams } from "./flightplan";
 import { DRONE_CHOICES } from "./qfield";
 import type { DroneTypeKey, FlightModeKey, GimbalAngleKey } from "./types";
+import { dtmFetch } from "./http";
 
 export class ParamsError extends Error {
   readonly guidance: string;
@@ -91,16 +92,17 @@ export function parseParams(raw: unknown): PlanParams {
     gimbalAngle: gimbalAngle as GimbalAngleKey,
     flightMode: flightMode as FlightModeKey,
     useGsd: bool(input.useGsd, DEFAULT_PARAMS.useGsd),
-    gsd: num(input.gsd, DEFAULT_PARAMS.gsd, { min: 0.3, max: 20, label: "gsd" }),
+    // Reject only values that can collapse flight-line spacing.
+    gsd: num(input.gsd, DEFAULT_PARAMS.gsd, { min: 0.1, max: 20, label: "gsd" }),
     agl: num(input.agl, DEFAULT_PARAMS.agl, { min: 10, max: 500, label: "agl" }),
     forwardOverlap: num(input.forwardOverlap, DEFAULT_PARAMS.forwardOverlap, {
-      min: 20,
-      max: 95,
+      min: 0,
+      max: 99,
       label: "forwardOverlap",
     }),
     sideOverlap: num(input.sideOverlap, DEFAULT_PARAMS.sideOverlap, {
-      min: 20,
-      max: 95,
+      min: 0,
+      max: 99,
       label: "sideOverlap",
     }),
     autoRotation: bool(input.autoRotation, DEFAULT_PARAMS.autoRotation),
@@ -147,11 +149,13 @@ export async function readParamsFile(file: File): Promise<PlanParams> {
 }
 
 export async function fetchParams(url: string): Promise<PlanParams> {
-  const response = await fetch(url);
+  const response = await dtmFetch(url);
   if (!response.ok) {
     throw new ParamsError(
       `Could not load the parameters (${response.status}).`,
-      "The link may have expired. Fill the form in by hand instead.",
+      response.status === 401 || response.status === 403
+        ? "Sign in to DroneTM, then open this link again - or fill the form in by hand."
+        : "The link may have expired. Fill the form in by hand instead.",
     );
   }
   return parseParams(await response.json());

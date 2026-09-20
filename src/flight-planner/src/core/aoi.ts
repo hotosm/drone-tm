@@ -1,4 +1,5 @@
 import { ringBbox, type Bbox } from "./dem";
+import { dtmFetch } from "./http";
 
 export interface AoiResult {
   ring: Array<[number, number]>;
@@ -210,11 +211,13 @@ export async function readAoiFile(file: File): Promise<AoiResult> {
 }
 
 export async function fetchAoi(url: string): Promise<AoiResult> {
-  const response = await fetch(url);
+  const response = await dtmFetch(url);
   if (!response.ok) {
     throw new AoiError(
       `Could not load the area (${response.status}).`,
-      "The link may have expired. Draw the area on the map instead.",
+      response.status === 401 || response.status === 403
+        ? "Sign in to DroneTM, then open this link again - or draw the area on the map."
+        : "The link may have expired. Draw the area on the map instead.",
     );
   }
   const ring = singlePolygonRing(await response.json());

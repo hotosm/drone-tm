@@ -22,7 +22,7 @@ import {
 import { MemoryBackend, useMemory } from "./memory-backend";
 
 Object.defineProperty(globalThis, "location", {
-  value: new URL("https://plan.drone.hotosm.org/"),
+  value: new URL("https://drone.hotosm.org/plan/"),
   configurable: true,
 });
 
