@@ -1,5 +1,7 @@
 // OPFS storage with an IndexedDB fallback.
 
+import { COVERAGE_MARGIN_PX, GRID_ORIGIN, PIXEL_DEG, bboxContains, type Bbox } from "./dem";
+
 export interface StorageBackend {
   readonly kind: "opfs" | "indexeddb";
   put(path: string, data: ArrayBuffer | string): Promise<void>;
@@ -172,6 +174,22 @@ export async function storageEstimate(): Promise<{ usage: number; quota: number 
   }
 }
 
+/** Metadata for a DEM in the shared store. */
+export interface DemEntry {
+  key: string;
+  bbox: Bbox;
+  width: number;
+  height: number;
+  sourceUrl: string;
+  fetchedAt: string;
+  byteLength: number;
+  source: "GLO30" | "UPLOAD";
+  /** What this download was sized to cover, for the stored terrain list. */
+  label?: string;
+}
+
+export type PlanDem = Omit<DemEntry, "key"> & { key?: string };
+
 export interface PlanMeta {
   id: string;
   name: string;
@@ -179,17 +197,11 @@ export interface PlanMeta {
   updatedAt: string;
   areaM2?: number;
   generatedAt?: string;
-  dem?: {
-    bbox: [number, number, number, number];
-    width: number;
-    height: number;
-    sourceUrl: string;
-    fetchedAt: string;
-    byteLength: number;
-    source: "GLO30" | "UPLOAD";
-  };
+  dem?: PlanDem;
   projectId?: string;
   taskId?: string;
+  /** Project outline bounds from the handoff, so offline reloads keep them. */
+  projectBbox?: Bbox;
 }
 
 const planDir = (id: string) => `plans/${id}`;
@@ -240,11 +252,179 @@ export async function updatePlanMeta(
   return meta;
 }
 
-export async function deleteDem(id: string): Promise<void> {
+export const demPath = {
+  tif: (key: string) => `dems/${key}.tif`,
+  meta: (key: string) => `dems/${key}.json`,
+};
+
+const gridIndex = (value: number) => Math.round((value - GRID_ORIGIN) / PIXEL_DEG);
+
+/** Keys GLO-30 crops by their snapped grid bounds. */
+export function glo30DemKey(bbox: Bbox): string {
+  const [minx, miny, maxx, maxy] = bbox.map(gridIndex);
+  return `glo30_${minx}_${miny}_${maxx}_${maxy}`;
+}
+
+/** 96 bits of SHA-256: enough to keep one pilot's files apart. */
+const HASH_HEX_CHARS = 24;
+
+function fnv1a(bytes: ArrayBuffer): string {
+  const view = new Uint8Array(bytes);
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < view.length; i++) {
+    hash ^= view[i];
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
+}
+
+/** Hashes uploaded DEMs to prevent key collisions. */
+export async function contentHash(bytes: ArrayBuffer): Promise<string> {
+  try {
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    return [...new Uint8Array(digest)]
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("")
+      .slice(0, HASH_HEX_CHARS);
+  } catch {
+    // crypto.subtle needs a secure context; the app still runs without one.
+    return `${fnv1a(bytes)}${bytes.byteLength.toString(36)}`;
+  }
+}
+
+export async function uploadDemKey(name: string, bytes: ArrayBuffer): Promise<string> {
+  const slug =
+    name
+      .replace(/\.[^.]+$/, "")
+      .replace(/[^\w-]+/g, "-")
+      .slice(0, 40) || "dem";
+  return `upload_${slug}_${await contentHash(bytes)}`;
+}
+
+export async function demKeyFor(dem: PlanDem, bytes: ArrayBuffer): Promise<string> {
+  return dem.source === "UPLOAD"
+    ? uploadDemKey(dem.sourceUrl.replace(/^upload:/, ""), bytes)
+    : glo30DemKey(dem.bbox);
+}
+
+export async function putDem(entry: DemEntry, bytes: ArrayBuffer): Promise<void> {
+  await getBackend().put(demPath.tif(entry.key), bytes);
+  await writeJson(demPath.meta(entry.key), entry);
+}
+
+export async function getDemBytes(key: string): Promise<ArrayBuffer | null> {
+  return getBackend().get(demPath.tif(key));
+}
+
+export async function listDems(): Promise<DemEntry[]> {
+  const names = await getBackend().list("dems");
+  const keys = names.filter((name) => name.endsWith(".json")).map((name) => name.slice(0, -5));
+  const entries = await Promise.all(keys.map((key) => readJson<DemEntry>(demPath.meta(key))));
+  return entries
+    .filter((entry): entry is DemEntry => entry !== null)
+    .sort((a, b) => b.fetchedAt.localeCompare(a.fetchedAt));
+}
+
+/** Finds the smallest covering DEM, defaulting to GLO-30. */
+export async function findCoveringDem(
+  bbox: Bbox,
+  options: { source?: DemEntry["source"]; marginDeg?: number } = {},
+): Promise<DemEntry | null> {
+  const { source = "GLO30", marginDeg = COVERAGE_MARGIN_PX * PIXEL_DEG } = options;
+  const covering = (await listDems())
+    .filter((entry) => entry.source === source && bboxContains(entry.bbox, bbox, marginDeg))
+    .sort((a, b) => a.width * a.height - b.width * b.height);
+
+  for (const entry of covering) {
+    // A meta file can outlive its raster if storage was evicted mid-write.
+    if (await getDemBytes(entry.key)) return entry;
+  }
+  return null;
+}
+
+export async function demUsage(): Promise<Map<string, string[]>> {
+  const usage = new Map<string, string[]>();
+  for (const plan of await listPlans()) {
+    const key = plan.dem?.key;
+    if (!key) continue;
+    usage.set(key, [...(usage.get(key) ?? []), plan.id]);
+  }
+  return usage;
+}
+
+export async function detachPlanDem(id: string): Promise<void> {
   await getBackend().remove(planPath.dem(id));
   await updatePlanMeta(id, (meta) => {
     delete meta.dem;
   });
+  await pruneUnusedDems();
+}
+
+export async function deleteStoredDem(key: string): Promise<void> {
+  for (const plan of await listPlans()) {
+    if (plan.dem?.key !== key) continue;
+    await updatePlanMeta(plan.id, (meta) => {
+      delete meta.dem;
+    });
+  }
+  const backend = getBackend();
+  await backend.remove(demPath.tif(key));
+  await backend.remove(demPath.meta(key));
+}
+
+export async function pruneUnusedDems(): Promise<number> {
+  return removeDems(await listDems());
+}
+
+/** Removes unreferenced DEMs after a reuse window. */
+export async function pruneStaleDems(maxAgeDays = 90): Promise<number> {
+  const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
+  return removeDems(
+    (await listDems()).filter((entry) => {
+      const fetched = Date.parse(entry.fetchedAt);
+      return !Number.isFinite(fetched) || fetched < cutoff;
+    }),
+  );
+}
+
+async function removeDems(entries: DemEntry[]): Promise<number> {
+  const usage = await demUsage();
+  const orphans = entries.filter((entry) => !usage.has(entry.key));
+  const backend = getBackend();
+  for (const entry of orphans) {
+    await backend.remove(demPath.tif(entry.key));
+    await backend.remove(demPath.meta(entry.key));
+  }
+  return orphans.length;
+}
+
+/** Moves legacy per-plan DEMs into the shared store. */
+export async function migrateLegacyDems(): Promise<number> {
+  let moved = 0;
+  const backend = getBackend();
+
+  for (const plan of await listPlans()) {
+    const dem = plan.dem;
+    if (!dem || dem.key) continue;
+
+    const bytes = await backend.get(planPath.dem(plan.id));
+    if (!bytes) {
+      await updatePlanMeta(plan.id, (meta) => {
+        delete meta.dem;
+      });
+      continue;
+    }
+
+    const key = await demKeyFor(dem, bytes);
+    await putDem({ ...dem, key, byteLength: bytes.byteLength }, bytes);
+    await updatePlanMeta(plan.id, (meta) => {
+      if (meta.dem) meta.dem.key = key;
+    });
+    await backend.remove(planPath.dem(plan.id));
+    moved++;
+  }
+
+  return moved;
 }
 
 // Check the AOI file so plans created before areaM2 are preserved.

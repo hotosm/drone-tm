@@ -1,16 +1,21 @@
 import type { MapController } from "./map";
 import type { AoiResult } from "./core/aoi";
-import type { DemSampler, SnappedBbox } from "./core/dem";
+import type { Bbox, DemSampler } from "./core/dem";
 import type { PlanParams, PlanResult } from "./core/flightplan";
 import { DEFAULT_PARAMS } from "./core/flightplan";
 import { planLabel } from "./core/outputs";
 import {
   newPlanId,
   deletePlan,
+  demKeyFor,
+  getDemBytes,
   planPath,
+  putDem,
   readJson,
+  updatePlanMeta,
   writeJson,
   getBackend,
+  type DemEntry,
   type PlanMeta,
 } from "./core/storage";
 
@@ -21,11 +26,15 @@ export interface AppState {
   params: PlanParams;
   dem: {
     sampler: DemSampler | null;
-    snapped: SnappedBbox | null;
     bytes: ArrayBuffer | null;
-    source: "GLO30" | "UPLOAD" | null;
+    entry: DemEntry | null;
+    fromStore: boolean;
+    saved: boolean;
     skipped: boolean;
   };
+  /** An uploaded DEM available for explicit reuse. */
+  storedUpload: DemEntry | null;
+  projectBbox: Bbox | null;
   result: PlanResult | null;
 }
 
@@ -35,7 +44,8 @@ export interface StepContext {
   refresh(): void;
   goTo(step: number): void;
   toast(message: string, variant?: "brand" | "success" | "warning" | "danger"): void;
-  save(writeDem?: boolean): Promise<void>;
+  /** Resolves true when the plan reached storage, false when it could not. */
+  save(writeDem?: boolean): Promise<boolean>;
   sheet: { collapseForMap(): void; restore(): void };
 }
 
@@ -49,8 +59,18 @@ export interface Step {
 
 export const TOTAL_STEPS = 4;
 
+export const NO_TERRAIN: AppState["dem"] = {
+  sampler: null,
+  bytes: null,
+  entry: null,
+  fromStore: false,
+  saved: false,
+  skipped: false,
+};
+
 export function resetTerrain(state: AppState): void {
-  state.dem = { sampler: null, snapped: null, bytes: null, source: null, skipped: false };
+  state.dem = { ...NO_TERRAIN };
+  state.storedUpload = null;
   delete state.meta.dem;
   state.result = null;
 }
@@ -70,51 +90,55 @@ export function initialState(): AppState {
     },
     aoi: null,
     params: { ...DEFAULT_PARAMS },
-    dem: { sampler: null, snapped: null, bytes: null, source: null, skipped: false },
+    dem: { ...NO_TERRAIN },
+    storedUpload: null,
+    projectBbox: null,
     result: null,
   };
 }
 
 export async function savePlan(state: AppState, writeDem: boolean): Promise<void> {
   const backend = getBackend();
+  const { meta, aoi, params, dem } = state;
 
   // Preserve empty handoffs, but do not keep empty standalone plans.
-  if (!state.aoi && !state.meta.projectId && !state.meta.taskId) {
-    await deletePlan(state.meta.id);
+  if (!aoi && !meta.projectId && !meta.taskId) {
+    await deletePlan(meta.id);
     return;
   }
 
-  state.meta.updatedAt = new Date().toISOString();
+  meta.updatedAt = new Date().toISOString();
 
-  if (state.aoi) {
-    state.meta.areaM2 = state.aoi.areaM2;
-    await writeJson(planPath.aoi(state.meta.id), {
+  if (aoi) {
+    meta.areaM2 = aoi.areaM2;
+    await writeJson(planPath.aoi(meta.id), {
       type: "FeatureCollection",
       features: [
         {
           type: "Feature",
-          properties: { name: planLabel(state.meta) },
-          geometry: { type: "Polygon", coordinates: [state.aoi.ring] },
+          properties: { name: planLabel(meta) },
+          geometry: { type: "Polygon", coordinates: [aoi.ring] },
         },
       ],
     });
   } else {
-    delete state.meta.areaM2;
-    delete state.meta.generatedAt;
-    delete state.meta.dem;
-    await backend.remove(planPath.aoi(state.meta.id));
-    await backend.remove(planPath.dem(state.meta.id));
+    delete meta.areaM2;
+    delete meta.generatedAt;
+    delete meta.dem;
+    await backend.remove(planPath.aoi(meta.id));
+    await backend.remove(planPath.dem(meta.id));
   }
 
-  await writeJson(planPath.params(state.meta.id), state.params);
+  await writeJson(planPath.params(meta.id), params);
 
-  if (writeDem && state.dem.bytes) {
-    await backend.put(planPath.dem(state.meta.id), state.dem.bytes);
-  } else if (!state.meta.dem) {
-    await backend.remove(planPath.dem(state.meta.id));
+  // Plans reference DEMs in the shared store.
+  if (writeDem && dem.bytes && dem.entry) {
+    await putDem(dem.entry, dem.bytes);
+    meta.dem = { ...dem.entry };
   }
+  if (!meta.dem) await backend.remove(planPath.dem(meta.id));
 
-  await writeJson(planPath.meta(state.meta.id), state.meta);
+  await writeJson(planPath.meta(meta.id), meta);
 }
 
 export async function loadPlan(id: string): Promise<{
@@ -132,7 +156,30 @@ export async function loadPlan(id: string): Promise<{
   const aoiRing = aoiDoc?.features?.[0]?.geometry?.coordinates?.[0] ?? null;
 
   const params = await readJson<unknown>(planPath.params(id));
-  const demBytes = meta.dem ? await getBackend().get(planPath.dem(id)) : null;
+  const demBytes = meta.dem ? await loadPlanDem(id, meta) : null;
 
   return { meta, aoiRing, params, demBytes };
+}
+
+/** Reads shared terrain and migrates a legacy per-plan DEM when needed. */
+async function loadPlanDem(id: string, meta: PlanMeta): Promise<ArrayBuffer | null> {
+  const dem = meta.dem;
+  if (!dem) return null;
+
+  if (dem.key) {
+    const bytes = await getDemBytes(dem.key);
+    if (bytes) return bytes;
+  }
+
+  const legacy = await getBackend().get(planPath.dem(id));
+  if (!legacy) return null;
+
+  const key = dem.key ?? (await demKeyFor(dem, legacy));
+  await putDem({ ...dem, key, byteLength: legacy.byteLength }, legacy);
+  await updatePlanMeta(id, (stored) => {
+    if (stored.dem) stored.dem.key = key;
+  });
+  await getBackend().remove(planPath.dem(id));
+  dem.key = key;
+  return legacy;
 }

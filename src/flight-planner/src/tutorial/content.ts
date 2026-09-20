@@ -15,12 +15,16 @@ export const WELCOME = {
   steps: [
     { title: "Mark the area", detail: "Draw it on the map, or upload a GeoJSON." },
     { title: "Set the flight", detail: "Pick your drone and how much detail you need." },
-    { title: "Get the terrain", detail: "One download so the drone follows the ground." },
+    {
+      title: "Get the terrain",
+      detail: "One download, covering this area and the ones around it.",
+    },
     { title: "Generate", detail: "Check the summary, then download the mission." },
   ],
   offlineNote:
-    "Download the terrain while you still have signal. After that you can " +
-    "generate and re-generate plans with no connection at all.",
+    "Download the terrain while you still have signal. It covers the area " +
+    "around your flight too, so the rest of a project's areas need no " +
+    "connection at all.",
 };
 
 export const COACH: Record<string, CoachCard> = {
@@ -60,12 +64,12 @@ export const COACH: Record<string, CoachCard> = {
   dem: {
     title: "Download the terrain",
     lead:
-      "One download of the ground height for your area, so the drone can hold a " +
-      "steady height above sloping ground.",
+      "One download of the ground height, so the drone can hold a steady height " +
+      "above sloping ground.",
     points: [
       "This is the only step that needs a connection. Do it before you head out.",
-      "It is a small file - usually well under a megabyte.",
-      "It is saved in this browser, so you can come back to it offline.",
+      "It covers the ground around your flight too - usually a whole DroneTM project.",
+      "Other areas inside that coverage pick it up automatically, with no signal.",
       "Flat site, or no signal? You can skip this and fly at a fixed altitude.",
     ],
     why:

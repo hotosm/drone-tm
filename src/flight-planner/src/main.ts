@@ -10,6 +10,7 @@ import { createSheet } from "./sheet";
 import {
   initialState,
   loadPlan,
+  NO_TERRAIN,
   savePlan,
   TOTAL_STEPS,
   type AppState,
@@ -25,15 +26,21 @@ import { fetchAoi, formatArea, validateRing } from "./core/aoi";
 import { fetchParams, parseParams } from "./core/params";
 import { DemSampler } from "./core/dem";
 import {
-  deleteDem,
+  demUsage,
   deletePlan,
+  deleteStoredDem,
+  detachPlanDem,
+  listDems,
   listPlans,
+  migrateLegacyDems,
   pruneEmptyPlans,
+  pruneStaleDems,
   storageEstimate,
   updatePlanMeta,
+  type DemEntry,
   type PlanMeta,
 } from "./core/storage";
-import { formatBytes, planLabel } from "./core/outputs";
+import { formatBytes, formatExtent, planLabel } from "./core/outputs";
 import {
   initTutorialAttribute,
   markWelcomeSeen,
@@ -169,8 +176,10 @@ const context: StepContext = {
   async save(writeDem = false) {
     try {
       await savePlan(state, writeDem);
+      return true;
     } catch {
       toast("Could not save to this browser's storage.", "warning");
+      return false;
     }
   },
   sheet,
@@ -223,9 +232,12 @@ const planBody = document.querySelector<HTMLElement>("#plans-body")!;
 const planStorage = document.querySelector<HTMLElement>("#plans-storage")!;
 const planFilterInput = document.querySelector<HTMLElement & { value: string }>("#plans-filter")!;
 
+const demBody = document.querySelector<HTMLElement>("#dems-body")!;
+
 let planCache: PlanMeta[] = [];
 let planConfirming: string | null = null;
 let planRenaming: string | null = null;
+let demConfirming: string | null = null;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -252,10 +264,103 @@ function planDetail(meta: PlanMeta): string {
   const named = Boolean(meta.name || meta.taskId);
   const bits: string[] = [];
   if (named && meta.areaM2) bits.push(formatArea(meta.areaM2));
-  bits.push(meta.dem ? `terrain ${formatBytes(meta.dem.byteLength)}` : "no terrain");
+  bits.push(meta.dem ? "terrain ready" : "no terrain");
   if (!meta.generatedAt) bits.push("draft");
   return bits.join(" · ");
 }
+
+function demDetail(entry: DemEntry, plans: number): string {
+  return [
+    formatBytes(entry.byteLength),
+    formatExtent(entry.bbox),
+    plans === 1 ? "1 plan" : `${plans} plans`,
+  ].join(" · ");
+}
+
+function renderDemList(entries: DemEntry[], usage: Map<string, string[]>): void {
+  if (entries.length === 0) {
+    demBody.innerHTML = `<p class="muted">No terrain saved yet. Downloading it once covers
+      the area around it, including the other tasks of a project.</p>`;
+    return;
+  }
+
+  demBody.innerHTML = `<ul class="plan-list">${entries
+    .map((entry) => {
+      const key = escapeHtml(entry.key);
+      const plans = usage.get(entry.key)?.length ?? 0;
+      const confirm =
+        demConfirming === entry.key
+          ? `<div class="plan-confirm">
+               <span>${
+                 plans > 0
+                   ? `Delete this terrain? ${plans === 1 ? "1 plan" : `${plans} plans`} use it.`
+                   : "Delete this terrain?"
+               }</span>
+               <div class="plan-confirm-actions">
+                 <wa-button data-dem-cancel appearance="plain" size="s">Cancel</wa-button>
+                 <wa-button data-dem-delete="${key}" variant="danger" size="s">Delete</wa-button>
+               </div>
+             </div>`
+          : "";
+
+      return `
+        <li class="plan-row" data-key="${key}">
+          <div class="plan-main">
+            <div class="plan-open">
+              <strong class="plan-name">${escapeHtml(entry.label ?? entry.key)}</strong>
+              <span class="muted plan-detail">${escapeHtml(demDetail(entry, plans))}</span>
+            </div>
+            <div class="plan-actions">
+              <wa-button data-dem-remove="${key}" appearance="plain" size="s" title="Delete">
+                <wa-icon name="trash-can" label="Delete"></wa-icon>
+              </wa-button>
+            </div>
+          </div>
+          ${confirm}
+        </li>`;
+    })
+    .join("")}</ul>`;
+}
+
+async function refreshDemList(): Promise<void> {
+  renderDemList(await listDems(), await demUsage());
+}
+
+demBody.addEventListener("click", (event) => {
+  const target = (event.target as HTMLElement).closest<HTMLElement>(
+    "[data-dem-remove],[data-dem-cancel],[data-dem-delete]",
+  );
+  if (!target) return;
+  const data = target.dataset;
+
+  if (data.demRemove) {
+    demConfirming = data.demRemove;
+    return void refreshDemList();
+  }
+
+  if (data.demCancel !== undefined) {
+    demConfirming = null;
+    return void refreshDemList();
+  }
+
+  if (data.demDelete) {
+    const key = data.demDelete;
+    demConfirming = null;
+    return void deleteStoredDem(key)
+      .then(() => {
+        if (state.dem.entry?.key === key) {
+          state.dem = { ...NO_TERRAIN };
+          delete state.meta.dem;
+          state.result = null;
+          map.showPlan(null, null);
+          renderStep();
+        }
+        toast("Terrain deleted.", "success");
+        return refreshPlanList();
+      })
+      .catch(() => toast("Could not delete that terrain.", "danger"));
+  }
+});
 
 function renderPlanRow(meta: PlanMeta): string {
   const id = escapeHtml(meta.id);
@@ -288,7 +393,7 @@ function renderPlanRow(meta: PlanMeta): string {
              ${
                meta.dem
                  ? `<wa-button data-free="${id}" appearance="outlined" size="s">
-                      Terrain only (${escapeHtml(formatBytes(meta.dem.byteLength))})
+                      Terrain only
                     </wa-button>`
                  : ""
              }
@@ -362,6 +467,7 @@ function focusRenameInput(): void {
 
 async function refreshPlanList(): Promise<void> {
   planCache = await listPlans();
+  await refreshDemList();
   const estimate = await storageEstimate();
   planStorage.textContent = estimate
     ? `${planCache.length} saved · ${formatBytes(estimate.usage)} of ` +
@@ -378,20 +484,17 @@ async function openPlan(id: string): Promise<void> {
   state.aoi = loaded.aoiRing ? validateRing(loaded.aoiRing) : null;
   if (loaded.params) state.params = parseParams(loaded.params);
   if (loaded.meta.dem && !loaded.demBytes) delete state.meta.dem;
-  state.dem = { sampler: null, snapped: null, bytes: null, source: null, skipped: false };
-  if (loaded.demBytes) {
+  state.dem = { ...NO_TERRAIN };
+  state.storedUpload = null;
+  state.projectBbox = loaded.meta.projectBbox ?? null;
+  if (loaded.demBytes && loaded.meta.dem) {
+    const dem = loaded.meta.dem;
     state.dem = {
       sampler: await DemSampler.fromBytes(loaded.demBytes),
-      snapped:
-        loaded.meta.dem?.source === "GLO30"
-          ? {
-              bbox: loaded.meta.dem.bbox,
-              width: loaded.meta.dem.width,
-              height: loaded.meta.dem.height,
-            }
-          : null,
       bytes: loaded.demBytes,
-      source: loaded.meta.dem?.source ?? null,
+      entry: { ...dem, key: dem.key ?? "" },
+      fromStore: true,
+      saved: true,
       skipped: false,
     };
   }
@@ -460,10 +563,10 @@ planBody.addEventListener("click", (event) => {
   if (data.free) {
     const id = data.free;
     planConfirming = null;
-    return void deleteDem(id)
+    return void detachPlanDem(id)
       .then(() => {
         if (state.meta.id === id) {
-          state.dem = { sampler: null, snapped: null, bytes: null, source: null, skipped: false };
+          state.dem = { ...NO_TERRAIN };
           delete state.meta.dem;
           state.result = null;
           map.showPlan(null, null);
@@ -492,6 +595,7 @@ planFilterInput.addEventListener("input", renderPlanList);
 async function showStoredPlans(): Promise<void> {
   planConfirming = null;
   planRenaming = null;
+  demConfirming = null;
   planFilterInput.value = "";
   await refreshPlanList();
   planDialog.open = true;
@@ -501,7 +605,18 @@ async function applyUrlHandoff(): Promise<void> {
   const search = new URLSearchParams(location.search);
   const aoiUrl = search.get("aoi");
   const paramsUrl = search.get("params");
-  if (!aoiUrl && !paramsUrl) return;
+  const projectAoiUrl = search.get("project_aoi");
+  if (!aoiUrl && !paramsUrl && !projectAoiUrl) return;
+
+  if (projectAoiUrl) {
+    try {
+      const project = await fetchAoi(projectAoiUrl);
+      state.projectBbox = project.bbox;
+      state.meta.projectBbox = project.bbox;
+    } catch {
+      /* Without it the download falls back to a fixed radius. */
+    }
+  }
 
   if (aoiUrl) {
     try {
@@ -550,6 +665,10 @@ if (!welcomeSeen() && tutorialEnabled()) showWelcome();
 void applyUrlHandoff();
 
 void pruneEmptyPlans().catch(() => {});
+
+void migrateLegacyDems()
+  .then(() => pruneStaleDems())
+  .catch(() => {});
 
 const headerHost = document.querySelector<HTMLElement>(".app-header")!;
 

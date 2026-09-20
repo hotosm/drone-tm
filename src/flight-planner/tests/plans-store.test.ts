@@ -2,60 +2,21 @@ import { afterEach, describe, expect, it } from "vitest";
 import { planLabel } from "../src/core/outputs";
 import { initialState, resetTerrain, savePlan } from "../src/app";
 import {
-  deleteDem,
   deletePlan,
+  detachPlanDem,
   listPlans,
   planPath,
   pruneEmptyPlans,
   setBackend,
   updatePlanMeta,
   type PlanMeta,
-  type StorageBackend,
 } from "../src/core/storage";
+import { MemoryBackend, useMemory } from "./memory-backend";
 
 Object.defineProperty(globalThis, "location", {
   value: new URL("https://plan.drone.hotosm.org/"),
   configurable: true,
 });
-
-class MemoryBackend implements StorageBackend {
-  readonly kind = "opfs" as const;
-  readonly files = new Map<string, ArrayBuffer>();
-
-  async put(path: string, data: ArrayBuffer | string): Promise<void> {
-    this.files.set(
-      path,
-      typeof data === "string" ? (new TextEncoder().encode(data).buffer as ArrayBuffer) : data,
-    );
-  }
-
-  async get(path: string): Promise<ArrayBuffer | null> {
-    return this.files.get(path) ?? null;
-  }
-
-  async remove(path: string): Promise<void> {
-    for (const key of [...this.files.keys()]) {
-      if (key === path || key.startsWith(`${path}/`)) this.files.delete(key);
-    }
-  }
-
-  async list(prefix: string): Promise<string[]> {
-    const base = prefix.endsWith("/") ? prefix : `${prefix}/`;
-    const names = new Set<string>();
-    for (const key of this.files.keys()) {
-      if (!key.startsWith(base)) continue;
-      const rest = key.slice(base.length);
-      if (rest) names.add(rest.split("/")[0]);
-    }
-    return [...names].sort();
-  }
-}
-
-function useMemory(): MemoryBackend {
-  const backend = new MemoryBackend();
-  setBackend(backend);
-  return backend;
-}
 
 afterEach(() => setBackend(null));
 
@@ -165,6 +126,46 @@ describe("savePlan", () => {
     expect((await listPlans())[0].areaM2).toBe(123_000);
   });
 
+  it("finishes saving the plan that started the write", async () => {
+    const backend = useMemory();
+    const put = backend.put.bind(backend);
+    let release!: () => void;
+    let started!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const firstWrite = new Promise<void>((resolve) => (started = resolve));
+    let delay = true;
+    backend.put = async (path, data) => {
+      if (delay) {
+        delay = false;
+        started();
+        await gate;
+      }
+      await put(path, data);
+    };
+
+    const state = initialState();
+    const savedId = state.meta.id;
+    state.aoi = {
+      ring: [
+        [85, 27],
+        [85.01, 27],
+        [85.01, 27.01],
+        [85, 27],
+      ],
+      bbox: [85, 27, 85.01, 27.01],
+      areaM2: 100,
+    };
+
+    const saving = savePlan(state, false);
+    await firstWrite;
+    state.meta = meta("another-plan");
+    state.aoi = null;
+    release();
+    await saving;
+
+    expect((await listPlans()).map((plan) => plan.id)).toEqual([savedId]);
+  });
+
   it("removes terrain invalidated by an area or takeoff change", async () => {
     const backend = useMemory();
     const state = initialState();
@@ -187,6 +188,11 @@ describe("savePlan", () => {
       byteLength: 400,
       source: "GLO30",
     };
+    state.storedUpload = {
+      ...state.meta.dem,
+      key: "upload-old-area",
+      source: "UPLOAD",
+    };
     await backend.put(planPath.dem(state.meta.id), new ArrayBuffer(400));
 
     resetTerrain(state);
@@ -194,6 +200,7 @@ describe("savePlan", () => {
 
     expect(await backend.get(planPath.dem(state.meta.id))).toBeNull();
     expect((await listPlans())[0].dem).toBeUndefined();
+    expect(state.storedUpload).toBeNull();
   });
 });
 
@@ -243,7 +250,7 @@ describe("removing things", () => {
     );
     await backend.put(planPath.dem("p"), new ArrayBuffer(400));
 
-    await deleteDem("p");
+    await detachPlanDem("p");
 
     expect(await backend.get(planPath.dem("p"))).toBeNull();
     expect(await backend.get(planPath.aoi("p"))).not.toBeNull();

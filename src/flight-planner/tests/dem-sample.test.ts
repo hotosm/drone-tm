@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
-import { DemSampler } from "../src/core/dem";
+import { COVERAGE_MARGIN_PX, DemSampler, PIXEL_DEG, type Bbox } from "../src/core/dem";
 
 const fixture = fileURLToPath(new URL("./fixtures/dem-kathmandu.tif", import.meta.url));
 
@@ -73,5 +73,75 @@ describe("DemSampler", () => {
     ];
 
     expect(new Set(samples).size).toBeGreaterThan(1);
+  });
+});
+
+describe("DemSampler over a window", () => {
+  let sampler: DemSampler;
+
+  const AREA: Bbox = [85.29, 27.69, 85.3, 27.7];
+
+  beforeAll(async () => {
+    const bytes = readFileSync(fixture);
+    sampler = await DemSampler.fromBytes(
+      bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
+    );
+  });
+
+  it("reports the raster's own shape", () => {
+    expect(sampler.size()).toEqual({ width: 145, height: 145 });
+    expect(sampler.bounds()[0]).toBeCloseTo(BBOX[0], 9);
+  });
+
+  it("measures height over the flight area, not the whole download", () => {
+    const whole = sampler.range();
+    const area = sampler.range(AREA);
+
+    expect(area.count).toBeLessThan(whole.count);
+    expect(area.min).toBeGreaterThanOrEqual(whole.min);
+    expect(area.max).toBeLessThanOrEqual(whole.max);
+  });
+
+  it("counts exactly the pixels it would crop", () => {
+    const crop = sampler.crop(AREA);
+
+    expect(sampler.range(AREA).count).toBe(crop.width * crop.height);
+  });
+
+  it("crops to whole pixels that still cover the area asked for", () => {
+    const crop = sampler.crop(AREA);
+
+    expect(crop.width).toBeLessThan(145);
+    expect(crop.bbox[0]).toBeLessThanOrEqual(AREA[0]);
+    expect(crop.bbox[1]).toBeLessThanOrEqual(AREA[1]);
+    expect(crop.bbox[2]).toBeGreaterThanOrEqual(AREA[2]);
+    expect(crop.bbox[3]).toBeGreaterThanOrEqual(AREA[3]);
+    expect(crop.bbox[2] - crop.bbox[0]).toBeCloseTo(crop.width * PIXEL_DEG, 9);
+  });
+
+  it("carries the same values into the crop as it reports for the window", () => {
+    const crop = sampler.crop(AREA);
+    const range = sampler.range(AREA);
+
+    expect(Math.min(...crop.values)).toBeCloseTo(range.min, 6);
+    expect(Math.max(...crop.values)).toBeCloseTo(range.max, 6);
+  });
+
+  it("clips a crop to the raster rather than inventing pixels", () => {
+    const crop = sampler.crop([BBOX[0] - 1, BBOX[1] - 1, BBOX[2] + 1, BBOX[3] + 1]);
+
+    expect(crop.width).toBe(145);
+    expect(crop.height).toBe(145);
+  });
+
+  it("only claims to cover an area with room for the turns outside it", () => {
+    const pad = COVERAGE_MARGIN_PX * PIXEL_DEG;
+
+    expect(sampler.covers(AREA)).toBe(true);
+    expect(sampler.covers([...BBOX] as Bbox)).toBe(false);
+    expect(
+      sampler.covers([BBOX[0] + pad, BBOX[1] + pad, BBOX[2] - pad, BBOX[3] - pad] as Bbox),
+    ).toBe(true);
+    expect(sampler.covers([0, 0, 1, 1])).toBe(false);
   });
 });

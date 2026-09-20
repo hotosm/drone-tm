@@ -4,6 +4,7 @@ import type { PlanResult } from "./flightplan";
 import type { PlanParams } from "./flightplan";
 import type { PlanMeta } from "./storage";
 import { formatArea } from "./aoi";
+import { bboxSizeKm, type Bbox } from "./dem";
 
 export interface OutputFile {
   name: string;
@@ -83,13 +84,7 @@ export function buildOutputs(result: PlanResult, params: PlanParams, meta: PlanM
   return files;
 }
 
-/**
- * Everything needed to fly or rebuild this plan, in one file.
- *
- * The point is to survive the browser clearing its storage, so it carries the
- * terrain too: without the DEM a restored plan cannot be regenerated without a
- * connection, which is the one thing this app exists to avoid.
- */
+/** Packages a plan and its terrain crop for offline recovery. */
 export function buildPlanBundle(
   meta: PlanMeta,
   aoi: unknown,
@@ -123,7 +118,7 @@ export function buildPlanBundle(
         `DEM:       ${meta.dem ? `${meta.dem.source}, ${meta.dem.width}x${meta.dem.height} px` : "none"}\n\n` +
         "aoi.geojson    the flight area\n" +
         "params.json    the flight parameters, re-uploadable to plan.drone.hotosm.org\n" +
-        "dem.tif        the terrain crop the altitudes were sampled from\n" +
+        "dem.tif        the terrain the altitudes were sampled from, cropped to this area\n" +
         "*.geojson      the generated waypoints and flight path\n" +
         "*.kmz / *.wpml the mission files for the controller\n",
     ),
@@ -153,4 +148,10 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export function formatExtent(bbox: Bbox): string {
+  const round = (km: number) => (km < 10 ? km.toFixed(1) : String(Math.round(km)));
+  const { widthKm, heightKm } = bboxSizeKm(bbox);
+  return `${round(widthKm)} x ${round(heightKm)} km`;
 }

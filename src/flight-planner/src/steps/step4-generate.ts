@@ -1,4 +1,6 @@
-import type { Step } from "../app";
+import type { AppState, Step } from "../app";
+import { bboxIncludingPoint } from "../core/dem";
+import { cropForBundle } from "../core/geotiff-write";
 import { batteryBudget, buildPlan } from "../core/flightplan";
 import { DRONE_CHOICES } from "../core/qfield";
 import {
@@ -10,10 +12,37 @@ import {
   formatBytes,
   type OutputFile,
 } from "../core/outputs";
+import type { PlanDem } from "../core/storage";
 import { coachLead, coachTips } from "../tutorial";
 import { errorPanel, escapeHtml, infoPanel } from "./ui";
 
 let outputs: OutputFile[] = [];
+
+function bundleTerrain(state: AppState): { bytes: ArrayBuffer | null; dem?: PlanDem } {
+  const { aoi, dem, params, meta } = state;
+  if (!aoi || !dem.sampler || !dem.bytes) return { bytes: null };
+
+  const required = bboxIncludingPoint(aoi.bbox, params.takeoffPoint);
+  try {
+    const crop = cropForBundle(dem.sampler, required, dem.bytes.byteLength);
+    if (!crop) return { bytes: dem.bytes };
+    return {
+      bytes: crop.bytes,
+      dem: meta.dem
+        ? {
+            ...meta.dem,
+            bbox: crop.bbox,
+            width: crop.width,
+            height: crop.height,
+            byteLength: crop.bytes.byteLength,
+          }
+        : undefined,
+    };
+  } catch {
+    // Never lose the bundle over the crop; the full DEM is always valid.
+    return { bytes: dem.bytes };
+  }
+}
 
 function droneLabel(key: string): string {
   return DRONE_CHOICES.find((choice) => choice.value === key)?.label ?? key;
@@ -204,8 +233,10 @@ export const step4: Step = {
     }
 
     root.querySelector("#bundle")?.addEventListener("click", () => {
-      const { aoi, params, meta, dem } = ctx.state;
+      const { aoi, params, meta } = ctx.state;
       if (!aoi) return;
+      const terrain = bundleTerrain(ctx.state);
+      const bundleMeta = terrain.dem ? { ...meta, dem: terrain.dem } : meta;
       const geojson = {
         type: "FeatureCollection",
         features: [
@@ -218,7 +249,7 @@ export const step4: Step = {
       };
       download({
         name: `${meta.id}_bundle.zip`,
-        data: buildPlanBundle(meta, geojson, params, outputs, dem.bytes),
+        data: buildPlanBundle(bundleMeta, geojson, params, outputs, terrain.bytes),
         mime: "application/zip",
         label: "Plan bundle",
         hint: "",
