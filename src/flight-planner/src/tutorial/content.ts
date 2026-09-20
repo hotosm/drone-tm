@@ -35,7 +35,7 @@ export const COACH: Record<string, CoachCard> = {
       "first corner again to close the shape.",
     points: [
       "Add a little margin past the edges - the drone turns outside the area.",
-      "Keep it to what one battery can cover. Around 20 hectares is a lot for a small drone.",
+      "Keep it to what one battery can cover. Around 0.2 km² is a lot for a small drone.",
       "Already have the area as a file? Upload a GeoJSON instead.",
     ],
     why:

@@ -29,11 +29,12 @@ export function ringAreaM2(ring: Array<[number, number]>): number {
   return Math.abs((total * R * R) / 2);
 }
 
+/** Areas are quoted in km² across DroneTM, so the planner stays in km² too. */
 export function formatArea(areaM2: number): string {
-  const hectares = areaM2 / 10_000;
-  if (hectares < 1) return `${Math.round(areaM2).toLocaleString()} m²`;
-  if (hectares < 100) return `${hectares.toFixed(1)} ha`;
-  return `${(areaM2 / 1_000_000).toFixed(2)} km²`;
+  const km2 = areaM2 / 1_000_000;
+  if (km2 < 1) return `${km2.toFixed(3)} km²`;
+  if (km2 < 100) return `${km2.toFixed(2)} km²`;
+  return `${km2.toFixed(1)} km²`;
 }
 
 function singlePolygonRing(geojson: unknown): Array<[number, number]> | null {

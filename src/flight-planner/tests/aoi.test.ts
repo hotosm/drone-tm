@@ -154,9 +154,11 @@ describe("ringAreaM2", () => {
 
 describe("formatArea", () => {
   it.each([
-    [500, "500 m²"],
-    [50_000, "5.0 ha"],
+    [500, "0.001 km²"],
+    [50_000, "0.050 km²"],
+    [708_000, "0.708 km²"],
     [5_000_000, "5.00 km²"],
+    [150_000_000, "150.0 km²"],
   ])("formats %i m² as %s", (input, expected) => {
     expect(formatArea(input)).toBe(expected);
   });

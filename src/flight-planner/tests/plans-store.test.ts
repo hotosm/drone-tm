@@ -48,7 +48,7 @@ describe("planLabel", () => {
 
   it("describes an unnamed plan by when it was started and how big it is", () => {
     const label = planLabel(meta("a", { createdAt: "2026-09-11T08:00:00.000Z", areaM2: 123_000 }));
-    expect(label).toContain("12.3 ha");
+    expect(label).toContain("0.123 km²");
     expect(label).toContain("·");
   });
 
