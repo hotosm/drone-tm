@@ -2,21 +2,22 @@ import { useState } from "react";
 import Image from "@Components/RadixComponents/Image";
 import { NavLink, useLocation } from "react-router-dom";
 import dtmLogo from "@Assets/images/drone-tasking-manager.svg";
+import { useGetUserDetailsQuery } from "@Api/projects";
 import DtmLogo from "@Components/common/DtmLogo";
+import { getLocalStorageValue } from "@Utils/getLocalStorageValue";
 import UserProfile from "../UserProfile";
 import { FlexRow } from "../Layouts";
 import Icon from "../Icon";
 import Drawer from "../Drawer";
 import LanguageSwitcher from "../LanguageSwitcher";
 import { getRuntimeConfig } from "@/runtimeConfig";
-import { useGetUserDetailsQuery } from "@Api/projects";
-import { getLocalStorageValue } from "@Utils/getLocalStorageValue";
 import { m } from "@/paraglide/messages";
 
 // Import Hanko web component when using SSO
 const AUTH_PROVIDER = getRuntimeConfig("VITE_AUTH_PROVIDER", "legacy");
 const HANKO_URL = getRuntimeConfig("VITE_HANKO_URL", "https://dev.login.hotosm.org");
 const FRONTEND_URL = (import.meta as any).env.VITE_FRONTEND_URL || window.location.origin;
+const FLIGHT_PLANNER_URL = getRuntimeConfig("VITE_FLIGHT_PLANNER_URL", "/plan/");
 
 if (AUTH_PROVIDER === "hanko") {
   import("@hotosm/hanko-auth");
@@ -93,7 +94,6 @@ export default function Navbar() {
           <FlexRow className="naxatw-items-center naxatw-gap-6">
             <a
               className="naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 hover:naxatw-no-underline"
-              role="presentation"
               aria-label={m.nav_home_aria_label()}
               href="/"
             >
@@ -116,6 +116,9 @@ export default function Navbar() {
                 <NavLink to="/dashboard" className={({ isActive }) => navLinkClass({ isActive })}>
                   {m.nav_dashboard()}
                 </NavLink>
+                <a href={FLIGHT_PLANNER_URL} className={navLinkClass({ isActive: false })}>
+                  {m.nav_flight_planner()}
+                </a>
               </FlexRow>
             )}
           </FlexRow>
@@ -126,7 +129,7 @@ export default function Navbar() {
               <FlexRow className="naxatw-hidden naxatw-items-center md:naxatw-flex" gap={2}>
                 {desktopAuth}
                 <LanguageSwitcher />
-                <hotosm-tool-menu></hotosm-tool-menu>
+                <hotosm-tool-menu />
               </FlexRow>
 
               {/* Mobile hamburger */}
@@ -189,6 +192,12 @@ export default function Navbar() {
             >
               {m.nav_dashboard()}
             </NavLink>
+            <a
+              href={FLIGHT_PLANNER_URL}
+              className="naxatw-rounded naxatw-px-3 naxatw-py-2 naxatw-text-body-btn hover:naxatw-bg-grey-100"
+            >
+              {m.nav_flight_planner()}
+            </a>
           </div>
           <div className="naxatw-border-t naxatw-border-grey-300 naxatw-pt-4">
             <FlexRow className="naxatw-items-center naxatw-justify-between">{mobileAuth}</FlexRow>

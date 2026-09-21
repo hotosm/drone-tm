@@ -95,6 +95,31 @@ function pointInPolygon(px, py, coords) {
     return inside;
 }
 
+function pointToSegmentDistance(px, py, x1, y1, x2, y2) {
+    var dx = x2 - x1;
+    var dy = y2 - y1;
+    var lenSq = dx * dx + dy * dy;
+    if (lenSq < 1e-20) return distance(px, py, x1, y1);
+    var t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+    if (t < 0) t = 0;
+    else if (t > 1) t = 1;
+    return distance(px, py, x1 + t * dx, y1 + t * dy);
+}
+
+// Match Shapely's polygon buffer by measuring distance instead of constructing
+// an offset polygon, which can overshoot at corners.
+function pointWithinDistance(px, py, coords, dist) {
+    if (pointInPolygon(px, py, coords)) return true;
+    var n = coords.length;
+    for (var i = 0, j = n - 1; i < n; j = i++) {
+        var d = pointToSegmentDistance(
+            px, py, coords[j].x, coords[j].y, coords[i].x, coords[i].y
+        );
+        if (d <= dist) return true;
+    }
+    return false;
+}
+
 // Rotate an entire polygon (array of {x,y}) around a center point
 function rotatePolygon(coords, angleDeg, center) {
     var result = [];

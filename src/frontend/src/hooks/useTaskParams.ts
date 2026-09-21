@@ -34,6 +34,7 @@ export default function useTaskParams() {
 
   return {
     projectSlug: urlProjectId || "",
+    projectName: (projectData as any)?.name || "",
     taskIndex: taskData?.project_task_index?.toString?.() || urlTaskId || "",
     projectId: resolvedProjectId,
     taskId: taskUuid,

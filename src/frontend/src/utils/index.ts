@@ -288,3 +288,53 @@ export function buildFlightPlanQuery({
   }
   return params.toString();
 }
+
+function plannerHandoff(params: URLSearchParams): string {
+  const plannerUrl = getRuntimeConfig("VITE_FLIGHT_PLANNER_URL", "/plan/");
+  return `${plannerUrl}${plannerUrl.includes("?") ? "&" : "?"}${params.toString()}`;
+}
+
+function projectApiUrl(projectId: string, path: string): string {
+  const apiUrl = getRuntimeConfig("VITE_API_URL", "/api");
+  return new URL(`${apiUrl}/projects/${projectId}${path}`, window.location.origin).toString();
+}
+
+// Two identifiers: the API takes the task UUID, while the planner keys its
+// saved plans on the project task index, as a whole-project import does.
+export function buildFlightPlannerUrl({
+  projectId,
+  projectName,
+  taskId,
+  taskIndex,
+}: {
+  projectId: string;
+  projectName?: string;
+  taskId: string;
+  taskIndex?: string;
+}): string {
+  const params = new URLSearchParams({
+    project: projectId,
+    aoi: projectApiUrl(
+      projectId,
+      `/download-boundaries?task_id=${taskId}&split_area=true&export_type=geojson`,
+    ),
+    project_aoi: projectApiUrl(projectId, "/download-boundaries?export_type=geojson"),
+    params: projectApiUrl(projectId, "/flightplanner-params"),
+  });
+  if (projectName) params.set("project_name", projectName);
+  if (taskIndex && /^\d+$/.test(taskIndex)) params.set("task", taskIndex);
+
+  return plannerHandoff(params);
+}
+
+export function buildFlightPlannerSeedUrl(projectId: string, projectName?: string): string {
+  const params = new URLSearchParams({
+    project: projectId,
+    tasks: projectApiUrl(projectId, "/download-boundaries?split_area=true&export_type=geojson"),
+    project_aoi: projectApiUrl(projectId, "/download-boundaries?export_type=geojson"),
+    params: projectApiUrl(projectId, "/flightplanner-params"),
+  });
+  if (projectName) params.set("project_name", projectName);
+
+  return plannerHandoff(params);
+}

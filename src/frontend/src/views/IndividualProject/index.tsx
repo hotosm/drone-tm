@@ -22,7 +22,7 @@ import { triggerMeshConversion, triggerOrthophotoConversion } from "@Services/cr
 import { setProjectState } from "@Store/actions/project";
 import { useTypedDispatch, useTypedSelector } from "@Store/hooks";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { buildDownloadUrl } from "@Utils/index";
+import { buildDownloadUrl, buildFlightPlannerSeedUrl } from "@Utils/index";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
 import QFieldExportDialog from "@Components/IndividualProject/QFieldExport";
 import QFieldLogo from "@Components/IndividualProject/QFieldExport/QFieldLogo";
@@ -423,6 +423,20 @@ const IndividualProject = () => {
                 if (showTilesControls) return tilesButton;
                 return meshViewerButton ?? tilesButton;
               })()}
+            <Button
+              variant="ghost"
+              className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
+              leftIcon="flight_takeoff"
+              iconClassname="naxatw-text-[1.125rem]"
+              title={m.individual_project_flight_planner_hint()}
+              onClick={() => {
+                window.location.assign(
+                  buildFlightPlannerSeedUrl((projectData?.id || id) as string, projectData?.name),
+                );
+              }}
+            >
+              {m.individual_project_button_flight_planner()}
+            </Button>
             <div className="naxatw-relative">
               <Button
                 variant="ghost"

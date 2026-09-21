@@ -40,6 +40,17 @@ FRONTEND_DIR = os.path.abspath(os.path.join(root, "..", "frontend_html"))
 frontend_html = Jinja2Templates(directory=FRONTEND_DIR)
 
 
+def _mount_frontend_subapps(app: FastAPI, frontend_dir: str) -> None:
+    for sub_app in ("mesh", "plan"):
+        sub_app_dir = os.path.join(frontend_dir, sub_app)
+        if os.path.isdir(sub_app_dir):
+            app.mount(
+                f"/{sub_app}",
+                StaticFiles(directory=sub_app_dir, html=True),
+                name=sub_app,
+            )
+
+
 class _SanitizingStream:
     """Wraps a stream to redact sensitive values (e.g. tokens) from log output.
 
@@ -215,6 +226,8 @@ def get_application() -> FastAPI:
     assets_dir = os.path.join(FRONTEND_DIR, "assets")
     if os.path.isdir(assets_dir):
         _app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+    _mount_frontend_subapps(_app, FRONTEND_DIR)
 
     # Serve backend static assets (e.g. stable email logos) at a predictable URL.
     static_dir = os.path.join(root, "static")

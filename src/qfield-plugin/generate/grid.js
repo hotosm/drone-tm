@@ -45,7 +45,8 @@ function generateGridInAoi(polyCoords3857, xSpacing, ySpacing, rotationAngle, si
     if (sideOverlap === undefined) sideOverlap = 70;
 
     var overlapThreshold = ySpacing * (1 - sideOverlap / 100);
-    var bufferedPoly = Geo.bufferPolygon(polyCoords3857, Math.max(xSpacing, ySpacing) * 0.5);
+    // Match the Python AOI buffer without constructing an offset polygon.
+    var bufferDist = Math.max(xSpacing, ySpacing) * 0.5;
     var centroid = Geo.polygonCentroid(polyCoords3857);
 
     // Rotate polygon to align with flight direction
@@ -82,7 +83,7 @@ function generateGridInAoi(polyCoords3857, xSpacing, ySpacing, rotationAngle, si
             // Alternate flight direction between waylines
             var angle = (currentAxis === "x") ? -90 : 90;
 
-            if (Geo.pointInPolygon(rotated.x, rotated.y, bufferedPoly)) {
+            if (Geo.pointWithinDistance(rotated.x, rotated.y, polyCoords3857, bufferDist)) {
                 points.push({ x: rotated.x, y: rotated.y, angle: angle });
             }
         }
@@ -129,7 +130,7 @@ function generateGridInAoi(polyCoords3857, xSpacing, ySpacing, rotationAngle, si
                 // Inverse-rotate to map grid point back into the original frame
                 var rotPt = Geo.rotatePoint(cx, newY, centroid.x, centroid.y, -rotationAngle);
 
-                if (Geo.pointInPolygon(rotPt.x, rotPt.y, bufferedPoly)) {
+                if (Geo.pointWithinDistance(rotPt.x, rotPt.y, polyCoords3857, bufferDist)) {
                     // Check for duplicates
                     var isDuplicate = false;
                     for (var di = 0; di < points.length; di++) {

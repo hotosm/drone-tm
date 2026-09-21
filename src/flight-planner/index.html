@@ -1,0 +1,126 @@
+<!doctype html>
+<html
+  lang="en"
+  class="wa-theme-default wa-palette-hotosm wa-cloak"
+  data-tutorial="on"
+  data-sheet="half"
+>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#d43f3f" />
+    <meta
+      name="description"
+      content="Generate drone flightplans with terrain following, offline, in your browser."
+    />
+    <link rel="icon" href="./favicon.ico" sizes="32x32" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+    <title>DroneTM Flight Planner</title>
+  </head>
+  <body>
+    <div id="offline-banner" class="offline-banner" hidden>
+      <wa-icon name="plug-circle-xmark"></wa-icon>
+      Offline - you can still plan and generate. Terrain downloads need a connection.
+    </div>
+
+    <header class="app-header">
+      <div class="brand">
+        <img class="brand-logo" src="./favicon.svg" alt="DroneTM" width="28" height="28" />
+        <strong class="brand-text">Flight Planner</strong>
+      </div>
+
+      <div class="header-actions">
+        <wa-button id="main-site" appearance="plain" size="s" rel="noopener">
+          <span id="main-site-label" class="main-site-label">Main site</span>
+          <wa-icon
+            id="main-site-icon"
+            slot="end"
+            name="arrow-up-right-from-square"
+            label="Main site"
+          ></wa-icon>
+        </wa-button>
+        <wa-switch id="tutorial-toggle" size="s" checked title="Show step-by-step guidance">
+          <span class="toggle-label">Guide me</span>
+        </wa-switch>
+        <wa-button id="show-plans" appearance="plain" size="s" title="Saved plans">
+          <wa-icon name="folder-open" label="Saved plans"></wa-icon>
+        </wa-button>
+        <wa-button id="show-help" appearance="plain" size="s" title="How this works">
+          <wa-icon name="circle-question" label="How this works"></wa-icon>
+        </wa-button>
+      </div>
+    </header>
+
+    <main class="app-body">
+      <section class="map-pane">
+        <div id="map"></div>
+        <div class="takeoff-legend">
+          <span class="legend-item"><i class="swatch swatch-photo"></i> photo</span>
+          <span class="legend-item"><i class="swatch swatch-turn"></i> turn</span>
+          <span class="legend-item"><i class="swatch swatch-takeoff"></i> takeoff</span>
+        </div>
+      </section>
+
+      <section id="wizard-pane" class="wizard-pane">
+        <button
+          type="button"
+          id="sheet-handle"
+          class="sheet-handle"
+          aria-controls="wizard-pane"
+          aria-label="Resize the planning panel"
+        >
+          <span class="sheet-grip"></span>
+        </button>
+        <nav id="step-rail" class="step-rail" aria-label="Progress"></nav>
+        <p id="step-title" class="step-title"></p>
+        <div id="step-body" class="step-body"></div>
+        <div class="step-footer">
+          <p id="nav-hint" class="nav-hint muted"></p>
+          <div id="step-nav" class="step-nav"></div>
+        </div>
+      </section>
+    </main>
+
+    <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+
+    <div id="handoff" class="handoff" role="status" aria-live="polite" hidden>
+      <div class="handoff-card">
+        <wa-spinner class="handoff-spinner"></wa-spinner>
+        <p id="handoff-text" class="handoff-text"></p>
+        <p id="handoff-sub" class="muted handoff-sub"></p>
+      </div>
+    </div>
+
+    <wa-dialog id="welcome" label="Plan a mapping flight, offline" class="welcome-dialog">
+      <div id="welcome-body"></div>
+      <wa-button slot="footer" id="welcome-skip" appearance="plain">
+        I know what I'm doing
+      </wa-button>
+      <wa-button slot="footer" id="welcome-start" variant="brand"> Start </wa-button>
+    </wa-dialog>
+
+    <wa-dialog id="plans" label="Saved plans" class="plans-dialog">
+      <div class="plans-toolbar">
+        <wa-input
+          id="plans-filter"
+          type="search"
+          size="s"
+          placeholder="Filter by name"
+          autocomplete="off"
+        >
+          <wa-icon slot="start" name="magnifying-glass"></wa-icon>
+        </wa-input>
+        <p id="plans-storage" class="muted plans-storage"></p>
+      </div>
+      <div id="plans-body" class="plans-scroll"></div>
+      <wa-details id="dems-details" summary="Stored terrain" appearance="outlined">
+        <div id="dems-body"></div>
+      </wa-details>
+    </wa-dialog>
+
+    <!-- Optional DroneTM runtime config. -->
+    <script src="../config.js"></script>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Kathmandu test AOI" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [85.28, 27.68],
+            [85.32, 27.68],
+            [85.32, 27.72],
+            [85.28, 27.72],
+            [85.28, 27.68]
+          ]
+        ]
+      }
+    }
+  ]
+}

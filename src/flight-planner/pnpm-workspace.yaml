@@ -1,0 +1,5 @@
+packages: []
+allowBuilds:
+  esbuild: true
+minimumReleaseAgeExclude:
+  - "@hotosm/ui@2.1.3"

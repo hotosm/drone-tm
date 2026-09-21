@@ -21,37 +21,48 @@ export default defineConfig({
           mode: "react",
         })
       : undefined,
-    // Dev server: serve the pre-built drone-mesh viewer at /mesh. Baked into
-    // the dev image at /app/mesh-dist (MESH_DIST_DIR); on host it falls back to
-    // ../drone-mesh/dist. Prod serves it from dist/mesh instead (see
-    // frontend/Dockerfile mesh-build stage).
+    // Serve pre-built standalone apps during development.
     {
-      name: "serve-drone-mesh",
+      name: "serve-sub-apps",
       configureServer(server) {
-        const meshDir =
-          process.env.MESH_DIST_DIR ?? new URL("../drone-mesh/dist/", import.meta.url).pathname;
+        const subApps = {
+          "/mesh":
+            process.env.MESH_DIST_DIR ?? new URL("../drone-mesh/dist/", import.meta.url).pathname,
+          "/plan":
+            process.env.PLAN_DIST_DIR ??
+            new URL("../flight-planner/dist/", import.meta.url).pathname,
+        };
         const mime: Record<string, string> = {
           ".html": "text/html",
           ".js": "text/javascript",
           ".mjs": "text/javascript",
           ".css": "text/css",
           ".json": "application/json",
+          ".webmanifest": "application/manifest+json",
           ".map": "application/json",
           ".svg": "image/svg+xml",
+          ".png": "image/png",
           ".wasm": "application/wasm",
           ".ico": "image/x-icon",
         };
-        server.middlewares.use("/mesh", (req, res, next) => {
-          let rel = decodeURIComponent((req.url ?? "/").split("?")[0]);
-          if (rel === "" || rel === "/") rel = "/index.html";
-          const file = path.join(meshDir, rel);
-          if (!file.startsWith(meshDir) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
-            next();
-            return;
-          }
-          res.setHeader("Content-Type", mime[path.extname(file)] ?? "application/octet-stream");
-          fs.createReadStream(file).pipe(res);
-        });
+        for (const [route, dir] of Object.entries(subApps)) {
+          const root = path.resolve(dir);
+          server.middlewares.use(route, (req, res, next) => {
+            let rel = decodeURIComponent((req.url ?? "/").split("?")[0]);
+            if (rel === "" || rel === "/") rel = "/index.html";
+            const file = path.resolve(root, `.${rel}`);
+            if (
+              !file.startsWith(`${root}${path.sep}`) ||
+              !fs.existsSync(file) ||
+              !fs.statSync(file).isFile()
+            ) {
+              next();
+              return;
+            }
+            res.setHeader("Content-Type", mime[path.extname(file)] ?? "application/octet-stream");
+            fs.createReadStream(file).pipe(res);
+          });
+        }
       },
     },
     // Self-host the DRACO and KTX2 decoders shipped with three.js so the 3D

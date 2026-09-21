@@ -27,8 +27,8 @@ importers:
         specifier: ^0.5.2
         version: 0.5.2
       '@hotosm/ui':
-        specifier: ^2.1.0
-        version: 2.1.0(@awesome.me/webawesome@3.11.0(@floating-ui/utils@0.2.11)(@types/node@22.19.15)(@types/react@19.2.14))
+        specifier: ^2.1.3
+        version: 2.1.3(@awesome.me/webawesome@3.11.0(@floating-ui/utils@0.2.11)(@types/node@22.19.15)(@types/react@19.2.14))
       '@inlang/paraglide-js':
         specifier: ^2.18.1
         version: 2.18.1(typescript@5.9.3)
@@ -295,8 +295,8 @@ importers:
         specifier: ^0.3.0
         version: 0.3.1
       '@hotosm/ui':
-        specifier: ^2.1.0
-        version: 2.1.0(@awesome.me/webawesome@3.11.0(@floating-ui/utils@0.2.11)(@types/node@22.19.15)(@types/react@19.2.14))
+        specifier: ^2.1.3
+        version: 2.1.3(@awesome.me/webawesome@3.11.0(@floating-ui/utils@0.2.11)(@types/node@22.19.15)(@types/react@19.2.14))
       '@panzoom/panzoom':
         specifier: ^4.5.1
         version: 4.6.1
@@ -1356,8 +1356,8 @@ packages:
   '@hotosm/hanko-auth@0.5.2':
     resolution: {integrity: sha512-dCCrNRyH2C2bS3TBDLJrX45rmHPgMzZHp8Il+LvEeh9mHzBB/iXro1bJZj5Fpmdhfy3HVN+v5PE2WhMK3ymznw==}
 
-  '@hotosm/ui@2.1.0':
-    resolution: {integrity: sha512-jgTdzyyCUPVtQBR4ZRfh2Mskw47ct0FmWd7abT8s6DbxhSL8NOw8/Rcla5rTBaln7bsPqrKsFSrXv9ytbkGucQ==}
+  '@hotosm/ui@2.1.3':
+    resolution: {integrity: sha512-sgzuLACVPq+bHiG/76xAzxy/pWQPg7TXyNWygVwvb4ftbgnBA+55o4HtVSSz7Q+xfJx3S91kxoylMq1YjliUCw==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       '@awesome.me/webawesome': 3.11.0
@@ -6172,7 +6172,7 @@ snapshots:
       '@teamhanko/hanko-elements': 2.5.0
       lit: 3.3.2
 
-  '@hotosm/ui@2.1.0(@awesome.me/webawesome@3.11.0(@floating-ui/utils@0.2.11)(@types/node@22.19.15)(@types/react@19.2.14))':
+  '@hotosm/ui@2.1.3(@awesome.me/webawesome@3.11.0(@floating-ui/utils@0.2.11)(@types/node@22.19.15)(@types/react@19.2.14))':
     dependencies:
       '@awesome.me/webawesome': 3.11.0(@floating-ui/utils@0.2.11)(@types/node@22.19.15)(@types/react@19.2.14)
 

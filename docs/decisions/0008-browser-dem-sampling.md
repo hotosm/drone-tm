@@ -32,7 +32,7 @@ This would let the browser read the files with `geotiff.js`, but it would
 duplicate about 549 GiB of public data. It also offers no clear benefit to the
 backend over TiTiler.
 
-### 3. Use Mapterhorn terrain tiles
+### 3. Use Mapterhorn terrain tiles for display
 
 [Mapterhorn](https://mapterhorn.com/) already runs the
 [open-source pipeline](https://github.com/mapterhorn/mapterhorn) to combine the
@@ -40,13 +40,18 @@ best available DEM per region. It provides global 30 m and higher resolution
 regional coverage as 512 px Terrarium WebP tiles through
 `https://tiles.mapterhorn.com/{z}/{x}/{y}.webp` and downloadable
 [PMTiles archives](https://mapterhorn.com/data-access/), which we can self-host
-if needed. Building our own archive would duplicate this.
+if needed. These tiles are useful as a terrain surface for draping an
+orthophoto in MapLibre, but not for flightplan elevation sampling: they combine
+different DEM sources, quantise elevation, and use a different projection and
+grid from GLO-30.
 
 ## Decision Outcome
 
-Use **option 1 for the backend and option 3 for the browser**. Index GLO-30 in
-pgSTAC and serve it through our existing TiTiler; use Mapterhorn's public tile
-endpoint for browser sampling and terrain display.
+Use **option 1 for both the backend and the browser**. Index GLO-30 in pgSTAC
+and serve it through our existing TiTiler; both clients request a GeoTIFF crop
+from it for flightplan generation. Mapterhorn is only used by MapLibre to
+display terrain and drape orthophotos; it is never an elevation input to a
+flightplan.
 
 - The backend will request a GeoTIFF crop for the project area and pass it to
   the existing elevation code, writing it to the same per-project `dem.tif` so
@@ -55,11 +60,10 @@ endpoint for browser sampling and terrain display.
   takes a `dem_source` of `GLO30`, `JAXA` or `UPLOAD`, with the last two behind
   the advanced toggle. The JAXA scraper has served us well and is kept as a
   fallback for as long as it keeps working.
-- The browser will request the same GeoTIFF crop and cache it per plan, so it
-  samples the identical grid as the backend and the two cannot disagree about
-  the altitude of a waypoint. Terrarium tiles remain useful for MapLibre
-  terrain display only, never for sampling: they quantise elevation to 0.1 m
-  and reproject to EPSG:3857, which at zoom 12 is coarser than the 30 m source.
+- For GLO-30 projects, the browser requests the same GeoTIFF crop and caches it
+  per plan, so it samples the same grid as the backend.
+- Mapterhorn Terrarium tiles are used only for MapLibre terrain display and
+  orthophoto draping. They do not affect generated waypoint altitudes.
 
 Fetching per project avoids downloading the same tiles again for each task,
 because tasks are subdivisions of the project area.
@@ -78,9 +82,12 @@ once-per-project request.
 - GLO-30 becomes the default elevation source and should improve accuracy.
   AW3D30 stays selectable, so a project can fall back if GLO-30 has a void
   or the OAM raster service is down.
-- Browser and backend plans may differ where Mapterhorn uses a higher-resolution
-  regional DEM because they no longer sample identical grids.
-- The static site will depend on Mapterhorn's public service. If needed, we can
-  self-host its published PMTiles archives without maintaining an ingest pipeline.
+- For GLO-30 projects, browser and backend sample the same grid. JAXA and
+  uploaded DEM overrides are outside this parity guarantee.
+- The browser depends on the same OAM raster service as the backend. Crops are
+  cached in the browser, so a project already downloaded keeps working when it
+  is unavailable, and a pilot can upload their own DEM instead.
+- MapLibre terrain display depends on Mapterhorn, but flightplan generation
+  does not.
 - If the public dataset becomes unavailable, we can copy the same COGs to our
   own bucket without changing the backend.

@@ -56,13 +56,21 @@ The distribution combines two rules:
 - **SPA fallback** - `403`/`404` responses return `/index.html` (`200`), so
   client-side routes such as `/projects/123` load the app instead of 404ing.
 - **Sub-app router** - a CloudFront Function (viewer-request) resolves bundled
-  sub-apps that ship their own `index.html`. Without it the SPA fallback would
-  serve the *main* app for these paths:
+  sub-apps that ship their own `index.html` (`mesh`, the 3D viewer, and `plan`,
+  the flight planner). Without it the SPA fallback would serve the *main* app
+  for these paths:
   - `/mesh` → `301` to `/mesh/` (so the viewer's relative asset URLs resolve)
   - `/mesh/` → `/mesh/index.html`
+  - `/plan` → `301` to `/plan/`
+  - `/plan/` → `/plan/index.html`
 
   They don't conflict: the function runs first and only touches sub-app paths;
   everything else falls through to the SPA fallback.
+
+  Sub-apps are served from the main app's origin on purpose: `/plan` reads the
+  session token the React app stores, which is what lets a project or task hand
+  off to the planner. On a separate host the planner still works, but only as a
+  standalone tool with the area drawn by hand.
 
 #### DNS Architecture
 
@@ -89,7 +97,7 @@ and configure CORS so the frontend can call the API cross-origin.
 | `frontend.cloudfront.region` | AWS region | `"us-east-1"` |
 | `frontend.cloudfront.s3Bucket` | S3 bucket name (**required**) | `""` |
 | `frontend.cloudfront.version` | S3 path prefix (defaults to `appVersion`; set to older version to rollback) | `""` |
-| `frontend.cloudfront.aliases` | Custom domain aliases for the distribution | `[]` |
+| `frontend.cloudfront.aliases` | Custom domain aliases, applied only when the distribution is created | `[]` |
 | `frontend.cloudfront.acmCertificateArn` | ACM certificate ARN (required when `aliases` is set) | `""` |
 | `frontend.cloudfront.priceClass` | CloudFront price class | `"PriceClass_All"` |
 

@@ -6,6 +6,7 @@ import Theme
 
 import "generate/core.js" as Flightplan
 import "generate/drone_specs.js" as Specs
+import "generate/placemarks.js" as Placemarks
 import "output/dji.js" as DjiOutput
 import "output/kmz.js" as Kmz
 import "output/potensic_v2.js" as PotensicV2Output
@@ -366,18 +367,7 @@ Item {
   }
 
   function applyFlatPlacemarks(geojson, parameters) {
-    var agl = parameters.altitude_above_ground_level
-    var speed = parameters.ground_speed
-
-    for (var i = 0; i < geojson.features.length; i++) {
-      var feature = geojson.features[i]
-      var coords = feature.geometry.coordinates
-      if (coords.length < 3) coords.push(agl)
-      else coords[2] = agl
-      feature.properties.speed = speed
-      feature.properties.altitude = agl
-    }
-    return geojson
+    return Placemarks.applyFlatPlacemarks(geojson, parameters)
   }
 
   function applyDemElevation(result, flightMode, config, taskId) {
@@ -649,27 +639,9 @@ Item {
     }
   }
 
-  // Build a single-feature FeatureCollection containing a LineString of
-  // the waypoint sequence. When a takeoff point is set it becomes vertex 0
-  // so linestring.qml's FirstVertex marker line places its SVG there.
-  // Altitudes are dropped (2D path is what the visualisation needs).
+  // Keep takeoff first because the QField style marks the first vertex.
   function _buildFlightpathGeojson(placemarks, takeoffPoint) {
-    var coords = []
-    if (takeoffPoint && takeoffPoint.lon !== undefined && takeoffPoint.lat !== undefined) {
-      coords.push([takeoffPoint.lon, takeoffPoint.lat])
-    }
-    for (var i = 0; i < placemarks.features.length; i++) {
-      var c = placemarks.features[i].geometry.coordinates
-      coords.push([c[0], c[1]])
-    }
-    return {
-      type: "FeatureCollection",
-      features: [{
-        type: "Feature",
-        properties: { kind: "flightpath" },
-        geometry: { type: "LineString", coordinates: coords }
-      }]
-    }
+    return Placemarks.buildFlightpathGeojson(placemarks, takeoffPoint)
   }
 
   // Copy a project-bundled style (.qml) so it sits next to the geojson with

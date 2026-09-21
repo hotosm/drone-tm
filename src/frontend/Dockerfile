@@ -18,6 +18,17 @@ WORKDIR /app/drone-mesh
 RUN pnpm install && pnpm run build
 
 
+# Build the flight planner with the shared QField JavaScript.
+FROM base AS planner-build
+ARG VITE_MAIN_SITE_URL
+# API origin allowed to receive the planner session token.
+ARG VITE_API_URL
+COPY ./qfield-plugin /app/qfield-plugin
+COPY ./flight-planner /app/flight-planner
+WORKDIR /app/flight-planner
+RUN pnpm install && pnpm run build
+
+
 # Run development environment
 FROM base AS development
 COPY ./pnpm-workspace.yaml pnpm-lock.yaml ./
@@ -25,6 +36,7 @@ COPY ./frontend/package.json ./frontend/package.json
 COPY ./gcp-editor/package.json ./gcp-editor/package.json
 RUN pnpm install
 COPY --from=mesh-build /app/drone-mesh/dist /app/mesh-dist
+COPY --from=planner-build /app/flight-planner/dist /app/plan-dist
 WORKDIR /app/frontend
 ENTRYPOINT ["/bin/sh", "-c", "pnpm run start"]
 
@@ -43,6 +55,8 @@ WORKDIR /app/frontend
 RUN pnpm run build
 # Bundle the drone-mesh viewer at /mesh (served same-origin)
 COPY --from=mesh-build /app/drone-mesh/dist /app/frontend/dist/mesh
+# Bundle the flight planner at /plan.
+COPY --from=planner-build /app/flight-planner/dist /app/frontend/dist/plan
 
 
 # Copy generated static files to docker volume at start

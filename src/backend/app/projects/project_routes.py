@@ -205,6 +205,38 @@ async def download_boundaries(
         raise HTTPException(status_code=500, detail="Internal server error.")
 
 
+@router.get("/{project_id}/flightplanner-params", tags=["Projects"])
+async def flightplanner_params(
+    project: Annotated[
+        project_schemas.DbProject, Depends(project_deps.get_project_by_id)
+    ],
+    user_data: Annotated[AuthUser, Depends(login_required)],
+):
+    """Return project settings accepted by the flight planner."""
+    gimbal_angles = project.gimble_angles_degrees or []
+    gimbal_angle = str(gimbal_angles[0]) if gimbal_angles else None
+
+    params: dict = {"terrainFollow": project.is_terrain_follow}
+
+    # Prefer GSD when both settings are present.
+    if project.gsd_cm_px is not None:
+        params["useGsd"] = True
+        params["gsd"] = project.gsd_cm_px
+    elif project.altitude_from_ground is not None:
+        params["useGsd"] = False
+        params["agl"] = project.altitude_from_ground
+
+    if project.front_overlap is not None:
+        params["forwardOverlap"] = project.front_overlap
+    if project.side_overlap is not None:
+        params["sideOverlap"] = project.side_overlap
+    # Ignore unsupported gimbal angles.
+    if gimbal_angle in {"-80", "-90", "-45"}:
+        params["gimbalAngle"] = gimbal_angle
+
+    return params
+
+
 @router.get("/{project_id}/terrain-dem", tags=["Projects"])
 async def download_terrain_dem(
     project: Annotated[

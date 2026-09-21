@@ -65,38 +65,48 @@ spec:
                 --delete \
                 --cache-control "public, max-age=31536000, immutable"
 
-              # Entry-point HTML and config.js are mutable across deploys (stable
-              # names pointing at new hashed assets), so they need a short TTL -
-              # including the bundled sub-app entry points (e.g. mesh/index.html).
-              declare -A CONTENT_TYPES=( [index.html]="text/html" [config.js]="application/javascript" [mesh/index.html]="text/html" )
-              for f in index.html config.js mesh/index.html; do
+              # Keep mutable entry points and service-worker files short-lived.
+              declare -A SHORT_TTL=(
+                [index.html]="text/html"
+                [config.js]="application/javascript"
+                [mesh/index.html]="text/html"
+                [plan/index.html]="text/html"
+                [plan/sw.js]="application/javascript"
+                [plan/registerSW.js]="application/javascript"
+                [plan/manifest.webmanifest]="application/manifest+json"
+              )
+              for f in "${!SHORT_TTL[@]}"; do
                 if aws s3 ls "s3://${BUCKET}/${VERSION}/${f}" 2>/dev/null; then
                   aws s3 cp "s3://${BUCKET}/${VERSION}/${f}" "s3://${BUCKET}/${VERSION}/${f}" \
                     --cache-control "public, max-age=60" \
-                    --content-type "${CONTENT_TYPES[$f]}" \
+                    --content-type "${SHORT_TTL[$f]}" \
                     --metadata-directive REPLACE
                 fi
               done
 
               # ── 1b. Ensure the sub-app router CloudFront Function ───────────
-              # Routes bundled sub-apps to their own index.html; without it the
-              # SPA 403/404 fallback below serves the main app for /mesh.
-              #   /mesh   -> 301 to /mesh/   (fixes the viewer's relative assets)
-              #   /mesh/  -> /mesh/index.html
+              # Route bundled apps before the main SPA fallback.
+              #   /<app>   -> 301 to /<app>/
+              #   /<app>/  -> /<app>/index.html
               FUNC_NAME="${RELEASE}-router"
               cat > /tmp/router.js <<'EOF'
+              var APPS = ['mesh', 'plan'];
+
               function handler(event) {
                 var request = event.request;
                 var uri = request.uri;
-                if (uri === '/mesh') {
-                  return {
-                    statusCode: 301,
-                    statusDescription: 'Moved Permanently',
-                    headers: { 'location': { value: '/mesh/' } },
-                  };
-                }
-                if (uri === '/mesh/') {
-                  request.uri = '/mesh/index.html';
+
+                for (var i = 0; i < APPS.length; i++) {
+                  if (uri === '/' + APPS[i]) {
+                    return {
+                      statusCode: 301,
+                      statusDescription: 'Moved Permanently',
+                      headers: { 'location': { value: '/' + APPS[i] + '/' } },
+                    };
+                  }
+                  if (uri === '/' + APPS[i] + '/') {
+                    request.uri = '/' + APPS[i] + '/index.html';
+                  }
                 }
                 return request;
               }
