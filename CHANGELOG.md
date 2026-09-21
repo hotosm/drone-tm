@@ -1,3 +1,14 @@
+## 2026.10.0 (2026-09-21)
+
+### Feat
+
+- add dedicated drone flight planner (offline / PWA) (#893)
+- Add GLO-30 DEM - default - JAXA backup (#884)
+
+### Fix
+
+- **frontend**: better wording for file downloads (based on user request)
+
 ## 2026.9.4 (2026-09-04)
 
 ### Fix
