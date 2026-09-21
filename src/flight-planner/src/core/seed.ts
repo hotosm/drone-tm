@@ -1,5 +1,5 @@
 import { validateRing } from "./aoi";
-import type { Bbox } from "./dem";
+import { bboxIncludingPoint, type Bbox } from "./dem";
 import { dtmFetch } from "./http";
 import type { PlanParams } from "./flightplan";
 import { newPlanId, planPath, writeJson, listPlans, type PlanMeta } from "./storage";
@@ -23,8 +23,14 @@ export interface SeededTask {
 
 export interface SeedResult {
   added: number;
-  skipped: number;
+  updated: number;
+  kept: number;
   tasks: SeededTask[];
+}
+
+export interface TaskParseResult {
+  tasks: SeededTask[];
+  unreadable: number;
 }
 
 function takeoffFrom(properties: Record<string, unknown> | undefined): PlanParams["takeoffPoint"] {
@@ -37,7 +43,7 @@ function takeoffFrom(properties: Record<string, unknown> | undefined): PlanParam
   return { lon, lat };
 }
 
-export function parseTasks(geojson: unknown): SeededTask[] {
+export function parseTasks(geojson: unknown): TaskParseResult {
   const root = geojson as Record<string, unknown> | null;
   const features = root?.type === "FeatureCollection" ? root.features : null;
   if (!Array.isArray(features) || features.length === 0) {
@@ -48,16 +54,22 @@ export function parseTasks(geojson: unknown): SeededTask[] {
   }
 
   const tasks: SeededTask[] = [];
+  let unreadable = 0;
   for (const raw of features) {
     const feature = raw as Record<string, unknown>;
     const geometry = feature.geometry as Record<string, unknown> | undefined;
-    if (geometry?.type !== "Polygon" || !Array.isArray(geometry.coordinates)) continue;
+    if (geometry?.type !== "Polygon" || !Array.isArray(geometry.coordinates)) {
+      unreadable += 1;
+      continue;
+    }
 
     const properties = feature.properties as Record<string, unknown> | undefined;
     const taskId = properties?.project_task_id;
-    if (taskId === undefined || taskId === null) continue;
+    if (taskId === undefined || taskId === null) {
+      unreadable += 1;
+      continue;
+    }
 
-    // Skip invalid outlines without rejecting the project.
     try {
       const aoi = validateRing(geometry.coordinates[0] as Array<[number, number]>);
       tasks.push({
@@ -68,7 +80,7 @@ export function parseTasks(geojson: unknown): SeededTask[] {
         takeoffPoint: takeoffFrom(properties),
       });
     } catch {
-      continue;
+      unreadable += 1;
     }
   }
 
@@ -78,10 +90,10 @@ export function parseTasks(geojson: unknown): SeededTask[] {
       "Open a single task instead, or draw the area by hand.",
     );
   }
-  return tasks;
+  return { tasks, unreadable };
 }
 
-export async function fetchTasks(url: string): Promise<SeededTask[]> {
+export async function fetchTasks(url: string): Promise<TaskParseResult> {
   const response = await dtmFetch(url);
   if (!response.ok) {
     throw new SeedError(
@@ -105,35 +117,59 @@ export function tasksBbox(tasks: SeededTask[]): Bbox {
     ]);
 }
 
-/** Add missing task plans without overwriting existing plans. */
 export async function seedTaskPlans(options: {
   projectId: string;
+  projectName?: string | null;
   tasks: SeededTask[];
   params: PlanParams;
   projectBbox?: Bbox | null;
+  onProgress?: (written: number, total: number) => void;
 }): Promise<SeedResult> {
-  const { projectId, tasks, params, projectBbox = null } = options;
+  const { projectId, projectName = null, tasks, params, projectBbox = null, onProgress } = options;
 
-  const held = new Set(
+  const held = new Map(
     (await listPlans())
       .filter((plan) => plan.projectId === projectId && plan.taskId)
-      .map((plan) => plan.taskId as string),
+      .map((plan) => [plan.taskId as string, plan]),
   );
 
   const now = new Date().toISOString();
   let added = 0;
+  let updated = 0;
+  let kept = 0;
 
+  let seen = 0;
   for (const task of tasks) {
-    if (held.has(task.taskId)) continue;
+    onProgress?.(seen++, tasks.length);
+    const existing = held.get(task.taskId);
 
-    const id = newPlanId();
+    // Preserve plans changed since the last seed.
+    if (existing && existing.seededAt !== existing.updatedAt) {
+      kept += 1;
+      const changed =
+        existing.projectName !== projectName ||
+        JSON.stringify(existing.projectBbox) !== JSON.stringify(projectBbox ?? undefined);
+      if (changed) {
+        await writeJson(planPath.meta(existing.id), {
+          ...existing,
+          ...(projectName ? { projectName } : {}),
+          ...(projectBbox ? { projectBbox } : {}),
+        });
+      }
+      continue;
+    }
+
+    const id = existing?.id ?? newPlanId(projectId);
     const meta: PlanMeta = {
       id,
-      name: "",
-      createdAt: now,
+      name: existing?.name ?? "",
+      createdAt: existing?.createdAt ?? now,
       updatedAt: now,
+      seededAt: now,
       areaM2: task.areaM2,
+      bbox: bboxIncludingPoint(task.bbox, task.takeoffPoint),
       projectId,
+      ...(projectName ? { projectName } : {}),
       taskId: task.taskId,
       ...(projectBbox ? { projectBbox } : {}),
     };
@@ -150,8 +186,10 @@ export async function seedTaskPlans(options: {
     });
     await writeJson(planPath.params(id), { ...params, takeoffPoint: task.takeoffPoint });
     await writeJson(planPath.meta(id), meta);
-    added += 1;
+    if (existing) updated += 1;
+    else added += 1;
   }
+  onProgress?.(tasks.length, tasks.length);
 
-  return { added, skipped: tasks.length - added, tasks };
+  return { added, updated, kept, tasks };
 }

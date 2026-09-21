@@ -227,6 +227,19 @@ export function demCropUrl(bbox: Bbox, baseUrl: string = RASTER_API_URL): string
   );
 }
 
+/**
+ * The raster the service returned is the grid we asked for.
+ *
+ * Snapping to the GLO-30 grid and passing the matching width and height is
+ * what makes a browser crop pixel-identical to the backend's; a different
+ * size means the two are sampling different grids, so fail rather than
+ * quietly disagree about a waypoint's altitude.
+ */
+export function demMatchesRequest(sampler: DemSampler, snapped: SnappedBbox): boolean {
+  const { width, height } = sampler.size();
+  return width === snapped.width && height === snapped.height;
+}
+
 export async function fetchDem(
   bbox: Bbox,
   opts: { baseUrl?: string; signal?: AbortSignal } = {},

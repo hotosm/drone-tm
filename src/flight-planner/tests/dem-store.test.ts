@@ -3,6 +3,7 @@ import { initialState, loadPlan, savePlan } from "../src/app";
 import { PIXEL_DEG, type Bbox } from "../src/core/dem";
 import {
   demPath,
+  deletePlan,
   deleteStoredDem,
   demUsage,
   detachPlanDem,
@@ -14,6 +15,7 @@ import {
   migrateLegacyDems,
   planPath,
   pruneStaleDems,
+  pruneUnusedDems,
   putDem,
   setBackend,
   type DemEntry,
@@ -304,6 +306,49 @@ describe("pruneStaleDems", () => {
     await writePlan(backend, "p", { dem: { ...dem } });
 
     expect(await pruneStaleDems()).toBe(0);
+    expect(await backend.get(demPath.tif(dem.key))).not.toBeNull();
+  });
+});
+
+describe("pruning with derived coverage", () => {
+  it("keeps a crop that covers a saved plan, even with nothing pointing at it", async () => {
+    const backend = useMemory();
+    const dem = await store();
+    // A seeded task holds an extent but no reference until it is opened.
+    await writePlan(backend, "p", { bbox: TASK });
+
+    expect(await pruneUnusedDems()).toBe(0);
+    expect(await backend.get(demPath.tif(dem.key))).not.toBeNull();
+  });
+
+  it("drops a crop once the plans it covered are deleted", async () => {
+    const backend = useMemory();
+    const dem = await store();
+    await writePlan(backend, "p", { bbox: TASK });
+    await deletePlan("p");
+
+    expect(await pruneUnusedDems()).toBe(1);
+    expect(await backend.get(demPath.tif(dem.key))).toBeNull();
+  });
+
+  it("frees terrain for the plan that asked, despite covering it", async () => {
+    const backend = useMemory();
+    const dem = await store();
+    await writePlan(backend, "p", { bbox: TASK, dem: { ...dem } });
+
+    await detachPlanDem("p");
+
+    expect(await backend.get(demPath.tif(dem.key))).toBeNull();
+  });
+
+  it("will not free terrain another plan is covered by", async () => {
+    const backend = useMemory();
+    const dem = await store();
+    await writePlan(backend, "p", { bbox: TASK, dem: { ...dem } });
+    await writePlan(backend, "q", { bbox: TASK });
+
+    await detachPlanDem("p");
+
     expect(await backend.get(demPath.tif(dem.key))).not.toBeNull();
   });
 });

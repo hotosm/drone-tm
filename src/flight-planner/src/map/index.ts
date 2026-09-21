@@ -9,6 +9,12 @@ const OSM_TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
 export type DrawMode = "draw" | "takeoff" | "idle";
 
+export interface TaskOutline {
+  planId: string;
+  label: string;
+  ring: Array<[number, number]>;
+}
+
 export interface MapController {
   map: MlMap;
   ring(): Array<[number, number]> | null;
@@ -19,6 +25,8 @@ export interface MapController {
   takeoff(): { lon: number; lat: number } | null;
   setTakeoff(point: { lon: number; lat: number } | null): void;
   showPlan(waypoints: WaypointCollection | null, path: FlightpathCollection | null): void;
+  showTasks(tasks: TaskOutline[]): void;
+  onTaskClick(handler: (planId: string) => void): () => void;
   fitBbox(bbox: Bbox, padding?: number): void;
   onChange(handler: () => void): () => void;
   locate(): Promise<{ lon: number; lat: number }>;
@@ -26,6 +34,17 @@ export interface MapController {
 
 function emptyCollection() {
   return { type: "FeatureCollection" as const, features: [] };
+}
+
+function ringCentre(ring: Array<[number, number]>): [number, number] {
+  let [minx, miny, maxx, maxy] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const [lon, lat] of ring) {
+    minx = Math.min(minx, lon);
+    miny = Math.min(miny, lat);
+    maxx = Math.max(maxx, lon);
+    maxy = Math.max(maxy, lat);
+  }
+  return [(minx + maxx) / 2, (miny + maxy) / 2];
 }
 
 export function createMap(container: HTMLElement): MapController {
@@ -89,10 +108,72 @@ export function createMap(container: HTMLElement): MapController {
   let takeoffMarker: maplibregl.Marker | null = null;
   let mode: DrawMode = "idle";
   const changeHandlers = new Set<() => void>();
+  const taskHandlers = new Set<(planId: string) => void>();
+  let taskMarkers: maplibregl.Marker[] = [];
+  let tasks: TaskOutline[] = [];
+
+  function paintTasks(): void {
+    const source = map.getSource("project-tasks") as maplibregl.GeoJSONSource | undefined;
+    source?.setData({
+      type: "FeatureCollection",
+      features: tasks.map((task) => ({
+        type: "Feature" as const,
+        properties: { planId: task.planId, label: task.label },
+        geometry: { type: "Polygon" as const, coordinates: [task.ring] },
+      })),
+    } as never);
+
+    // DOM labels avoid an offline glyph dependency.
+    for (const marker of taskMarkers) marker.remove();
+    taskMarkers = tasks.map((task) => {
+      const element = document.createElement("button");
+      element.type = "button";
+      element.className = "task-marker";
+      element.textContent = task.label;
+      element.title = `Plan ${task.label}`;
+      element.addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (mode === "idle") [...taskHandlers].forEach((handler) => handler(task.planId));
+      });
+      return new maplibregl.Marker({ element, anchor: "center" })
+        .setLngLat(ringCentre(task.ring))
+        .addTo(map);
+    });
+  }
 
   const notify = () => [...changeHandlers].forEach((handler) => handler());
 
   map.on("load", () => {
+    map.addSource("project-tasks", { type: "geojson", data: emptyCollection() });
+    map.addLayer({
+      id: "project-tasks-fill",
+      type: "fill",
+      source: "project-tasks",
+      paint: { "fill-color": mapColor("task"), "fill-opacity": 0.08 },
+    });
+    map.addLayer({
+      id: "project-tasks-line",
+      type: "line",
+      source: "project-tasks",
+      paint: {
+        "line-color": mapColor("task"),
+        "line-width": 1.5,
+        "line-opacity": 0.8,
+        "line-dasharray": [2, 2],
+      },
+    });
+    map.on("click", "project-tasks-fill", (event) => {
+      if (mode !== "idle") return;
+      const planId = event.features?.[0]?.properties?.planId;
+      if (typeof planId === "string") [...taskHandlers].forEach((handler) => handler(planId));
+    });
+    map.on("mouseenter", "project-tasks-fill", () => {
+      if (mode === "idle") map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", "project-tasks-fill", () => {
+      if (mode === "idle") map.getCanvas().style.cursor = "";
+    });
+
     map.addSource("plan-path", { type: "geojson", data: emptyCollection() });
     map.addLayer({
       id: "plan-path-line",
@@ -139,6 +220,8 @@ export function createMap(container: HTMLElement): MapController {
     map.on("mouseleave", "plan-waypoints-hit", () => {
       if (mode === "idle") map.getCanvas().style.cursor = "";
     });
+
+    if (tasks.length > 0) paintTasks();
 
     notify();
   });
@@ -273,6 +356,16 @@ export function createMap(container: HTMLElement): MapController {
     setTakeoff(point) {
       setTakeoff(point ? { lng: point.lon, lat: point.lat } : null);
       notify();
+    },
+
+    showTasks(next) {
+      tasks = next;
+      paintTasks();
+    },
+
+    onTaskClick(handler) {
+      taskHandlers.add(handler);
+      return () => taskHandlers.delete(handler);
     },
 
     showPlan(waypoints, path) {

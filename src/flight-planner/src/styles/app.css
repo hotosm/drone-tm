@@ -594,6 +594,36 @@ wa-details::part(content) {
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
 }
 
+.task-marker {
+  min-width: 2rem;
+  padding: 0.2rem 0.5rem;
+  border: var(--wa-border-width-s) solid var(--dtm-map-task, #344f7b);
+  border-radius: var(--wa-border-radius-pill, 999px);
+  background: color-mix(in oklab, var(--wa-color-surface-raised) 88%, transparent);
+  color: var(--dtm-map-task, #344f7b);
+  font: inherit;
+  font-size: var(--wa-font-size-s);
+  font-weight: var(--wa-font-weight-semibold, 600);
+  line-height: 1.1;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+}
+
+.task-marker:hover {
+  background: var(--wa-color-surface-raised);
+  border-width: var(--wa-border-width-m, 2px);
+}
+
+.task-marker:focus-visible {
+  outline: var(--wa-focus-ring);
+  outline-offset: 2px;
+}
+
+[data-plan="yes"] .task-marker {
+  opacity: 0.45;
+}
+
 .takeoff-legend {
   display: none;
 }
@@ -733,21 +763,69 @@ wa-details::part(content) {
   -webkit-overflow-scrolling: touch;
 }
 
-.plan-group {
+.plan-project + .plan-project {
+  margin-top: var(--wa-space-s);
+}
+
+.plan-project-bar {
   position: sticky;
   top: 0;
   z-index: 1;
-  margin: var(--wa-space-s) 0 var(--wa-space-2xs);
-  padding: var(--wa-space-2xs) 0;
+  display: flex;
+  align-items: center;
+  gap: var(--wa-space-2xs);
+  margin-bottom: var(--wa-space-2xs);
   background: var(--wa-color-surface-raised);
-  font-size: var(--wa-font-size-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  border-radius: var(--wa-border-radius-m);
+}
+
+.plan-project-bar wa-button {
+  flex: 0 0 auto;
+}
+
+.plan-project-head {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--wa-space-xs);
+  padding: var(--wa-space-xs) var(--wa-space-2xs);
+  border: none;
+  border-radius: var(--wa-border-radius-m);
+  background: var(--wa-color-surface-raised);
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.plan-project-head:hover {
+  background: var(--wa-color-neutral-fill-quiet);
+}
+
+.plan-project-head:focus-visible {
+  outline: var(--wa-focus-ring);
+  outline-offset: -2px;
+}
+
+.plan-project-caret {
+  flex: 0 0 auto;
   color: var(--wa-color-text-quiet);
 }
 
-.plan-group:first-child {
-  margin-top: 0;
+.plan-project-heading {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  line-height: var(--wa-line-height-condensed, 1.2);
+}
+
+.plan-project-heading strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .plan-list {
@@ -871,4 +949,51 @@ wa-details::part(content) {
   .pair {
     grid-template-columns: 1fr;
   }
+}
+
+.handoff {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--wa-space-m);
+  background: color-mix(in oklab, var(--wa-color-surface-default) 78%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.handoff[hidden] {
+  display: none;
+}
+
+.handoff-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--wa-space-s);
+  max-width: min(22rem, calc(100vw - 2rem));
+  padding: var(--wa-space-l);
+  border: var(--wa-border-width-s) solid var(--wa-color-surface-border);
+  border-radius: var(--wa-border-radius-l);
+  background: var(--wa-color-surface-raised);
+  box-shadow: var(--wa-shadow-l);
+  text-align: center;
+}
+
+.handoff-spinner {
+  font-size: 2rem;
+  --track-width: 3px;
+  --indicator-color: var(--wa-color-brand-fill-loud);
+}
+
+.handoff-text {
+  margin: 0;
+  font-weight: var(--wa-font-weight-semibold, 600);
+}
+
+.handoff-sub {
+  margin: 0;
+  font-size: var(--wa-font-size-s);
+  min-height: 1.2em;
 }

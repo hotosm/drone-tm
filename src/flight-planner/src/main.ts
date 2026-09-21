@@ -11,6 +11,7 @@ import {
   initialState,
   loadPlan,
   NO_TERRAIN,
+  resetTerrain,
   savePlan,
   TOTAL_STEPS,
   type AppState,
@@ -23,20 +24,39 @@ import { step3 } from "./steps/step3-dem";
 import { step4 } from "./steps/step4-generate";
 import { escapeHtml } from "./steps/ui";
 import { fetchAoi, formatArea, validateRing } from "./core/aoi";
+import { DEFAULT_PARAMS } from "./core/flightplan";
 import { fetchParams, parseParams } from "./core/params";
 import { fetchTasks, seedTaskPlans, tasksBbox } from "./core/seed";
-import { DemSampler } from "./core/dem";
+import { mainSiteUrl, projectUrl } from "./core/http";
+import {
+  bboxUnion,
+  DemAreaError,
+  demMatchesRequest,
+  DemSampler,
+  fetchDem,
+  planDemBbox,
+  type Bbox,
+} from "./core/dem";
 import {
   demUsage,
   deletePlan,
   deleteStoredDem,
   detachPlanDem,
+  findCoveringDem,
+  getDemBytes,
+  glo30DemKey,
   listDems,
   listPlans,
-  migrateLegacyDems,
-  pruneEmptyPlans,
-  pruneStaleDems,
+  newPlanId,
+  planGroup,
+  pruneUnusedDems,
+  putDem,
+  readPlanRings,
+  requestPersistence,
+  startupMaintenance,
   storageEstimate,
+  terrainCoverage,
+  UNGROUPED,
   updatePlanMeta,
   type DemEntry,
   type PlanMeta,
@@ -168,6 +188,20 @@ function toast(
   }, 4000);
 }
 
+const handoffHost = document.querySelector<HTMLElement>("#handoff")!;
+const handoffText = document.querySelector<HTMLElement>("#handoff-text")!;
+const handoffSub = document.querySelector<HTMLElement>("#handoff-sub")!;
+
+function showHandoff(message: string, detail = ""): void {
+  handoffText.textContent = message;
+  handoffSub.textContent = detail;
+  handoffHost.hidden = false;
+}
+
+function hideHandoff(): void {
+  handoffHost.hidden = true;
+}
+
 const context: StepContext = {
   state,
   map,
@@ -236,11 +270,13 @@ const planFilterInput = document.querySelector<HTMLElement & { value: string }>(
 const demBody = document.querySelector<HTMLElement>("#dems-body")!;
 
 let planCache: PlanMeta[] = [];
+let terrainReady = new Set<string>();
 let planConfirming: string | null = null;
+let groupConfirming: string | null = null;
 let planRenaming: string | null = null;
 let demConfirming: string | null = null;
-
-const DAY_MS = 24 * 60 * 60 * 1000;
+const collapsedGroups = new Set<string>();
+let collapseChosen = false;
 
 const PLAN_ACTIONS = [
   "[data-load]",
@@ -253,19 +289,77 @@ const PLAN_ACTIONS = [
   "[data-free]",
 ].join(",");
 
-function planGroup(meta: PlanMeta): string {
-  const age = Date.now() - Date.parse(meta.updatedAt);
-  if (!Number.isFinite(age)) return "Older";
-  if (age < DAY_MS) return "Today";
-  if (age < 7 * DAY_MS) return "This week";
-  return "Older";
+interface PlanProject {
+  key: string;
+  title: string;
+  plans: PlanMeta[];
+  updatedAt: string;
 }
 
-function planDetail(meta: PlanMeta): string {
+function byTask(a: PlanMeta, b: PlanMeta): number {
+  const left = Number(a.taskId);
+  const right = Number(b.taskId);
+  if (Number.isFinite(left) && Number.isFinite(right)) return left - right;
+  if (Number.isFinite(left) !== Number.isFinite(right)) return Number.isFinite(left) ? -1 : 1;
+  return b.updatedAt.localeCompare(a.updatedAt);
+}
+
+function projectTitle(key: string, plans: PlanMeta[]): string {
+  if (key === UNGROUPED) return "Not from a project";
+  const named = plans.find((plan) => plan.projectName)?.projectName;
+  if (named) return named;
+  const id = plans.find((plan) => plan.projectId)?.projectId ?? key;
+  return `Project ${id.slice(0, 8)}`;
+}
+
+function groupByProject(plans: PlanMeta[]): PlanProject[] {
+  const groups = new Map<string, PlanMeta[]>();
+  for (const plan of plans) {
+    const key = planGroup(plan.id);
+    groups.set(key, [...(groups.get(key) ?? []), plan]);
+  }
+
+  return [...groups]
+    .map(([key, list]) => ({
+      key,
+      title: projectTitle(key, list),
+      plans: [...list].sort(byTask),
+      updatedAt: list.reduce(
+        (latest, plan) => (plan.updatedAt > latest ? plan.updatedAt : latest),
+        "",
+      ),
+    }))
+    .sort((a, b) => {
+      if ((a.key === UNGROUPED) !== (b.key === UNGROUPED)) return a.key === UNGROUPED ? 1 : -1;
+      return b.updatedAt.localeCompare(a.updatedAt);
+    });
+}
+
+function projectSummary(plans: PlanMeta[]): string {
+  const withTerrain = plans.filter((plan) => terrainReady.has(plan.id)).length;
+  const areas = plans.length === 1 ? "1 area" : `${plans.length} areas`;
+  if (withTerrain === 0) return `${areas} · no terrain yet`;
+  return withTerrain === plans.length
+    ? `${areas} · terrain ready`
+    : `${areas} · ${withTerrain} with terrain`;
+}
+
+function chooseCollapsed(): void {
+  if (collapseChosen) return;
+  collapseChosen = true;
+  const groups = groupByProject(planCache);
+  if (groups.length < 2) return;
+  const current = planGroup(state.meta.id);
+  for (const group of groups) {
+    if (group.key !== current && group.plans.length > 1) collapsedGroups.add(group.key);
+  }
+}
+
+function planDetail(meta: PlanMeta, ready: boolean): string {
   const named = Boolean(meta.name || meta.taskId);
   const bits: string[] = [];
   if (named && meta.areaM2) bits.push(formatArea(meta.areaM2));
-  bits.push(meta.dem ? "terrain ready" : "no terrain");
+  bits.push(ready ? "terrain ready" : "no terrain");
   if (!meta.generatedAt) bits.push("draft");
   return bits.join(" · ");
 }
@@ -363,7 +457,7 @@ demBody.addEventListener("click", (event) => {
   }
 });
 
-function renderPlanRow(meta: PlanMeta): string {
+function renderPlanRow(meta: PlanMeta, ready: boolean): string {
   const id = escapeHtml(meta.id);
 
   if (planRenaming === meta.id) {
@@ -408,7 +502,7 @@ function renderPlanRow(meta: PlanMeta): string {
       <div class="plan-main">
         <button class="plan-open" data-load="${id}">
           <strong class="plan-name">${escapeHtml(planLabel(meta))}</strong>
-          <span class="muted plan-detail">${escapeHtml(planDetail(meta))}</span>
+          <span class="muted plan-detail">${escapeHtml(planDetail(meta, ready))}</span>
         </button>
         <div class="plan-actions">
           <wa-button data-rename="${id}" appearance="plain" size="s" title="Rename">
@@ -426,7 +520,9 @@ function renderPlanRow(meta: PlanMeta): string {
 function renderPlanList(): void {
   const term = planFilterInput.value.trim().toLowerCase();
   const matches = term
-    ? planCache.filter((plan) => planLabel(plan).toLowerCase().includes(term))
+    ? planCache.filter((plan) =>
+        `${planLabel(plan)} ${plan.projectName ?? ""}`.toLowerCase().includes(term),
+      )
     : planCache;
 
   if (planCache.length === 0) {
@@ -440,18 +536,59 @@ function renderPlanList(): void {
     return;
   }
 
-  const groups = new Map<string, PlanMeta[]>();
-  for (const plan of matches) {
-    const key = planGroup(plan);
-    groups.set(key, [...(groups.get(key) ?? []), plan]);
-  }
+  planBody.innerHTML = groupByProject(matches)
+    .map((group) => {
+      const open = Boolean(term) || !collapsedGroups.has(group.key);
+      const rows = group.plans
+        .map((plan) => renderPlanRow(plan, terrainReady.has(plan.id)))
+        .join("");
 
-  planBody.innerHTML = [...groups]
-    .map(
-      ([heading, plans]) => `
-        <h3 class="plan-group">${escapeHtml(heading)}</h3>
-        <ul class="plan-list">${plans.map(renderPlanRow).join("")}</ul>`,
-    )
+      const key = escapeHtml(group.key);
+      const count = group.plans.length === 1 ? "this plan" : `all ${group.plans.length} plans`;
+      const confirm =
+        groupConfirming === group.key
+          ? `<div class="plan-confirm">
+               <span>Delete ${escapeHtml(count)} in ${escapeHtml(group.title)}?</span>
+               <div class="plan-confirm-actions">
+                 <wa-button data-group-cancel appearance="plain" size="s">Cancel</wa-button>
+                 <wa-button data-group-delete="${key}" variant="danger" size="s">
+                   Delete ${escapeHtml(group.plans.length === 1 ? "plan" : "all")}
+                 </wa-button>
+               </div>
+             </div>`
+          : "";
+
+      return `
+        <section class="plan-project">
+          <div class="plan-project-bar">
+            <button
+              type="button"
+              class="plan-project-head"
+              data-group-toggle="${key}"
+              aria-expanded="${open}"
+            >
+              <wa-icon
+                class="plan-project-caret"
+                name="${open ? "chevron-down" : "chevron-right"}"
+              ></wa-icon>
+              <span class="plan-project-heading">
+                <strong>${escapeHtml(group.title)}</strong>
+                <span class="muted plan-detail">${escapeHtml(projectSummary(group.plans))}</span>
+              </span>
+            </button>
+            <wa-button
+              data-group-remove="${key}"
+              appearance="plain"
+              size="s"
+              title="Delete every plan here"
+            >
+              <wa-icon name="trash-can" label="Delete every plan here"></wa-icon>
+            </wa-button>
+          </div>
+          ${confirm}
+          ${open ? `<ul class="plan-list">${rows}</ul>` : ""}
+        </section>`;
+    })
     .join("");
 
   if (planRenaming) focusRenameInput();
@@ -468,6 +605,8 @@ function focusRenameInput(): void {
 
 async function refreshPlanList(): Promise<void> {
   planCache = await listPlans();
+  terrainReady = await terrainCoverage(planCache);
+  chooseCollapsed();
   await refreshDemList();
   const estimate = await storageEstimate();
   planStorage.textContent = estimate
@@ -477,9 +616,35 @@ async function refreshPlanList(): Promise<void> {
   renderPlanList();
 }
 
-async function openPlan(id: string): Promise<void> {
+async function syncProjectTasks(): Promise<void> {
+  const projectId = state.meta.projectId;
+  if (!projectId) return map.showTasks([]);
+
+  const plans = (await listPlans()).filter(
+    (plan) => plan.projectId === projectId && plan.id !== state.meta.id,
+  );
+  const rings = await readPlanRings(plans);
+
+  const outlines = plans.flatMap((plan) => {
+    const ring = rings.get(plan.id);
+    return ring ? [{ planId: plan.id, label: planLabel(plan), ring }] : [];
+  });
+  map.showTasks(outlines);
+
+  if (state.aoi || outlines.length === 0) return;
+  const extent =
+    state.projectBbox ??
+    state.meta.projectBbox ??
+    plans.reduce<Bbox | null>(
+      (acc, plan) => (plan.bbox ? (acc ? bboxUnion(acc, plan.bbox) : [...plan.bbox]) : acc),
+      null,
+    );
+  if (extent) map.fitBbox(extent);
+}
+
+async function loadPlanIntoState(id: string): Promise<boolean> {
   const loaded = await loadPlan(id);
-  if (!loaded) return toast("That plan could not be read.", "danger");
+  if (!loaded) return false;
 
   state.meta = loaded.meta;
   state.aoi = loaded.aoiRing ? validateRing(loaded.aoiRing) : null;
@@ -508,9 +673,115 @@ async function openPlan(id: string): Promise<void> {
   }
   map.showPlan(null, null);
   map.setTakeoff(state.params.takeoffPoint);
-  planDialog.open = false;
   goTo(state.dem.sampler ? 4 : state.aoi ? 3 : 1);
+  await syncProjectTasks();
+  return true;
+}
+
+async function openPlan(id: string): Promise<void> {
+  if (!(await loadPlanIntoState(id))) return toast("That plan could not be read.", "danger");
+  planDialog.open = false;
   toast("Plan loaded.", "success");
+}
+
+map.onTaskClick((planId) => {
+  if (planId === state.meta.id) return;
+  void openPlan(planId).catch(() => toast("That plan could not be read.", "danger"));
+});
+
+const GROUP_ACTIONS =
+  "[data-group-toggle],[data-group-remove],[data-group-cancel],[data-group-delete]";
+
+planBody.addEventListener("click", (event) => {
+  const target = (event.target as HTMLElement).closest<HTMLElement>(GROUP_ACTIONS);
+  if (!target) return;
+  const data = target.dataset;
+
+  if (data.groupToggle) {
+    if (!collapsedGroups.delete(data.groupToggle)) collapsedGroups.add(data.groupToggle);
+    return renderPlanList();
+  }
+
+  if (data.groupRemove) {
+    groupConfirming = data.groupRemove;
+    planConfirming = null;
+    planRenaming = null;
+    return renderPlanList();
+  }
+
+  if (data.groupCancel !== undefined) {
+    groupConfirming = null;
+    return renderPlanList();
+  }
+
+  if (data.groupDelete) {
+    const key = data.groupDelete;
+    groupConfirming = null;
+    return void deleteProjectPlans(key)
+      .then((removed) => {
+        toast(`Deleted ${removed} plan${removed === 1 ? "" : "s"}.`, "success");
+        return refreshPlanList();
+      })
+      .catch(() => toast("Those plans could not be deleted.", "danger"));
+  }
+});
+
+async function deleteProjectPlans(group: string): Promise<number> {
+  const doomed = planCache.filter((plan) => planGroup(plan.id) === group);
+  for (const plan of doomed) await deletePlan(plan.id);
+
+  // Crops no plan points at any more are dead weight once a project goes.
+  await pruneUnusedDems();
+
+  // Covers the plan being worked on even before its first save.
+  if (planGroup(state.meta.id) === group) resetWorkspace(false);
+  else await syncProjectTasks();
+
+  return doomed.length;
+}
+
+/**
+ * Clears the plan being worked on, once its own record has been deleted.
+ *
+ * Built from scratch rather than from initialState(), which would read the
+ * project back out of the URL and hand the next save a plan to write into the
+ * project that was just cleared.
+ */
+function resetWorkspace(keepProject: boolean): void {
+  const now = new Date().toISOString();
+  const { projectId, projectName } = state.meta;
+
+  state.meta = {
+    id: newPlanId(keepProject ? projectId : undefined),
+    name: "",
+    createdAt: now,
+    updatedAt: now,
+    ...(keepProject && projectId ? { projectId } : {}),
+    ...(keepProject && projectName ? { projectName } : {}),
+  };
+  state.aoi = null;
+  state.params = { ...DEFAULT_PARAMS };
+  state.projectBbox = keepProject ? state.projectBbox : null;
+  state.result = null;
+  resetTerrain(state);
+
+  map.clearRing();
+  map.showPlan(null, null);
+  map.setTakeoff(null);
+  goTo(1);
+
+  if (keepProject) {
+    // Drop the task from the address bar with it: a reload would otherwise
+    // restore the deleted task's identity and the next edit rewrite it.
+    if (projectId) keepProjectInUrl(projectId);
+    else if (location.search) history.replaceState(null, "", location.pathname);
+    void syncProjectTasks();
+    return;
+  }
+
+  map.showTasks([]);
+  // A reload must not bring the deleted project back either.
+  if (location.search) history.replaceState(null, "", location.pathname);
 }
 
 planBody.addEventListener("click", (event) => {
@@ -584,6 +855,8 @@ planBody.addEventListener("click", (event) => {
     planConfirming = null;
     return void deletePlan(id)
       .then(() => {
+        // Still loaded, it would be written back by the next save.
+        if (id === state.meta.id) resetWorkspace(true);
         toast("Plan deleted.", "success");
         return refreshPlanList();
       })
@@ -594,12 +867,74 @@ planBody.addEventListener("click", (event) => {
 planFilterInput.addEventListener("input", renderPlanList);
 
 async function showStoredPlans(): Promise<void> {
+  await startupMaintenance();
   planConfirming = null;
+  groupConfirming = null;
   planRenaming = null;
   demConfirming = null;
   planFilterInput.value = "";
   await refreshPlanList();
   planDialog.open = true;
+}
+
+async function seedProjectTerrain(bbox: Bbox): Promise<string> {
+  // A crop already on disk only counts if it still reads back and reaches the
+  // whole project; otherwise fall through and fetch it again.
+  if (await heldTerrainCovers(bbox)) return "Terrain for this project was already saved.";
+
+  const plan = planDemBbox({ required: bbox, context: bbox });
+
+  const estimate = await storageEstimate();
+  if (estimate && plan.bytes > estimate.quota - estimate.usage) {
+    throw new Error(
+      `The task areas are saved, but terrain needs about ${formatBytes(plan.bytes)} ` +
+        `and this browser has room for ${formatBytes(estimate.quota - estimate.usage)}.`,
+    );
+  }
+
+  showHandoff("Downloading terrain for this project", `About ${formatBytes(plan.bytes)}`);
+  const { bytes, url, snapped } = await fetchDem(plan.bbox);
+
+  const sampler = await DemSampler.fromBytes(bytes);
+  // Validate the returned raster itself, not only its metadata.
+  if (!sampler.covers(plan.bbox, 0)) {
+    throw new Error("The elevation service returned a crop smaller than this project.");
+  }
+  if (!demMatchesRequest(sampler, snapped)) {
+    const got = sampler.size();
+    throw new Error(
+      `The elevation service returned a ${got.width}x${got.height} grid, not the ` +
+        `${snapped.width}x${snapped.height} that was asked for.`,
+    );
+  }
+  const relief = sampler.range();
+  if (relief.voids === relief.count) {
+    throw new Error("The terrain for this project came back empty.");
+  }
+
+  await putDem(
+    {
+      key: glo30DemKey(snapped.bbox),
+      bbox: snapped.bbox,
+      width: snapped.width,
+      height: snapped.height,
+      sourceUrl: url,
+      fetchedAt: new Date().toISOString(),
+      byteLength: bytes.byteLength,
+      source: "GLO30",
+      label: plan.clamped ? `${formatExtent(snapped.bbox)} of this project` : "This whole project",
+    },
+    bytes,
+  );
+  const persisted = await requestPersistence();
+  const kept = persisted
+    ? "Every task can now be planned offline."
+    : "Every task can now be planned offline, as long as this browser keeps its storage.";
+
+  return plan.clamped
+    ? `Terrain saved for ${formatExtent(snapped.bbox)} of this project. Tasks outside that ` +
+        `need their own download, while you still have a signal.`
+    : `Terrain saved for the whole project. ${kept}`;
 }
 
 async function applyTaskSeeding(tasksUrl: string, projectId: string | null): Promise<void> {
@@ -609,41 +944,130 @@ async function applyTaskSeeding(tasksUrl: string, projectId: string | null): Pro
   }
 
   try {
-    const tasks = await fetchTasks(tasksUrl);
+    showHandoff("Loading the task areas");
+    const { tasks, unreadable } = await fetchTasks(tasksUrl);
     const bbox = state.projectBbox ?? tasksBbox(tasks);
-    const { added, skipped } = await seedTaskPlans({
+
+    showHandoff("Saving the task areas for offline use", `0 of ${tasks.length}`);
+    const { added, updated, kept } = await seedTaskPlans({
       projectId,
+      projectName: state.meta.projectName,
       tasks,
       params: state.params,
       projectBbox: bbox,
+      onProgress: (written, total) => {
+        handoffSub.textContent = `${written} of ${total}`;
+      },
     });
 
-    // Use one terrain extent for the full project.
     state.projectBbox = bbox;
     state.meta.projectBbox = bbox;
 
-    if (added === 0) {
-      toast(`All ${skipped} tasks are already saved for offline use.`, "success");
-    } else {
+    toast(seedSummary({ added, updated, kept }), "success");
+    if (unreadable > 0) {
       toast(
-        `Saved ${added} task${added === 1 ? "" : "s"} for offline use. ` +
-          `Download the terrain to finish.`,
-        "success",
+        `${unreadable} of the project's areas could not be read and were not saved. ` +
+          `Draw those by hand, or ask for the project to be checked.`,
+        "warning",
       );
     }
+
+    try {
+      toast(await seedProjectTerrain(bbox), "success");
+    } catch (error) {
+      const guidance = error instanceof DemAreaError ? ` ${error.guidance}` : "";
+      toast(
+        `${error instanceof Error ? error.message : "Terrain could not be downloaded."}` +
+          `${guidance} You can still download it from step 3 of any task.`,
+        "warning",
+      );
+    }
+
+    keepProjectInUrl(projectId);
+    map.fitBbox(bbox);
     await showStoredPlans();
   } catch (error) {
     toast(error instanceof Error ? error.message : "Could not load the task areas.", "warning");
   }
 }
 
+async function heldTerrainCovers(bbox: Bbox): Promise<boolean> {
+  const entry = await findCoveringDem(bbox);
+  if (!entry) return false;
+
+  const bytes = await getDemBytes(entry.key);
+  if (!bytes) return false;
+
+  try {
+    return (await DemSampler.fromBytes(bytes)).covers(bbox, 0);
+  } catch {
+    return false;
+  }
+}
+
+function seedSummary({
+  added,
+  updated,
+  kept,
+}: {
+  added: number;
+  updated: number;
+  kept: number;
+}): string {
+  const parts: string[] = [];
+  if (added > 0) parts.push(`Saved ${added} task${added === 1 ? "" : "s"} for offline use`);
+  if (updated > 0)
+    parts.push(`${added > 0 ? "refreshed" : "Refreshed"} ${updated} from the project`);
+  if (kept > 0) parts.push(`left ${kept} you have already worked on untouched`);
+  if (parts.length === 0) return "This project is already saved for offline use.";
+  return `${parts.join(", ")}.`;
+}
+
+function keepProjectInUrl(projectId: string): void {
+  const kept = new URLSearchParams({ project: projectId });
+  if (state.meta.projectName) kept.set("project_name", state.meta.projectName);
+  if (state.meta.taskId) kept.set("task", state.meta.taskId);
+  history.replaceState(null, "", `${location.pathname}?${kept.toString()}`);
+}
+
+const HANDOFF_PARAMS = ["aoi", "params", "project_aoi", "tasks"];
+
+function hasHandoff(): boolean {
+  const search = new URLSearchParams(location.search);
+  return HANDOFF_PARAMS.some((key) => search.has(key));
+}
+
+function fromDroneTm(): boolean {
+  return new URLSearchParams(location.search).has("project");
+}
+
 async function applyUrlHandoff(): Promise<void> {
+  if (!hasHandoff()) return;
+  showHandoff("Loading this project");
+  try {
+    await runUrlHandoff();
+  } finally {
+    hideHandoff();
+  }
+}
+
+async function runUrlHandoff(): Promise<void> {
   const search = new URLSearchParams(location.search);
   const aoiUrl = search.get("aoi");
   const paramsUrl = search.get("params");
   const projectAoiUrl = search.get("project_aoi");
   const tasksUrl = search.get("tasks");
-  if (!aoiUrl && !paramsUrl && !projectAoiUrl && !tasksUrl) return;
+  const projectId = search.get("project");
+  const taskId = search.get("task");
+
+  if (projectId && taskId && !tasksUrl) {
+    const held = (await listPlans()).find(
+      (plan) => plan.projectId === projectId && plan.taskId === taskId,
+    );
+    if (held && (await loadPlanIntoState(held.id))) {
+      state.meta.projectName = search.get("project_name") ?? state.meta.projectName;
+    }
+  }
 
   if (projectAoiUrl) {
     try {
@@ -655,6 +1079,7 @@ async function applyUrlHandoff(): Promise<void> {
     }
   }
 
+  let aoiFailed = false;
   if (aoiUrl) {
     try {
       const aoi = await fetchAoi(aoiUrl);
@@ -663,6 +1088,7 @@ async function applyUrlHandoff(): Promise<void> {
       map.fitBbox(aoi.bbox);
       state.step = 2;
     } catch (error) {
+      aoiFailed = true;
       toast(error instanceof Error ? error.message : "Could not load the area.", "warning");
     }
   }
@@ -688,11 +1114,14 @@ async function applyUrlHandoff(): Promise<void> {
       );
       return;
     }
-    await applyTaskSeeding(tasksUrl, search.get("project"));
+    await applyTaskSeeding(tasksUrl, projectId);
     return;
   }
 
   await context.save();
+  // Keep a failed fetch in the URL: trimming it would strand an empty task
+  // with no way to retry but drawing the area by hand.
+  if (projectId && !aoiFailed && !paramsFailed) keepProjectInUrl(projectId);
   renderStep();
 }
 
@@ -704,22 +1133,40 @@ document.querySelector("#tutorial-toggle")?.addEventListener("change", (event) =
   renderStep();
 });
 
-const mainSite = import.meta.env.VITE_MAIN_SITE_URL || "https://drone.hotosm.org";
-document.querySelector("#main-site")?.setAttribute("href", mainSite);
+function wireMainSite(): void {
+  const button = document.querySelector<HTMLElement>("#main-site");
+  if (!button) return;
+
+  const projectId = state.meta.projectId;
+  button.setAttribute("href", projectId ? projectUrl(projectId) : mainSiteUrl());
+
+  if (!projectId) {
+    button.setAttribute("target", "_blank");
+    return;
+  }
+
+  const label = document.querySelector<HTMLElement>("#main-site-label");
+  if (label) label.textContent = "Back to project";
+  const icon = document.querySelector<HTMLElement>("#main-site-icon");
+  icon?.setAttribute("slot", "start");
+  icon?.setAttribute("name", "arrow-left");
+  icon?.setAttribute("label", "Back to project");
+}
+
+wireMainSite();
 
 document.querySelector("#show-plans")?.addEventListener("click", () => void showStoredPlans());
 document.querySelector("#show-help")?.addEventListener("click", showWelcome);
 
 renderStep();
 
-if (!welcomeSeen() && tutorialEnabled()) showWelcome();
+if (!fromDroneTm() && !welcomeSeen() && tutorialEnabled()) showWelcome();
 
-void applyUrlHandoff();
+if (hasHandoff()) showHandoff("Loading this project");
 
-void pruneEmptyPlans().catch(() => {});
-
-void migrateLegacyDems()
-  .then(() => pruneStaleDems())
+void startupMaintenance()
+  .then(applyUrlHandoff)
+  .then(syncProjectTasks)
   .catch(() => {});
 
 const headerHost = document.querySelector<HTMLElement>(".app-header")!;

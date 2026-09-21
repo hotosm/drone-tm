@@ -22,7 +22,7 @@ import { triggerMeshConversion, triggerOrthophotoConversion } from "@Services/cr
 import { setProjectState } from "@Store/actions/project";
 import { useTypedDispatch, useTypedSelector } from "@Store/hooks";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { buildDownloadUrl, buildFlightPlannerSeedUrl, buildFlightPlannerUrl } from "@Utils/index";
+import { buildDownloadUrl, buildFlightPlannerSeedUrl } from "@Utils/index";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
 import QFieldExportDialog from "@Components/IndividualProject/QFieldExport";
 import QFieldLogo from "@Components/IndividualProject/QFieldExport/QFieldLogo";
@@ -423,6 +423,20 @@ const IndividualProject = () => {
                 if (showTilesControls) return tilesButton;
                 return meshViewerButton ?? tilesButton;
               })()}
+            <Button
+              variant="ghost"
+              className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
+              leftIcon="flight_takeoff"
+              iconClassname="naxatw-text-[1.125rem]"
+              title={m.individual_project_flight_planner_hint()}
+              onClick={() => {
+                window.location.assign(
+                  buildFlightPlannerSeedUrl((projectData?.id || id) as string, projectData?.name),
+                );
+              }}
+            >
+              {m.individual_project_button_flight_planner()}
+            </Button>
             <div className="naxatw-relative">
               <Button
                 variant="ghost"
@@ -479,22 +493,6 @@ const IndividualProject = () => {
                     <QFieldLogo />
                     {m.individual_project_export_qfield()}
                   </div>
-                  <a
-                    className="naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-px-3 naxatw-py-2 naxatw-text-inherit naxatw-no-underline hover:naxatw-bg-redlight"
-                    href={buildFlightPlannerUrl({ projectId: (projectData?.id || id) as string })}
-                    onClick={() => setShowDownloadOptions(false)}
-                  >
-                    <span className="material-icons naxatw-text-base">flight_takeoff</span>
-                    {m.individual_project_open_flight_planner()}
-                  </a>
-                  <a
-                    className="naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-px-3 naxatw-py-2 naxatw-text-inherit naxatw-no-underline hover:naxatw-bg-redlight"
-                    href={buildFlightPlannerSeedUrl((projectData?.id || id) as string)}
-                    onClick={() => setShowDownloadOptions(false)}
-                  >
-                    <span className="material-icons naxatw-text-base">cloud_off</span>
-                    {m.individual_project_seed_flight_planner()}
-                  </a>
                   {projectData?.is_terrain_follow && (
                     <div
                       className="naxatw-flex naxatw-cursor-pointer naxatw-items-center naxatw-gap-2 naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"

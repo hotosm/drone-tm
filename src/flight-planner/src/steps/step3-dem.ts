@@ -3,6 +3,7 @@ import {
   bboxIncludingPoint,
   bboxSizeKm,
   DemAreaError,
+  demMatchesRequest,
   DemSampler,
   fetchDem,
   planDemBbox,
@@ -95,6 +96,9 @@ async function useStoredDem(
 
   const sampler = await DemSampler.fromBytes(bytes);
   if (cancelled() || !stillCurrent(ctx, at)) return false;
+
+  // Verify the raster rather than trusting its sidecar metadata.
+  if (!sampler.covers(requiredBbox(ctx))) return false;
 
   const dem: StepContext["state"]["dem"] = {
     sampler,
@@ -344,6 +348,16 @@ export const step3: Step = {
         const { bytes, url, snapped } = await fetchDem(plan.bbox);
         const sampler = await DemSampler.fromBytes(bytes);
         if (isStale(id, at)) return;
+
+        if (!demMatchesRequest(sampler, snapped)) {
+          const got = sampler.size();
+          errorHost.innerHTML = errorPanel(
+            `The elevation service returned a ${got.width}x${got.height} grid, not the ` +
+              `${snapped.width}x${snapped.height} that was asked for.`,
+            "Try again, or upload your own DEM for this area.",
+          );
+          return;
+        }
 
         const entry: DemEntry = {
           key: glo30DemKey(snapped.bbox),

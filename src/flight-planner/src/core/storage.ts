@@ -1,6 +1,14 @@
 // OPFS storage with an IndexedDB fallback.
 
-import { COVERAGE_MARGIN_PX, GRID_ORIGIN, PIXEL_DEG, bboxContains, type Bbox } from "./dem";
+import {
+  COVERAGE_MARGIN_PX,
+  GRID_ORIGIN,
+  PIXEL_DEG,
+  bboxContains,
+  bboxIncludingPoint,
+  ringBbox,
+  type Bbox,
+} from "./dem";
 
 export interface StorageBackend {
   readonly kind: "opfs" | "indexeddb";
@@ -141,13 +149,61 @@ class IdbBackend implements StorageBackend {
   }
 }
 
+/**
+ * Picks the store to use.
+ *
+ * Feature detection is not enough. A Firefox private window exposes
+ * getDirectory() and then rejects it with a SecurityError, and Chrome does the
+ * same where an origin's site data is blocked. IndexedDB still works in both,
+ * so open OPFS once and see, rather than leaving every read and write to fail.
+ */
+export async function chooseBackend(): Promise<StorageBackend> {
+  if (typeof navigator !== "undefined" && typeof navigator.storage?.getDirectory === "function") {
+    try {
+      await navigator.storage.getDirectory();
+      return new OpfsBackend();
+    } catch {
+      /* Blocked or partitioned: IndexedDB is usually still allowed. */
+    }
+  }
+  return new IdbBackend();
+}
+
+/** Defers the choice to the first read or write, so it can be awaited. */
+class AutoBackend implements StorageBackend {
+  private chosen: StorageBackend | null = null;
+  private choosing: Promise<StorageBackend> | null = null;
+
+  get kind(): StorageBackend["kind"] {
+    return this.chosen?.kind ?? "opfs";
+  }
+
+  private store(): Promise<StorageBackend> {
+    this.choosing ??= chooseBackend().then((backend) => (this.chosen = backend));
+    return this.choosing;
+  }
+
+  async put(path: string, data: ArrayBuffer | string): Promise<void> {
+    return (await this.store()).put(path, data);
+  }
+
+  async get(path: string): Promise<ArrayBuffer | null> {
+    return (await this.store()).get(path);
+  }
+
+  async remove(path: string): Promise<void> {
+    return (await this.store()).remove(path);
+  }
+
+  async list(prefix: string): Promise<string[]> {
+    return (await this.store()).list(prefix);
+  }
+}
+
 let backend: StorageBackend | null = null;
 
 export function getBackend(): StorageBackend {
-  if (backend) return backend;
-  const hasOpfs =
-    typeof navigator !== "undefined" && typeof navigator.storage?.getDirectory === "function";
-  backend = hasOpfs ? new OpfsBackend() : new IdbBackend();
+  backend ??= new AutoBackend();
   return backend;
 }
 
@@ -196,12 +252,28 @@ export interface PlanMeta {
   createdAt: string;
   updatedAt: string;
   areaM2?: number;
+  bbox?: Bbox;
+  /** Used to detect local changes after seeding. */
+  seededAt?: string;
   generatedAt?: string;
   dem?: PlanDem;
   projectId?: string;
+  projectName?: string;
   taskId?: string;
-  /** Project outline bounds from the handoff, so offline reloads keep them. */
   projectBbox?: Bbox;
+}
+
+export const UNGROUPED = "unassigned";
+
+export function planGroup(id: string): string {
+  const slash = id.indexOf("/");
+  return slash === -1 ? UNGROUPED : id.slice(0, slash);
+}
+
+/** Keep project ids to one safe path segment. */
+export function groupSegment(projectId?: string): string {
+  const slug = (projectId ?? "").replace(/[^\w-]+/g, "-").slice(0, 64);
+  return slug && slug !== UNGROUPED ? slug : UNGROUPED;
 }
 
 const planDir = (id: string) => `plans/${id}`;
@@ -211,7 +283,6 @@ export const planPath = {
   params: (id: string) => `${planDir(id)}/params.json`,
   dem: (id: string) => `${planDir(id)}/dem.tif`,
   meta: (id: string) => `${planDir(id)}/meta.json`,
-  output: (id: string, name: string) => `${planDir(id)}/out/${name}`,
 };
 
 export async function readJson<T>(path: string): Promise<T | null> {
@@ -229,8 +300,25 @@ export async function writeJson(path: string, value: unknown): Promise<void> {
 }
 
 export async function listPlans(): Promise<PlanMeta[]> {
-  const ids = await getBackend().list("plans");
-  const metas = await Promise.all(ids.map((id) => readJson<PlanMeta>(planPath.meta(id))));
+  const backend = getBackend();
+  const metas: Array<PlanMeta | null> = [];
+
+  for (const entry of await backend.list("plans")) {
+    // Read legacy flat plan folders before migration too.
+    const flat = await readJson<PlanMeta>(planPath.meta(entry));
+    if (flat) {
+      metas.push(flat);
+      continue;
+    }
+
+    const nested = await backend.list(`plans/${entry}`);
+    metas.push(
+      ...(await Promise.all(
+        nested.map((id) => readJson<PlanMeta>(planPath.meta(`${entry}/${id}`))),
+      )),
+    );
+  }
+
   return metas
     .filter((m): m is PlanMeta => m !== null)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -342,6 +430,23 @@ export async function findCoveringDem(
   return null;
 }
 
+export async function terrainCoverage(plans: PlanMeta[]): Promise<Set<string>> {
+  const ready = new Set<string>();
+  const pending: PlanMeta[] = [];
+  for (const plan of plans) {
+    if (plan.dem) ready.add(plan.id);
+    else if (plan.bbox) pending.push(plan);
+  }
+  if (pending.length === 0) return ready;
+
+  const dems = await listDems();
+  const margin = COVERAGE_MARGIN_PX * PIXEL_DEG;
+  for (const plan of pending) {
+    if (dems.some((dem) => bboxContains(dem.bbox, plan.bbox!, margin))) ready.add(plan.id);
+  }
+  return ready;
+}
+
 export async function demUsage(): Promise<Map<string, string[]>> {
   const usage = new Map<string, string[]>();
   for (const plan of await listPlans()) {
@@ -357,7 +462,9 @@ export async function detachPlanDem(id: string): Promise<void> {
   await updatePlanMeta(id, (meta) => {
     delete meta.dem;
   });
-  await pruneUnusedDems();
+  // Freeing this plan's terrain is a request for the space back, so its own
+  // extent does not count as a reason to keep the crop.
+  await pruneUnusedDems([id]);
 }
 
 export async function deleteStoredDem(key: string): Promise<void> {
@@ -372,8 +479,8 @@ export async function deleteStoredDem(key: string): Promise<void> {
   await backend.remove(demPath.meta(key));
 }
 
-export async function pruneUnusedDems(): Promise<number> {
-  return removeDems(await listDems());
+export async function pruneUnusedDems(ignorePlanIds: string[] = []): Promise<number> {
+  return removeDems(await listDems(), ignorePlanIds);
 }
 
 /** Removes unreferenced DEMs after a reuse window. */
@@ -387,15 +494,89 @@ export async function pruneStaleDems(maxAgeDays = 90): Promise<number> {
   );
 }
 
-async function removeDems(entries: DemEntry[]): Promise<number> {
-  const usage = await demUsage();
-  const orphans = entries.filter((entry) => !usage.has(entry.key));
+/**
+ * A crop is in use when a plan points at it, and also when it simply covers
+ * one: a seeded task carries no reference until it is opened, so going by
+ * references alone would throw away the terrain a whole project is relying on.
+ */
+async function removeDems(entries: DemEntry[], ignorePlanIds: string[] = []): Promise<number> {
+  const ignored = new Set(ignorePlanIds);
+  const plans = (await listPlans()).filter((plan) => !ignored.has(plan.id));
+  const referenced = new Set(plans.flatMap((plan) => (plan.dem?.key ? [plan.dem.key] : [])));
+  const margin = COVERAGE_MARGIN_PX * PIXEL_DEG;
+
+  const orphans = entries.filter(
+    (entry) =>
+      !referenced.has(entry.key) &&
+      !plans.some((plan) => plan.bbox && bboxContains(entry.bbox, plan.bbox, margin)),
+  );
+
   const backend = getBackend();
   for (const entry of orphans) {
     await backend.remove(demPath.tif(entry.key));
     await backend.remove(demPath.meta(entry.key));
   }
   return orphans.length;
+}
+
+async function copyTree(from: string, to: string): Promise<void> {
+  const backend = getBackend();
+  for (const name of await backend.list(from)) {
+    const bytes = await backend.get(`${from}/${name}`);
+    if (bytes) await backend.put(`${to}/${name}`, bytes);
+    else await copyTree(`${from}/${name}`, `${to}/${name}`);
+  }
+}
+
+/** Move legacy flat plan folders under their project. */
+export async function migratePlanLayout(): Promise<number> {
+  const backend = getBackend();
+  let moved = 0;
+
+  for (const entry of await backend.list("plans")) {
+    const meta = await readJson<PlanMeta>(`plans/${entry}/meta.json`);
+    if (!meta) continue;
+
+    const id = `${groupSegment(meta.projectId)}/${entry}`;
+    await copyTree(`plans/${entry}`, planDir(id));
+    meta.id = id;
+    meta.bbox ??= (await planBbox(id)) ?? undefined;
+    await writeJson(planPath.meta(id), meta);
+    await backend.remove(`plans/${entry}`);
+    moved += 1;
+  }
+
+  return moved;
+}
+
+export async function readPlanRing(id: string): Promise<Array<[number, number]> | null> {
+  const aoi = await readJson<{
+    features?: Array<{ geometry?: { coordinates?: Array<Array<[number, number]>> } }>;
+  }>(planPath.aoi(id));
+  const ring = aoi?.features?.[0]?.geometry?.coordinates?.[0];
+  return ring?.length ? ring : null;
+}
+
+export async function readPlanRings(
+  plans: PlanMeta[],
+): Promise<Map<string, Array<[number, number]>>> {
+  const rings = await Promise.all(plans.map((plan) => readPlanRing(plan.id)));
+  return new Map(
+    plans.flatMap((plan, index) => {
+      const ring = rings[index];
+      return ring ? [[plan.id, ring] as const] : [];
+    }),
+  );
+}
+
+async function planBbox(id: string): Promise<Bbox | null> {
+  const ring = await readPlanRing(id);
+  if (!ring) return null;
+
+  const params = await readJson<{ takeoffPoint?: { lon: number; lat: number } | null }>(
+    planPath.params(id),
+  );
+  return bboxIncludingPoint(ringBbox(ring), params?.takeoffPoint ?? null);
 }
 
 /** Moves legacy per-plan DEMs into the shared store. */
@@ -444,10 +625,23 @@ export async function pruneEmptyPlans(maxAgeDays = 7): Promise<number> {
   return removed;
 }
 
-export function newPlanId(): string {
+export function newPlanId(projectId?: string): string {
   const rand =
     typeof crypto !== "undefined" && "randomUUID" in crypto
       ? crypto.randomUUID().slice(0, 8)
       : Math.random().toString(36).slice(2, 10);
-  return `${new Date().toISOString().slice(0, 10)}-${rand}`;
+  const day = new Date().toISOString().slice(0, 10);
+  return `${groupSegment(projectId)}/${day}-${rand}`;
+}
+
+let maintenance: Promise<void> | null = null;
+
+export function startupMaintenance(): Promise<void> {
+  maintenance ??= (async () => {
+    await migratePlanLayout();
+    await migrateLegacyDems();
+    await pruneEmptyPlans();
+    await pruneStaleDems();
+  })().catch(() => {});
+  return maintenance;
 }

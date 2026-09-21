@@ -2,7 +2,7 @@
   "name": "drone-tm-flight-planner",
   "version": "0.1.0",
   "private": true,
-  "description": "Standalone offline-capable drone flightplan generator (plan.drone.hotosm.org)",
+  "description": "Offline-capable drone flightplan generator, served at /plan",
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {

@@ -31,9 +31,14 @@
       </div>
 
       <div class="header-actions">
-        <wa-button id="main-site" appearance="plain" size="s" target="_blank" rel="noopener">
-          <span class="main-site-label">Main site</span>
-          <wa-icon slot="end" name="arrow-up-right-from-square" label="Main site"></wa-icon>
+        <wa-button id="main-site" appearance="plain" size="s" rel="noopener">
+          <span id="main-site-label" class="main-site-label">Main site</span>
+          <wa-icon
+            id="main-site-icon"
+            slot="end"
+            name="arrow-up-right-from-square"
+            label="Main site"
+          ></wa-icon>
         </wa-button>
         <wa-switch id="tutorial-toggle" size="s" checked title="Show step-by-step guidance">
           <span class="toggle-label">Guide me</span>
@@ -78,6 +83,14 @@
     </main>
 
     <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+
+    <div id="handoff" class="handoff" role="status" aria-live="polite" hidden>
+      <div class="handoff-card">
+        <wa-spinner class="handoff-spinner"></wa-spinner>
+        <p id="handoff-text" class="handoff-text"></p>
+        <p id="handoff-sub" class="muted handoff-sub"></p>
+      </div>
+    </div>
 
     <wa-dialog id="welcome" label="Plan a mapping flight, offline" class="welcome-dialog">
       <div id="welcome-body"></div>

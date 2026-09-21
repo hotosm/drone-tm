@@ -124,12 +124,13 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                     placeholder={m.create_params_gsd_placeholder()}
                     type="number"
                     max={10}
-                    min={0}
+                    min={0.1}
+                    step="any"
                     {...register("gsd_cm_px", {
                       required: m.create_params_gsd_required(),
                       valueAsNumber: true,
                       max: { value: 10, message: m.create_params_gsd_too_high() },
-                      min: { value: 0, message: m.create_params_gsd_negative() },
+                      min: { value: 0.1, message: m.create_params_gsd_too_low() },
                     })}
                   />
                   {gsdInputValue ? (
@@ -153,12 +154,12 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                     placeholder={m.create_params_altitude_placeholder()}
                     type="number"
                     max={300}
-                    min={0}
+                    min={10}
                     {...register("altitude_from_ground", {
                       required: m.create_params_altitude_required(),
                       valueAsNumber: true,
                       max: { value: 300, message: m.create_params_altitude_too_high() },
-                      min: { value: 0, message: m.create_params_altitude_negative() },
+                      min: { value: 10, message: m.create_params_altitude_too_low() },
                     })}
                   />
                   {altitudeInputValue ? (
@@ -220,12 +221,12 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                       <Input
                         placeholder={m.create_params_front_overlap_placeholder()}
                         type="number"
-                        max={100}
+                        max={99}
                         min={0}
                         {...register("front_overlap", {
                           required: m.create_params_front_overlap_required(),
                           valueAsNumber: true,
-                          max: { value: 100, message: m.create_params_front_overlap_too_high() },
+                          max: { value: 99, message: m.create_params_front_overlap_too_high() },
                           min: { value: 0, message: m.create_params_front_overlap_negative() },
                         })}
                       />
@@ -249,12 +250,12 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
                       <Input
                         placeholder={m.create_params_front_overlap_placeholder()}
                         type="number"
-                        max={100}
+                        max={99}
                         min={0}
                         {...register("side_overlap", {
                           required: m.create_params_side_overlap_required(),
                           valueAsNumber: true,
-                          max: { value: 100, message: m.create_params_side_overlap_too_high() },
+                          max: { value: 99, message: m.create_params_side_overlap_too_high() },
                           min: { value: 0, message: m.create_params_side_overlap_negative() },
                         })}
                       />

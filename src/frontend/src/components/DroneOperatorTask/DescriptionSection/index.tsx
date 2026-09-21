@@ -18,7 +18,14 @@ import DescriptionBox from "./DescriptionBox";
 const API_URL = getRuntimeConfig("VITE_API_URL", "/api");
 
 const DroneOperatorDescriptionBox = () => {
-  const { projectId, taskId, projectSlug, taskIndex, taskData: taskDescription } = useTaskParams();
+  const {
+    projectId,
+    projectName,
+    taskId,
+    projectSlug,
+    taskIndex,
+    taskData: taskDescription,
+  } = useTaskParams();
   const [showDownloadOptions, setShowDownloadOptions] = useState<boolean>(false);
   const [showMissingDemModal, setShowMissingDemModal] = useState<boolean>(false);
   const missingDemResolveRef = useRef<Dispatch<boolean> | null>(null);
@@ -351,7 +358,9 @@ const DroneOperatorDescriptionBox = () => {
                   className="naxatw-block naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 naxatw-text-inherit naxatw-no-underline hover:naxatw-bg-redlight"
                   href={buildFlightPlannerUrl({
                     projectId: projectId as string,
+                    projectName,
                     taskId: taskId as string,
+                    taskIndex,
                   })}
                   onClick={() => setShowDownloadOptions(false)}
                 >

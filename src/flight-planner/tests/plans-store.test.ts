@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { planLabel } from "../src/core/outputs";
 import { initialState, resetTerrain, savePlan } from "../src/app";
 import {
+  chooseBackend,
   deletePlan,
   detachPlanDem,
   listPlans,
@@ -106,6 +107,17 @@ describe("savePlan", () => {
     expect(backend.files.has(planPath.meta(state.meta.id))).toBe(true);
   });
 
+  it("keeps no empty plan for a project alone, which would refill a cleared one", async () => {
+    const backend = useMemory();
+    const state = initialState();
+    state.meta.projectId = "p1";
+
+    await savePlan(state, false);
+
+    expect(backend.files.size).toBe(0);
+    expect(await listPlans()).toEqual([]);
+  });
+
   it("records the area, so the list can label a plan from one read", async () => {
     useMemory();
     const state = initialState();
@@ -204,6 +216,39 @@ describe("savePlan", () => {
   });
 });
 
+describe("chooseBackend", () => {
+  const withNavigator = (storage: unknown) => {
+    Object.defineProperty(globalThis, "navigator", {
+      value: { storage },
+      configurable: true,
+      writable: true,
+    });
+  };
+
+  afterEach(() => {
+    Object.defineProperty(globalThis, "navigator", { value: undefined, configurable: true });
+  });
+
+  it("uses OPFS when the browser really opens it", async () => {
+    withNavigator({ getDirectory: async () => ({}) });
+    expect((await chooseBackend()).kind).toBe("opfs");
+  });
+
+  it("falls back when OPFS is refused, as in a private window", async () => {
+    withNavigator({
+      getDirectory: async () => {
+        throw new DOMException("The operation is insecure.", "SecurityError");
+      },
+    });
+    expect((await chooseBackend()).kind).toBe("indexeddb");
+  });
+
+  it("falls back when the browser has no OPFS at all", async () => {
+    withNavigator({});
+    expect((await chooseBackend()).kind).toBe("indexeddb");
+  });
+});
+
 describe("pruneEmptyPlans", () => {
   it("removes stale plans that never captured an area", async () => {
     const backend = useMemory();
@@ -260,7 +305,7 @@ describe("removing things", () => {
   it("deletes a plan and everything beneath it", async () => {
     const backend = useMemory();
     await writePlan(backend, meta("p"), true);
-    await backend.put(planPath.output("p", "plan.kmz"), "x");
+    await backend.put(`${planPath.meta("p").replace("/meta.json", "")}/out/plan.kmz`, "x");
 
     await deletePlan("p");
 

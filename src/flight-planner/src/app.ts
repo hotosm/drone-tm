@@ -1,6 +1,6 @@
 import type { MapController } from "./map";
 import type { AoiResult } from "./core/aoi";
-import type { Bbox, DemSampler } from "./core/dem";
+import { bboxIncludingPoint, type Bbox, type DemSampler } from "./core/dem";
 import type { PlanParams, PlanResult } from "./core/flightplan";
 import { DEFAULT_PARAMS } from "./core/flightplan";
 import { planLabel } from "./core/outputs";
@@ -78,14 +78,16 @@ export function resetTerrain(state: AppState): void {
 export function initialState(): AppState {
   const now = new Date().toISOString();
   const search = new URLSearchParams(location.search);
+  const projectId = search.get("project");
   return {
     step: 1,
     meta: {
-      id: newPlanId(),
+      id: newPlanId(projectId ?? undefined),
       name: "",
       createdAt: now,
       updatedAt: now,
-      ...(search.get("project") ? { projectId: search.get("project")! } : {}),
+      ...(projectId ? { projectId } : {}),
+      ...(search.get("project_name") ? { projectName: search.get("project_name")! } : {}),
       ...(search.get("task") ? { taskId: search.get("task")! } : {}),
     },
     aoi: null,
@@ -101,8 +103,10 @@ export async function savePlan(state: AppState, writeDem: boolean): Promise<void
   const backend = getBackend();
   const { meta, aoi, params, dem } = state;
 
-  // Preserve empty handoffs, but do not keep empty standalone plans.
-  if (!aoi && !meta.projectId && !meta.taskId) {
+  // Preserve a task waiting for its area, so an offline arrival keeps the
+  // link. A plan carrying only a project is not waiting for anything: keeping
+  // it would put an empty row back in a project the pilot has just cleared.
+  if (!aoi && !meta.taskId) {
     await deletePlan(meta.id);
     return;
   }
@@ -111,6 +115,7 @@ export async function savePlan(state: AppState, writeDem: boolean): Promise<void
 
   if (aoi) {
     meta.areaM2 = aoi.areaM2;
+    meta.bbox = bboxIncludingPoint(aoi.bbox, params.takeoffPoint);
     await writeJson(planPath.aoi(meta.id), {
       type: "FeatureCollection",
       features: [
@@ -123,6 +128,7 @@ export async function savePlan(state: AppState, writeDem: boolean): Promise<void
     });
   } else {
     delete meta.areaM2;
+    delete meta.bbox;
     delete meta.generatedAt;
     delete meta.dem;
     await backend.remove(planPath.aoi(meta.id));
