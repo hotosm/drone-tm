@@ -294,7 +294,7 @@ export const ClassifyImageryDialog = ({
   const [isPolling, setIsPolling] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
-  const [disableFlightTailDetection, setDisableFlightTailDetection] = useState(true);
+  const [disableFlightTailDetection, setDisableFlightTailDetection] = useState(false);
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -302,7 +302,7 @@ export const ClassifyImageryDialog = ({
       setIsPolling(false);
       setHasStarted(false);
       setIsComplete(false);
-      setDisableFlightTailDetection(true);
+      setDisableFlightTailDetection(false);
     }
   }, [isOpen]);
 

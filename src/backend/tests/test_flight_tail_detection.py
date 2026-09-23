@@ -5,7 +5,11 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 import shapely.wkb as wkblib
-from app.images.flight_tail_removal import mark_and_remove_flight_tail_imagery
+from app.images.flight_tail_removal import (
+    _find_pass_tails,
+    _parse_tail_metadata,
+    mark_and_remove_flight_tail_imagery,
+)
 from psycopg.rows import dict_row
 from shapely.geometry import box
 
@@ -729,15 +733,18 @@ async def test_multi_batch_rejections(db, create_test_project, auth_user):
 @pytest.mark.asyncio
 async def test_project_turn_detected_freetown(db, load_freetown_into_db):
     tail_metadata = []
-    for i in range(8):  # Takeoff North
+    # Takeoff transit on a diagonal: headings parallel or perpendicular to the
+    # mission axis count as on-mission, so a due-north leg would not be a tail.
+    for i in range(8):
         tail_metadata.append(
             {
                 "SourceFile": f"t_{i}.jpg",
                 "GPSLatitude": f"8 deg 28' {8.0 + (i * 0.3)}\" N",
-                "GPSLongitude": "13 deg 11' 49.2\" W",
+                "GPSLongitude": f"13 deg 11' {49.2 - (i * 0.3)}\" W",
                 "AbsoluteAltitude": "100",
                 "DateTimeOriginal": f"2024:01:01 12:00:{i:02d}",
-                "FlightYawDegree": "0",
+                "FlightYawDegree": "45",
+                "GimbalPitchDegree": "-90",
             }
         )
     for i in range(8, 40):  # Mission East
@@ -749,6 +756,7 @@ async def test_project_turn_detected_freetown(db, load_freetown_into_db):
                 "AbsoluteAltitude": "100",
                 "DateTimeOriginal": f"2024:01:01 12:05:{i:02d}",
                 "FlightYawDegree": "90",
+                "GimbalPitchDegree": "-90",
             }
         )
     project_id, batch_id, task_id = await load_freetown_into_db(
@@ -779,3 +787,100 @@ async def test_freetown_tail_removal(db, load_freetown_into_db):
         )
         count = (await cur.fetchone())[0]
     assert count >= 30
+
+
+def _pass(n, yaw=90.0, pitch=-90.0, alt=100.0, **overrides):
+    """A straight nadir pass; overrides maps frame index -> field changes."""
+    start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    frames = [
+        {
+            "sort_ts": start + timedelta(seconds=2 * i),
+            "distance_moved": None if i == 0 else 10.0,
+            "yaw_deg": yaw,
+            "gimbal_pitch_deg": pitch,
+            "altitude_m": alt,
+        }
+        for i in range(n)
+    ]
+    for i, changes in overrides.get("frames", {}).items():
+        frames[i].update(changes)
+    return frames
+
+
+def test_pass_tails_found_on_diagonal_takeoff():
+    frames = _pass(100, frames={i: {"yaw_deg": 45.0} for i in range(5)})
+    assert _find_pass_tails(frames) == {0, 1, 2, 3, 4}
+
+
+def test_pass_without_yaw_is_skipped_not_crashed():
+    assert _find_pass_tails(_pass(20, yaw=None)) == set()
+
+
+@pytest.mark.parametrize("field", ["yaw_deg", "gimbal_pitch_deg", "altitude_m"])
+@pytest.mark.parametrize("index", [0, 99])
+def test_mission_frame_missing_one_value_is_kept(field, index):
+    frames = _pass(100, frames={index: {field: None}})
+    assert _find_pass_tails(frames) == set()
+
+
+@pytest.mark.parametrize("field", ["gimbal_pitch_deg", "altitude_m"])
+def test_large_pass_missing_a_value_everywhere_is_kept(field):
+    # 30 frames scanned at each end is 15% of 400, inside the safety fraction,
+    # so this would reject 60 good frames if missing values counted as tails.
+    assert _find_pass_tails(_pass(400, **{field: None})) == set()
+
+
+def test_missing_metadata_stops_scan_but_keeps_tails_before_it():
+    frames = _pass(
+        100,
+        frames={
+            0: {"yaw_deg": 45.0},
+            1: {"yaw_deg": 45.0},
+            2: {"gimbal_pitch_deg": None},
+            3: {"yaw_deg": 45.0},
+        },
+    )
+    assert _find_pass_tails(frames) == {0, 1}
+
+
+def test_pitch_read_from_user_comment():
+    row = {
+        "yaw_raw": "90.1",
+        "altitude_raw": "+102.5 m",
+        "gimbal_pitch_raw": None,
+        "pitch_raw": None,
+        "user_comment": json.dumps({"pitch": "-89.9"}),
+    }
+    _parse_tail_metadata(row)
+    assert row["yaw_deg"] == 90.1
+    assert row["gimbal_pitch_deg"] == -89.9
+    assert row["altitude_m"] == 102.5
+
+
+def test_malformed_exif_values_become_unavailable():
+    row = {
+        "yaw_raw": "north",
+        "altitude_raw": "1.2.3",
+        "gimbal_pitch_raw": "n/a",
+        "pitch_raw": None,
+        "user_comment": "not json",
+    }
+    _parse_tail_metadata(row)
+    assert row["yaw_deg"] is None
+    assert row["gimbal_pitch_deg"] is None
+    assert row["altitude_m"] is None
+
+
+@pytest.mark.parametrize("value", ["NaN", "Infinity", "-Infinity"])
+def test_non_finite_exif_values_become_unavailable(value):
+    row = {
+        "yaw_raw": value,
+        "altitude_raw": value,
+        "gimbal_pitch_raw": value,
+        "pitch_raw": None,
+        "user_comment": None,
+    }
+    _parse_tail_metadata(row)
+    assert row["yaw_deg"] is None
+    assert row["gimbal_pitch_deg"] is None
+    assert row["altitude_m"] is None
