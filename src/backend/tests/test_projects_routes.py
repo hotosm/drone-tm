@@ -1239,6 +1239,61 @@ async def test_process_all_imagery_blocks_when_ready_tasks_are_mixed_transfer_st
     assert fake_redis.jobs == []
 
 
+class FakeNearestCity:
+    """Stand-in for AsyncNearestCity, avoiding the dataset initialisation."""
+
+    def __init__(self, location):
+        self.location = location
+
+    def __call__(self, db):
+        return self
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        return False
+
+    async def query(self, lon, lat):
+        return self.location
+
+
+@pytest.mark.asyncio
+async def test_get_nearest_city(client, monkeypatch):
+    """Reverse geocoding a point returns the nearest city and country."""
+    from pg_nearest_city import Location
+
+    location = Location(
+        city="Freetown",
+        country="Sierra Leone",
+        lat=8.4657,
+        lon=-13.2317,
+        country_alpha3="SLE",
+        country_name="Sierra Leone",
+    )
+    monkeypatch.setattr(project_routes, "AsyncNearestCity", FakeNearestCity(location))
+
+    response = await client.get(
+        "/api/projects/nearest-city/", params={"lon": -13.2317, "lat": 8.4657}
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"city": "Freetown", "country": "Sierra Leone"}
+
+
+@pytest.mark.asyncio
+async def test_get_nearest_city_no_match(client, monkeypatch):
+    """A point with no nearby city returns null fields instead of an error."""
+    monkeypatch.setattr(project_routes, "AsyncNearestCity", FakeNearestCity(None))
+
+    response = await client.get(
+        "/api/projects/nearest-city/", params={"lon": 0, "lat": 0}
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"city": None, "country": None}
+
+
 if __name__ == "__main__":
     """Main func if file invoked directly."""
     pytest.main()
