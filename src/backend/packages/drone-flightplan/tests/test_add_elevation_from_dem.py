@@ -53,8 +53,7 @@ def _make_test_dem(path: str, easting: float, northing: float):
 
     band = ds.GetRasterBand(1)
     data = [
-        [row * 100 + col for col in range(RASTER_WIDTH)]
-        for row in range(RASTER_HEIGHT)
+        [row * 100 + col for col in range(RASTER_WIDTH)] for row in range(RASTER_HEIGHT)
     ]
     band.WriteArray(np.array(data, dtype="float32"))
     band.FlushCache()
