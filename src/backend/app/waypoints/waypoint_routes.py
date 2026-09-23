@@ -104,9 +104,16 @@ async def get_task_flightplan(
         if take_off_point_from_db:
             take_off_point = take_off_point_from_db["coordinates"]
         else:
+            # No take off point supplied and none stored: default to the task
+            # centroid. Persist it so the task always carries a take off point
+            # (used to look up the DEM elevation during processing and included
+            # in task exports), instead of leaving NULL in the database.
             task_polygon = shape(task_geojson["features"][0]["geometry"])
             task_centroid = task_polygon.centroid
             take_off_point = [task_centroid.x, task_centroid.y]
+
+            geojson_point = {"type": "Point", "coordinates": take_off_point}
+            await update_take_off_point_in_db(db, task_id, geojson_point)
 
     # Flight params from project
     forward_overlap = project.front_overlap or 70
