@@ -1,3 +1,11 @@
+## 2026.10.1 (2026-09-23)
+
+### Fix
+
+- **backend**: restructure the flight tail detection code, add a few extra edge cases, enable
+- **backend**: Refactoring False Positives in Flight Tail Algorithm (#845)
+- **frontend**: make projects a protected route (#888)
+
 ## 2026.10.0 (2026-09-21)
 
 ### Feat
