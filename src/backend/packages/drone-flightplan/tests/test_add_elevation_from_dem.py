@@ -10,13 +10,14 @@ POINT_LON, POINT_LAT = 84.5, 27.5
 
 # Raster: 10 columns x 4 rows, UTM zone 44N (EPSG:32644) -- a projected CRS,
 # representative of a "user-uploaded" DEM rather than the app's default
-# geographic (WGS84) DEM. Pixel value = column index, constant down each
-# column, so a wrong pixel lookup reads back the wrong (or out-of-bounds,
-# hence 0) value instead of the real one.
+# geographic (WGS84) DEM. Pixel value = row * 100 + column, so a wrong pixel
+# lookup reads back a wrong (or out-of-bounds, hence 0) value instead of the
+# real one, whether the error is in the column, the row, or both.
 RASTER_WIDTH, RASTER_HEIGHT = 10, 4
 PIXEL_SIZE_M = 1000.0
 TARGET_COLUMN = 6  # deliberately non-zero/non-edge, and != the OOB fallback value (0)
 TARGET_ROW = 1
+TARGET_VALUE = TARGET_ROW * 100 + TARGET_COLUMN
 
 
 def _project_point_to_utm(lon: float, lat: float) -> tuple[float, float]:
@@ -39,7 +40,7 @@ def _make_test_dem(path: str, easting: float, northing: float):
     # Position the raster so (easting, northing) falls in the middle of
     # pixel (TARGET_COLUMN, TARGET_ROW).
     origin_easting = easting - (TARGET_COLUMN + 0.5) * PIXEL_SIZE_M
-    origin_northing = northing + (RASTER_HEIGHT - TARGET_ROW - 0.5) * PIXEL_SIZE_M
+    origin_northing = northing + (TARGET_ROW + 0.5) * PIXEL_SIZE_M
 
     driver = gdal.GetDriverByName("GTiff")
     ds = driver.Create(path, RASTER_WIDTH, RASTER_HEIGHT, 1, gdal.GDT_Float32)
@@ -51,7 +52,10 @@ def _make_test_dem(path: str, easting: float, northing: float):
     ds.SetProjection(utm_srs.ExportToWkt())
 
     band = ds.GetRasterBand(1)
-    data = [[col for col in range(RASTER_WIDTH)] for _ in range(RASTER_HEIGHT)]
+    data = [
+        [row * 100 + col for col in range(RASTER_WIDTH)]
+        for row in range(RASTER_HEIGHT)
+    ]
     band.WriteArray(np.array(data, dtype="float32"))
     band.FlushCache()
     ds = None
@@ -95,8 +99,9 @@ def test_elevation_lookup_on_projected_crs_dem(tmp_path):
         out_data = json.load(f)
 
     elevation = out_data["features"][0]["properties"]["elevation"]
-    assert elevation == float(TARGET_COLUMN), (
-        f"Expected elevation {TARGET_COLUMN}.0 (correct axis order for a "
-        f"projected-CRS DEM), got {elevation} -- the easting/northing swap "
-        "bug is back."
+    assert elevation == float(TARGET_VALUE), (
+        f"Expected elevation {TARGET_VALUE}.0, i.e. pixel "
+        f"(col={TARGET_COLUMN}, row={TARGET_ROW}), which is where this point "
+        f"lands under the correct axis order for a projected-CRS DEM. Got "
+        f"{elevation} -- the easting/northing swap bug is back."
     )
