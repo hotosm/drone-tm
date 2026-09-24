@@ -1,9 +1,11 @@
 import os
 import tempfile
+import uuid
 import zipfile
 
 import geojson
 import pytest
+from app.projects import classification_routes
 from app.waypoints.flightplan_output import build_flightplan_download_response
 from drone_flightplan.drone_type import DroneType
 from drone_flightplan.output.dji import create_wpml
@@ -136,3 +138,43 @@ def test_download_response_without_cleanup_dir_keeps_the_file(tmp_path):
 
     assert response.background is None
     assert outpath.exists()
+
+
+@pytest.mark.asyncio
+async def test_reflight_downloads_use_a_temp_dir_per_request(
+    client, monkeypatch, tmp_path
+):
+    # Downloads for the same task used to share one fixed file name, so a
+    # concurrent request could overwrite or delete the file being served
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+
+    async def fake_identify_flight_gaps(*_args, **_kwargs):
+        return {"kmz_bytes": b"reflight-kmz"}
+
+    served_paths = []
+
+    def spy_download_response(file_path, **kwargs):
+        served_paths.append(file_path)
+        return build_flightplan_download_response(file_path, **kwargs)
+
+    monkeypatch.setattr(
+        classification_routes, "identify_flight_gaps", fake_identify_flight_gaps
+    )
+    monkeypatch.setattr(
+        classification_routes,
+        "build_flightplan_download_response",
+        spy_download_response,
+    )
+
+    url = (
+        f"/api/projects/{uuid.uuid4()}/imagery/task/{uuid.uuid4()}/generate-flightplan/"
+    )
+    body = {"drone_type": DroneType.DJI_MINI_4_PRO.value}
+    first = await client.post(url, json=body)
+    second = await client.post(url, json=body)
+
+    assert first.status_code == second.status_code == 200
+    assert first.content == second.content == b"reflight-kmz"
+    assert os.path.dirname(served_paths[0]) != os.path.dirname(served_paths[1])
+    # Both temp dirs are removed once their response has been sent
+    assert list(tmp_path.iterdir()) == []

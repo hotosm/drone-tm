@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 from datetime import datetime
 from typing import Annotated, Literal
@@ -24,7 +25,7 @@ from app.waypoints.flightplan_output import (
 )
 from arq import ArqRedis
 from drone_flightplan.drone_type import DroneType
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger as log
 from psycopg import Connection
 from pydantic import BaseModel
@@ -854,7 +855,6 @@ async def download_reflight_plan(
     project_id: UUID,
     task_id: UUID,
     db: Annotated[Connection, Depends(database.get_db)],
-    background_tasks: BackgroundTasks,
     request: FlightGapDownloadPlanRequest | None = None,
 ):
     """Download a reconstructed flight plan based on identified flight gaps."""
@@ -898,18 +898,23 @@ async def download_reflight_plan(
         )
 
     flightplan_config = get_flightplan_output_config(flight_drone_type)
-    file_path = os.path.join(
-        tempfile.gettempdir(),
-        f"reflight_{task_id}{flightplan_config['suffix']}",
-    )
 
-    with open(file_path, "wb") as f:
-        f.write(result["kmz_bytes"])
+    # A per-request temp dir, so concurrent downloads for the same task cannot
+    # overwrite or delete each other's file. Removed once the response is sent.
+    temp_dir = tempfile.mkdtemp(prefix="reflight_")
+    try:
+        file_path = os.path.join(
+            temp_dir, f"reflight_{task_id}{flightplan_config['suffix']}"
+        )
+        with open(file_path, "wb") as f:
+            f.write(kmz_bytes)
 
-    background_tasks.add_task(os.remove, file_path)
-
-    return build_flightplan_download_response(
-        file_path,
-        drone_type=flight_drone_type,
-        filename_stem=f"reflight_task_{task_id}_{flight_drone_type}_project_{project_id}",
-    )
+        return build_flightplan_download_response(
+            file_path,
+            drone_type=flight_drone_type,
+            filename_stem=f"reflight_task_{task_id}_{flight_drone_type}_project_{project_id}",
+            cleanup_dir=temp_dir,
+        )
+    except Exception:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        raise
