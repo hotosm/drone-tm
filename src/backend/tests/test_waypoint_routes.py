@@ -1,8 +1,10 @@
 import json
+import tempfile
 import uuid
 
 import pytest
 from app.waypoints import waypoint_routes
+from fastapi import HTTPException
 
 
 async def _setup_terrain_follow_task(db, project_id: str) -> str:
@@ -186,3 +188,108 @@ async def test_terrain_follow_preview_passes_dem_to_placemarks(
 
     assert response.status_code == 200
     assert captured["dem"], "preview path must receive the DEM file path"
+
+
+def _failing_download_response(*_args, **_kwargs):
+    # e.g. an output format without a download mapping
+    raise HTTPException(status_code=400, detail="Unsupported output format")
+
+
+@pytest.mark.asyncio
+async def test_task_flightplan_download_cleans_up_when_response_fails(
+    client, db, create_test_project, monkeypatch, tmp_path
+):
+    """The per-request temp dir must not outlive a failed download."""
+    project_id = create_test_project
+    task_id = await _setup_terrain_follow_task(db, project_id)
+
+    monkeypatch.setattr(waypoint_routes, "check_file_exists", lambda *args: False)
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+
+    def fake_build_placemarks(**kwargs):
+        return {"type": "FeatureCollection", "features": []}, {
+            "rotation_angle": 0,
+            "battery_warning": False,
+            "estimated_flight_time_minutes": 0,
+        }
+
+    def fake_write_flightplan_file(_placemarks, _drone_type, outfile, _mode):
+        with open(outfile, "wb") as output_file:
+            output_file.write(b"dummy-kmz")
+        return outfile
+
+    monkeypatch.setattr(waypoint_routes, "build_placemarks", fake_build_placemarks)
+    monkeypatch.setattr(
+        waypoint_routes, "write_flightplan_file", fake_write_flightplan_file
+    )
+    monkeypatch.setattr(
+        waypoint_routes,
+        "build_flightplan_download_response",
+        _failing_download_response,
+    )
+
+    response = await client.post(
+        f"/api/waypoint/task/{task_id}/?project_id={project_id}&download=true&allow_missing_dem=true"
+    )
+
+    assert response.status_code == 400
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.asyncio
+async def test_standalone_flightplan_download_cleans_up_when_response_fails(
+    client, monkeypatch, tmp_path
+):
+    """Neither the uploaded DEM nor the temp dir may outlive a failed download."""
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+
+    def fake_create_flightplan(**kwargs):
+        with open(kwargs["outfile"], "wb") as output_file:
+            output_file.write(b"dummy-kmz")
+        return kwargs["outfile"]
+
+    monkeypatch.setattr(waypoint_routes, "create_flightplan", fake_create_flightplan)
+    monkeypatch.setattr(
+        waypoint_routes,
+        "build_flightplan_download_response",
+        _failing_download_response,
+    )
+
+    coordinates = [
+        [-69.49779538720068, 18.629654277305633],
+        [-69.48497355306813, 18.616997544638636],
+        [-69.54053483430786, 18.608390428368665],
+        [-69.5410690773959, 18.614466085056165],
+        [-69.49779538720068, 18.629654277305633],
+    ]
+    project_geojson = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {"type": "Polygon", "coordinates": [coordinates]},
+            }
+        ],
+    }
+    take_off_point = {"longitude": coordinates[0][0], "latitude": coordinates[0][1]}
+
+    response = await client.post(
+        "/api/waypoint/",
+        files={
+            "project_geojson": (
+                "project.geojson",
+                json.dumps(project_geojson),
+                "application/geo+json",
+            ),
+            "dem": ("dem.tif", b"dem-bytes", "image/tiff"),
+        },
+        data={
+            "altitude": "100",
+            "terrain_follow": "true",
+            "take_off_point": json.dumps(take_off_point),
+        },
+    )
+
+    assert response.status_code == 400
+    assert list(tmp_path.iterdir()) == []

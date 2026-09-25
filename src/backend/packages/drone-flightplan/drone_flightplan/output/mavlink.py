@@ -31,6 +31,7 @@ import geojson
 from geojson import FeatureCollection
 
 from drone_flightplan.enums import FlightMode
+from drone_flightplan.output.output_paths import resolve_output_path
 
 log = logging.getLogger(__name__)
 
@@ -382,7 +383,7 @@ def create_return_to_launch(index: int) -> str:
 
 def create_mavlink_plan(
     placemark_geojson: str | FeatureCollection | dict,
-    output_file_path: str = "/tmp/mission.waypoints",
+    output_file_path: str | None = None,
     flight_mode: FlightMode = FlightMode.WAYPOINTS,
     photo_interval_time: float = 2.0,
 ) -> str:
@@ -402,7 +403,8 @@ def create_mavlink_plan(
 
     Args:
         placemark_geojson: GeoJSON FeatureCollection with waypoint data
-        output_file_path: Path for output .waypoints file
+        output_file_path: Path for output .waypoints file. Defaults to a
+            temporary file, which the caller is responsible for removing.
         flight_mode: WAYPOINTS (photo at each point) or WAYLINES (interval photos)
         photo_interval_time: Time between photos in seconds for WAYLINES mode
 
@@ -530,6 +532,10 @@ def create_mavlink_plan(
     # Write Mission File
     # Add all mission items to the output
     lines.extend(mission_items)
+
+    output_file_path = resolve_output_path(
+        output_file_path, suffix=".waypoints", prefix="mavlink_mission_"
+    )
 
     # Write to file with newline separation
     with open(output_file_path, "w") as f:
