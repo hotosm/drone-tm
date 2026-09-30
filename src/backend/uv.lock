@@ -812,6 +812,7 @@ dependencies = [
     { name = "minio" },
     { name = "numpy" },
     { name = "opencv-python-headless" },
+    { name = "pg-nearest-city" },
     { name = "pillow" },
     { name = "psycopg", extra = ["c", "pool"] },
     { name = "pydantic", extra = ["email"] },
@@ -888,6 +889,7 @@ requires-dist = [
     { name = "minio", specifier = "==7.2.0" },
     { name = "numpy", specifier = "==2.2.6" },
     { name = "opencv-python-headless", specifier = "==4.12.0.88" },
+    { name = "pg-nearest-city", specifier = "==2.0.0" },
     { name = "pillow", specifier = "==12.1.0" },
     { name = "psycopg", extras = ["c", "pool"], specifier = "==3.2.1" },
     { name = "pydantic", extras = ["email"], specifier = "==2.8.2" },
@@ -2436,6 +2438,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/fa/36/e27608899f9b8d4dff0617b2d9ab17ca5608956ca44461ac14ac48b44015/pathspec-1.0.4.tar.gz", hash = "sha256:0210e2ae8a21a9137c0d470578cb0e595af87edaa6ebf12ff176f14a02e0e645", size = 131200, upload-time = "2026-01-27T03:59:46.938Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ef/3c/2c197d226f9ea224a9ab8d197933f9da0ae0aac5b6e0f884e2b8d9c8e9f7/pathspec-1.0.4-py3-none-any.whl", hash = "sha256:fb6ae2fd4e7c921a165808a552060e722767cfa526f99ca5156ed2ce45a5c723", size = 55206, upload-time = "2026-01-27T03:59:45.137Z" },
+]
+
+[[package]]
+name = "pg-nearest-city"
+version = "2.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "psycopg" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/aa/43/e01d67392300de0650a305b553f6cb2bb842fb89996d214a4709d982e704/pg_nearest_city-2.0.0.tar.gz", hash = "sha256:43b9a729ab1e230073734f2034d151593ae3aa075128852fd33755c2f01999f8", size = 6619548, upload-time = "2026-03-23T22:07:33.968Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c4/84/88f907e44be18048d77080ed1a67fb678edcf24fe93cefa094bd2cce974e/pg_nearest_city-2.0.0-py3-none-any.whl", hash = "sha256:51df615e5ffe080e0fce2ec2b251b852e9e08855852c2e29796a65aa0346b21a", size = 6549112, upload-time = "2026-03-23T22:07:31.585Z" },
 ]
 
 [[package]]
