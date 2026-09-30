@@ -629,7 +629,11 @@ const IndividualProject = () => {
                 activeTab={individualProjectActiveTab}
                 clickable
               />
-              <div className="naxatw-h-fit naxatw-max-h-[calc(100vh-280px)] naxatw-overflow-y-auto naxatw-border-t">
+              <div
+                className="naxatw-h-fit naxatw-max-h-[calc(100vh-280px)] naxatw-overflow-y-scroll naxatw-border-t"
+                role="region"
+                aria-label={m.proj_desc_description_heading()}
+              >
                 {getActiveTabContent(
                   individualProjectActiveTab,
                   projectData as Record<string, any>,
