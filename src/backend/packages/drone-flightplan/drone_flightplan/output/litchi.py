@@ -33,6 +33,7 @@ import geojson
 from geojson import FeatureCollection
 
 from drone_flightplan.enums import FlightMode
+from drone_flightplan.output.output_paths import resolve_output_path
 
 log = logging.getLogger(__name__)
 
@@ -148,7 +149,7 @@ def create_litchi_waypoint(
 
 def create_litchi_csv(
     placemark_geojson: str | FeatureCollection | dict,
-    output_file_path: str = "/tmp/mission.csv",
+    output_file_path: str | None = None,
     flight_mode: FlightMode = FlightMode.WAYLINES,
     photo_interval_time: float = 2.0,
     photo_interval_distance: float | None = None,
@@ -180,7 +181,8 @@ def create_litchi_csv(
             - speed: (optional) speed in m/s
             - gimbal_angle: (optional) camera pitch angle in degrees
             - heading: (optional) aircraft heading in degrees
-        output_file_path: Path for output .csv file
+        output_file_path: Path for output .csv file. Defaults to a temporary
+            file, which the caller is responsible for removing.
         flight_mode: WAYPOINTS (photo at each point) or WAYLINES (interval photos)
         speed: Default flight speed in m/s
         photo_interval_time: Time between photos in seconds (WAYLINES mode)
@@ -312,6 +314,10 @@ def create_litchi_csv(
 
     # Get fieldnames from first waypoint (they're ordered correctly)
     fieldnames = list(waypoints[0].keys())
+
+    output_file_path = resolve_output_path(
+        output_file_path, suffix=".csv", prefix="litchi_mission_"
+    )
 
     with open(output_file_path, "w", newline="") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
