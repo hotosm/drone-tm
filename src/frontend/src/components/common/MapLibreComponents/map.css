@@ -6,11 +6,6 @@
   max-width: 18rem !important;
 }
 
-.maplibregl-popup-content {
-  padding: 0;
-  border-radius: 8px;
-}
-
 .maplibregl-ctrl-top-left {
   margin-top: 40px;
 }
