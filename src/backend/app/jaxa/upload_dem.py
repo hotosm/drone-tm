@@ -7,6 +7,7 @@ bridging that CrawlerRunner required.
 
 import asyncio
 import io
+import json
 import os
 import tempfile
 from pathlib import Path
@@ -18,6 +19,8 @@ from app.projects import project_logic
 from arq import ArqRedis
 from fastapi import UploadFile
 from loguru import logger as log
+from osgeo import gdal
+from psycopg.rows import dict_row
 from scrapy.crawler import AsyncCrawlerRunner
 from scrapy.utils.project import get_project_settings
 from scrapy.utils.reactor import _asyncio_reactor_path, install_reactor
@@ -127,6 +130,72 @@ async def upload_dem_file_s3_sync(tif_file_path: str, project_id: str):
         raise
 
 
+def clip_dem_to_aoi(dem_path: str, buffered_aoi_geojson: dict) -> str:
+    """Clip a DEM raster to a buffered AOI polygon using GDAL.
+
+    Writes the GeoJSON geometry to a temporary cutline file, then uses
+    gdal.Warp with cropToCutline to produce a clipped raster.
+
+    Args:
+        dem_path: Path to the input DEM GeoTIFF.
+        buffered_aoi_geojson: GeoJSON geometry dict of the buffered AOI.
+
+    Returns:
+        Path to the clipped raster.
+    """
+    fd, cutline_path = tempfile.mkstemp(
+        suffix=".geojson", prefix="cutline_", dir=Path(dem_path).parent
+    )
+    os.close(fd)
+    clipped_path = dem_path + ".clipped.tif"
+
+    try:
+        # Write the buffered AOI geometry to a temporary GeoJSON file.
+        # gdal.Warp requires a file path for cutlineDSName.
+        cutline_geojson = {
+            "type": "FeatureCollection",
+            "features": [
+                {"type": "Feature", "properties": {}, "geometry": buffered_aoi_geojson}
+            ],
+        }
+        with open(cutline_path, "w") as f:
+            json.dump(cutline_geojson, f)
+
+        result = gdal.Warp(
+            clipped_path,
+            dem_path,
+            cutlineDSName=cutline_path,
+            cropToCutline=True,
+            format="GTiff",
+        )
+        if result is None:
+            raise RuntimeError(
+                f"gdal.Warp returned None - clipping failed for {dem_path}"
+            )
+        result = None  # flush/close
+
+        # Replace the original file with the clipped version.
+        os.replace(clipped_path, dem_path)
+
+        return dem_path
+
+    except Exception:
+        # Clean up the clipped file if it was created but the rename failed.
+        if os.path.exists(clipped_path):
+            try:
+                os.remove(clipped_path)
+            except OSError:
+                pass
+        raise
+
+    finally:
+        if os.path.exists(cutline_path):
+            try:
+                os.remove(cutline_path)
+            except OSError:
+                pass
+
+
 async def enqueue_dem_download(
     geometry,
     project_id: str,
@@ -196,6 +265,46 @@ async def download_and_upload_dem(
         await _run_scrapy_crawler_async(coordinates_str, tif_file_path)
 
         log.info(f"Scrapy crawler completed for project ({project_id})")
+
+        # Clip the merged DEM to the project AOI (buffered by 50 m).
+        # This reduces the file size for QField packaging (Issue #790).
+        # Failure here is non-fatal: the unclipped DEM is still usable.
+        try:
+            db_pool = ctx.get("db_pool")
+            if db_pool:
+                async with db_pool.connection() as conn:
+                    async with conn.cursor(row_factory=dict_row) as cur:
+                        await cur.execute(
+                            """
+                            SELECT ST_AsGeoJSON(
+                                ST_Buffer(outline::geography, 50)::geometry
+                            )::json AS buffered_outline
+                            FROM projects WHERE id = %s
+                            """,
+                            (project_id,),
+                        )
+                        row = await cur.fetchone()
+
+                if row and row["buffered_outline"]:
+                    tif_file_path = clip_dem_to_aoi(
+                        tif_file_path, row["buffered_outline"]
+                    )
+                    log.info(f"Clipped DEM to buffered AOI for project ({project_id})")
+                else:
+                    log.warning(
+                        f"No AOI found for project ({project_id}), "
+                        "uploading unclipped DEM"
+                    )
+            else:
+                log.warning(
+                    f"DB pool unavailable for project ({project_id}), "
+                    "uploading unclipped DEM"
+                )
+        except Exception as clip_err:
+            log.warning(
+                f"DEM clipping failed for project ({project_id}), "
+                f"uploading unclipped: {clip_err}"
+            )
 
         # Upload to S3 and update database
         await upload_dem_file_s3_sync(tif_file_path, project_id)
