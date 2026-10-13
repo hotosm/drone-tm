@@ -111,7 +111,12 @@ To get started with DroneTM:
 |✅| 🖥️ scaling of ODM imagery processing to thousands of images in parallel | [v2026.5.0][11] |
 |✅| 🖥️ visualise the 2D and 3D products at the end of processing | [v2026.6.0][12] |
 |✅| 🖥️ separate ODM workflows for task images vs. large project image batches | [v2026.7.0][13] |
-|✅| 🖥️ access to alternative high quality terrain models such as Copernicus GLO-30 | |
+|✅| 🖥️ search projects faster, and filter to projects that have imagery | [v2026.9.2][14] |
+|✅| 🖥️ send final imagery to the new OpenAerialMap uploader | [v2026.9.3][15] |
+|✅| 🖥️ access to alternative high quality terrain models such as Copernicus GLO-30 | [v2026.10.0][16] |
+|✅| 📱 plan flights fully offline in a web browser, including terrain following | [v2026.10.0][16] |
+|⚙️| 🖥️ process city-scale projects with little or no manual help | |
+|⚙️| 🖥️ clearer error messages, so users can fix failed uploads/processing themselves | |
 |⚙️| 📱 [flight plans working on Potensic Atom 3](https://github.com/hotosm/drone-tm/issues/870) | |
 |⚙️| 📱 [flight plans working on DJI Lito X1](https://github.com/hotosm/drone-tm/issues/885) | |
 |⚙️| 📱 [flight plans working on SkyRover X1](https://github.com/hotosm/drone-tm/issues/886) | |
@@ -119,7 +124,7 @@ To get started with DroneTM:
 |⚙️| 📱 capture of imagery at multiple (configurable) angles from the drone camera | |
 | | 📱 let users edit and split flightplans before flying | |
 | | 🖥️ DroneTM Lite: a simplified interface for demos and community use | |
-| | 🖥️ thermal imagery processing, plus accuracy improvements for city-scale projects | |
+| | 🖥️ thermal imagery processing | |
 | | 🖥️ role-based access control for each part of the UI | |
 | | 📱 & 🖥️ real-time notifications for drone flight progress & task status | |
 | | 📱 HOT community mapping drone: cheap, mapping optimized, materials sourced locally | |
@@ -205,3 +210,6 @@ Join us in transforming aerial mapping through community-powered drones and crea
 [11]: https://github.com/hotosm/drone-tm/releases/tag/2026.5.0
 [12]: https://github.com/hotosm/drone-tm/releases/tag/2026.6.0
 [13]: https://github.com/hotosm/drone-tm/releases/tag/2026.7.0
+[14]: https://github.com/hotosm/drone-tm/releases/tag/2026.9.2
+[15]: https://github.com/hotosm/drone-tm/releases/tag/2026.9.3
+[16]: https://github.com/hotosm/drone-tm/releases/tag/2026.10.0
