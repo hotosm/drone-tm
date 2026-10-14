@@ -13,16 +13,24 @@ import ExportSection from "@Components/IndividualProject/ExportSection";
 import GcpEditor from "@Components/IndividualProject/GcpEditor";
 import ProjectPromptDialog from "@Components/IndividualProject/ModalContent";
 import DeleteProjectPromptDialog from "@Components/IndividualProject/ModalContent/DeleteProjectConfirmation";
+import CloneProjectDialog from "@Components/IndividualProject/ModalContent/CloneProjectDialog";
 import { Button } from "@Components/RadixComponents/Button";
 import Skeleton from "@Components/RadixComponents/Skeleton";
 import DescriptionSection from "@Components/RegulatorsApprovalPage/Description/DescriptionSection";
 import { projectOptions } from "@Constants/index";
 import { deleteProject } from "@Services/project";
-import { triggerMeshConversion, triggerOrthophotoConversion } from "@Services/createproject";
+import {
+  triggerMeshConversion,
+  triggerOrthophotoConversion,
+  postCreateProject,
+  postTaskBoundary,
+} from "@Services/createproject";
 import { setProjectState } from "@Store/actions/project";
 import { useTypedDispatch, useTypedSelector } from "@Store/hooks";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { buildDownloadUrl, buildFlightPlannerSeedUrl } from "@Utils/index";
+import { convertGeojsonToFile } from "@Utils/convertLayerUtils";
+import prepareFormData from "@Utils/prepareFormData";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
 import QFieldExportDialog from "@Components/IndividualProject/QFieldExport";
 import QFieldLogo from "@Components/IndividualProject/QFieldExport/QFieldLogo";
@@ -81,6 +89,8 @@ const IndividualProject = () => {
   const exportRef = useRef<any>(null);
   const [exportingContent, setExportingContent] = useState(false);
   const [showProjectDeletePrompt, setShowProjectDeletePrompt] = useState(false);
+  const [showClonePrompt, setShowClonePrompt] = useState(false);
+  const [isCloning, setIsCloning] = useState(false);
   const [showDownloadOptions, setShowDownloadOptions] = useState<boolean>(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isClassifyDialogOpen, setIsClassifyDialogOpen] = useState(false);
@@ -192,13 +202,73 @@ const IndividualProject = () => {
     return {};
   };
 
-  useEffect(() => {
-    return () => {
+  useEffect(() => () => {
       dispatch(setProjectState({}));
       dispatch(setProjectState({ showGcpEditor: false }));
       dispatch(setProjectState({ visibleOrthophotoList: [] }));
-    };
-  }, [dispatch, queryClient, id]);
+    }, [dispatch, queryClient, id]);
+
+  const handleCloneProject = async (newName: string) => {
+    if (!projectData) {
+      toast.error(m.individual_project_clone_no_data());
+      return;
+    }
+    setIsCloning(true);
+
+    try {
+      const projectInfo = {
+        name: newName,
+        description: projectData.description,
+        per_task_instructions: projectData.per_task_instructions,
+        task_split_dimension: projectData.task_split_dimension,
+        gsd_cm_px: projectData.gsd_cm_px,
+        altitude_from_ground: projectData.altitude_from_ground,
+        front_overlap: projectData.front_overlap,
+        side_overlap: projectData.side_overlap,
+        gimble_angles_degrees: projectData.gimble_angles_degrees,
+        is_terrain_follow: projectData.is_terrain_follow ?? false,
+        dem_source: projectData.dem_source || "GLO30",
+        final_output: projectData.final_output,
+        outline: projectData.outline,
+        ...(projectData.no_fly_zones ? { no_fly_zones: projectData.no_fly_zones } : {}),
+        requires_approval_from_manager_for_locking:
+          projectData.requires_approval_from_manager_for_locking ?? false,
+        requires_approval_from_regulator:
+          projectData.requires_approval_from_regulator ?? false,
+        ...(projectData.regulator_emails ? { regulator_emails: projectData.regulator_emails } : {}),
+      };
+
+      const formData = new FormData();
+      formData.append("project_info", JSON.stringify(projectInfo));
+
+      // API call
+      const createRes = await postCreateProject(formData);
+      const newProjectId = createRes.data.project_id;
+
+      if (projectData.tasks && projectData.tasks.length > 0) {
+        const taskFeatureCollection = {
+          type: "FeatureCollection",
+          features: projectData.tasks.map((task: any) => ({
+            type: "Feature",
+            geometry: task.outline?.geometry || task.outline,
+            properties: {
+              project_task_index: task.project_task_index,
+            },
+          })),
+        };
+        const taskFile = convertGeojsonToFile(taskFeatureCollection);
+        const taskFormData = prepareFormData({ geojson: taskFile });
+        await postTaskBoundary({ id: newProjectId, data: taskFormData });
+      }
+      toast.success(m.individual_project_clone_success());
+      setShowClonePrompt(false);
+      navigate(`/projects/${newProjectId}`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || err?.message || m.individual_project_clone_failed());
+    } finally {
+      setIsCloning(false);
+    }
+  };
 
   const handleDeleteProject = () => {
     mutate(projectData?.id || (id as string));
@@ -436,6 +506,18 @@ const IndividualProject = () => {
               }}
             >
               {m.individual_project_button_flight_planner()}
+            </Button>
+            <Button
+              variant="ghost"
+              className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
+              leftIcon="content_copy"
+              iconClassname="naxatw-text-[1.125rem]"
+              title={m.individual_project_clone_hint()}
+              onClick={() => {
+                setShowClonePrompt(true);
+              }}
+            >
+              {m.individual_project_button_clone()}
             </Button>
             <div className="naxatw-relative">
               <Button
@@ -689,6 +771,18 @@ const IndividualProject = () => {
           isLoading={isPending}
           handleDeleteProject={handleDeleteProject}
           setShowUnlockDialog={setShowProjectDeletePrompt}
+        />
+      </ProjectPromptDialog>
+      <ProjectPromptDialog
+        title={m.individual_project_button_clone()}
+        show={showClonePrompt}
+        onClose={() => setShowClonePrompt(false)}
+      >
+        <CloneProjectDialog
+          currentProjectName={projectData?.name || ""}
+          isLoading={isCloning}
+          onClose={() => setShowClonePrompt(false)}
+          onClone={handleCloneProject}
         />
       </ProjectPromptDialog>
 
