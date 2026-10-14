@@ -121,9 +121,8 @@ To get started with DroneTM:
 |⚙️| 📱 [flight plans working on DJI Lito X1](https://github.com/hotosm/drone-tm/issues/885) | |
 |⚙️| 📱 [flight plans working on SkyRover X1](https://github.com/hotosm/drone-tm/issues/886) | |
 |⚙️| 📱 send flightplans straight to the drone, instead of copying files by hand | |
-|⚙️| 📱 capture of imagery at multiple (configurable) angles from the drone camera | |
+| | 📱 capture of imagery at multiple (configurable) angles from the drone camera | |
 | | 📱 let users edit and split flightplans before flying | |
-| | 🖥️ DroneTM Lite: a simplified interface for demos and community use | |
 | | 🖥️ thermal imagery processing | |
 | | 🖥️ role-based access control for each part of the UI | |
 | | 📱 & 🖥️ real-time notifications for drone flight progress & task status | |
