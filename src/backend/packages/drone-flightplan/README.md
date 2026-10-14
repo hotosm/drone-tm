@@ -159,14 +159,18 @@ from drone_flightplan import create_wpml
 
 create_wpml(
     placemark_geojson: Union[str, FeatureCollection, dict],
-    output_file_path: str = "/tmp/",
+    output_file_path: Optional[str] = None,
 )
 ```
 
 **Parameters:**
 
 - `placemark_geojson`: The placemark coordinates to be included in the flight plan mission.
-- `output_file_path`: The output file path for the WPML file.
+- `output_file_path`: Destination path for the generated `.kmz` file. An existing
+  directory is also accepted, in which case `output.kmz` is written inside it.
+  Defaults to a temporary file, which the caller is responsible for removing.
+
+**Returns:** the path to the generated `.kmz` file.
 
 ### 6. `create_flightplan`
 
