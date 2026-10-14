@@ -198,9 +198,12 @@ worker:
   readinessProbe:
     exec:
       command:
-        - arq
-        - app.arq.tasks.WorkerSettings
-        - --check
+        - python
+        - -c
+        - |
+          import os, sys, redis
+          r = redis.Redis.from_url(os.environ["DRAGONFLY_DSN"], socket_timeout=3)
+          sys.exit(0 if r.exists("default_queue:health-check") else 1)
     initialDelaySeconds: 70
     periodSeconds: 60
     timeoutSeconds: 5
