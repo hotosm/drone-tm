@@ -276,6 +276,17 @@ ready.
 
 ## Info For Drone Operators
 
+### Q. What should I consider when flying over hilly, forested terrain?
+
+No special steps are needed during project creation. When flying, choose a
+high, open takeoff point on a hill with a clear line of sight across the task
+area. A clearing that overlooks several tasks is ideal.
+
+Use **naturally elevated ground** rather than a rooftop or other raised structure.
+The terrain model used to adjust flight altitude does not account for building
+heights, so taking off from one can cause the drone to fly at the wrong height
+above the ground.
+
 ### Help! I'm having trouble managing my collected imagery
 
 - Sometimes you may have to deal with factors such as limited hard drive,
