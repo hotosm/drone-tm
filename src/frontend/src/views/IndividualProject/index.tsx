@@ -202,11 +202,14 @@ const IndividualProject = () => {
     return {};
   };
 
-  useEffect(() => () => {
+  useEffect(
+    () => () => {
       dispatch(setProjectState({}));
       dispatch(setProjectState({ showGcpEditor: false }));
       dispatch(setProjectState({ visibleOrthophotoList: [] }));
-    }, [dispatch, queryClient, id]);
+    },
+    [dispatch, queryClient, id],
+  );
 
   const handleCloneProject = async (newName: string) => {
     if (!projectData) {
@@ -233,8 +236,7 @@ const IndividualProject = () => {
         ...(projectData.no_fly_zones ? { no_fly_zones: projectData.no_fly_zones } : {}),
         requires_approval_from_manager_for_locking:
           projectData.requires_approval_from_manager_for_locking ?? false,
-        requires_approval_from_regulator:
-          projectData.requires_approval_from_regulator ?? false,
+        requires_approval_from_regulator: projectData.requires_approval_from_regulator ?? false,
         ...(projectData.regulator_emails ? { regulator_emails: projectData.regulator_emails } : {}),
       };
 
@@ -264,7 +266,9 @@ const IndividualProject = () => {
       setShowClonePrompt(false);
       navigate(`/projects/${newProjectId}`);
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail || err?.message || m.individual_project_clone_failed());
+      toast.error(
+        err?.response?.data?.detail || err?.message || m.individual_project_clone_failed(),
+      );
     } finally {
       setIsCloning(false);
     }

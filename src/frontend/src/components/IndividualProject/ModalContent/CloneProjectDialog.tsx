@@ -18,7 +18,7 @@ const CloneProjectDialog = ({
   onClone,
 }: ICloneProjectDialogProps) => {
   const [projectName, setProjectName] = useState(
-    currentProjectName ? `${currentProjectName} (Clone)` : ""
+    currentProjectName ? `${currentProjectName} (Clone)` : "",
   );
   const [error, setError] = useState("");
 
@@ -49,18 +49,12 @@ const CloneProjectDialog = ({
           }}
         />
         {error && (
-          <span className="naxatw-text-xs naxatw-text-red naxatw-mt-1 naxatw-block">
-            {error}
-          </span>
+          <span className="naxatw-text-xs naxatw-text-red naxatw-mt-1 naxatw-block">{error}</span>
         )}
       </div>
 
       <div className="naxatw-flex naxatw-justify-end naxatw-gap-2 naxatw-pt-3">
-        <Button
-          variant="ghost"
-          className="naxatw-text-gray-600"
-          onClick={onClose}
-        >
+        <Button variant="ghost" className="naxatw-text-gray-600" onClick={onClose}>
           {m.common_cancel()}
         </Button>
         <Button
