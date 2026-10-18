@@ -32,7 +32,7 @@ dependencies = [
   "python-slugify==8.0.4",
   "asgiref==3.8.1",
   "bcrypt==4.2.1",
-  "Scrapy==2.14.1",
+  "Scrapy==2.18.0",
   "asgi-lifespan==2.1.0",
   "arq==0.26.3",
   "watchfiles==1.1.1",
