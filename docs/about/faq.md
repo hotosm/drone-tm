@@ -287,6 +287,28 @@ The terrain model used to adjust flight altitude does not account for building
 heights, so taking off from one can cause the drone to fly at the wrong height
 above the ground.
 
+### Q. Why do I see a "Resume transfer" button after uploading imagery?
+
+After upload, your images are first held in a temporary area, then moved
+into each task's folder. This move can take a few minutes, especially for
+large uploads.
+
+If the move hasn't finished, the task will show **"Resume transfer"** in the
+Processing Status dialog. Any images not yet moved **will be left out of
+processing**.
+
+To avoid this:
+
+1. After uploading, **wait a few minutes** before starting processing.
+2. Open the Processing Status dialog and click **Refresh**.
+3. Only start processing once no task shows "Imagery transfer in progress" or
+   "Resume transfer".
+4. If you see **"Resume transfer"**, click it, wait, then **Refresh** again
+   until it disappears.
+
+If you add more imagery to a task that was already processed, check for this
+button again and re-process the task afterwards.
+
 ### Help! I'm having trouble managing my collected imagery
 
 - Sometimes you may have to deal with factors such as limited hard drive,
