@@ -96,7 +96,7 @@ def _parse_naive_datetime(value: Any) -> datetime | None:
         try:
             # This parser intentionally returns a naive value; the caller
             # applies the explicit EXIF offset before converting to UTC.
-            return datetime.strptime(s, fmt)  # noqa: DTZ007
+            return datetime.strptime(s, fmt)
         except ValueError:
             continue
     return None

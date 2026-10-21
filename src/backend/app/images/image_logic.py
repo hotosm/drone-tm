@@ -494,7 +494,7 @@ def _parse_exif_datetime(
     for candidate in candidates:
         for fmt in _EXIF_DATETIME_FORMATS:
             try:
-                parsed = datetime.strptime(candidate, fmt)  # noqa: DTZ007
+                parsed = datetime.strptime(candidate, fmt)
             except ValueError:
                 continue
             if parsed.tzinfo:
