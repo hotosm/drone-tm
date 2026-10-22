@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { Map } from "maplibre-gl";
+import { Map, ScaleControl } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+import "@Components/common/MapLibreComponents/map.css";
 import { IMapOptionsProps, MapInstanceType } from "../types";
 
 export default function useMapLibreGLMap({
@@ -27,6 +29,9 @@ export default function useMapLibreGLMap({
       ...mapOptions,
     });
     setMap(mapInstance);
+
+    // add scale bar (bottom-left is taken by the project map legend)
+    mapInstance.addControl(new ScaleControl({ unit: "metric" }), "bottom-right");
 
     mapInstance.on("load", () => {
       setIsMapLoaded(true);

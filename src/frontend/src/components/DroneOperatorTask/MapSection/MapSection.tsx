@@ -586,7 +586,7 @@ const MapSection = ({ className }: { className?: string }) => {
 
   return (
     <div
-      className={`naxatw-relative naxatw-h-[calc(100vh-180px)] naxatw-w-full naxatw-rounded-xl naxatw-bg-gray-200 ${className}`}
+      className={`naxatw-relative naxatw-h-[calc(100vh-180px)] naxatw-w-full naxatw-rounded-xl naxatw-bg-gray-200 max-lg:[&_.maplibregl-ctrl-bottom-right]:naxatw-bottom-12 ${className}`}
     >
       <Modal
         show={showMissingDemModal}
