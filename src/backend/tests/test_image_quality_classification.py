@@ -322,7 +322,7 @@ async def test_reject_gimbal_errors(db, create_test_project, auth_user):
 async def test_digital_zoom_rejected_and_1x_accepted(
     db, create_test_project, auth_user
 ):
-    """Reject zoomed frames while allowing 1x and "not used" (0)."""
+    """Reject zoomed frames while allowing 1x, small accidental zoom and "not used" (0)."""
     project_id = uuid.UUID(create_test_project)
     batch_id = uuid.uuid4()
     task_id = uuid.uuid4()
@@ -343,6 +343,9 @@ async def test_digital_zoom_rejected_and_1x_accepted(
     # EXIF 0 means digital zoom was not used, so it must pass like 1 does.
     cases = [
         {"name": "ZOOM_2X.JPG", "zoom": "2", "rejected": True},
+        {"name": "ZOOM_1_1X.JPG", "zoom": "1.1", "rejected": True},
+        {"name": "ZOOM_1_05X.JPG", "zoom": "1.05", "rejected": False},
+        {"name": "ZOOM_1_04X.JPG", "zoom": "1.04", "rejected": False},
         {"name": "ZOOM_1X.JPG", "zoom": "1", "rejected": False},
         {"name": "ZOOM_UNUSED.JPG", "zoom": "0", "rejected": False},
     ]
@@ -396,9 +399,9 @@ async def test_digital_zoom_rejected_and_1x_accepted(
             assert "Digital zoom" not in reason, case["name"]
 
 
-def test_digital_zoom_threshold_is_1x():
+def test_digital_zoom_threshold_is_1_05x():
     # The threshold is inclusive.
-    assert QualityThresholds().max_digital_zoom_ratio == 1.0
+    assert QualityThresholds().max_digital_zoom_ratio == 1.05
 
 
 @pytest.mark.asyncio

@@ -111,8 +111,9 @@ class QualityThresholds:
     max_gimbal_pitch_deg: float = -20.0
 
     # Digital zoom crops the sensor while DJI retains the 1x focal-length EXIF,
-    # preventing ODM from selecting the correct camera model.
-    max_digital_zoom_ratio: float = 1.0
+    # so ODM fits zoomed frames to the wrong camera model. Small accidental
+    # zoom (RC wheel nudge) is absorbed by bundle adjustment as camera height.
+    max_digital_zoom_ratio: float = 1.05
 
     # Blurry detection (Laplacian variance)
     min_sharpness: float = 100.0
