@@ -6,6 +6,45 @@ drone don't work well.
 There may be specific workarounds for your phone models or region you
 are working in.
 
+## Transfer from a computer (recommended)
+
+If you have a laptop, **MavenBridge** is the easiest way to get a DroneTM
+flightplan onto a DJI controller. It's free, and works with the DJI RC 2,
+RC Pro, RC Pro 2, and Android / iOS devices running DJI Fly.
+
+- [Download for Windows](https://www.mavenpilot.com/download/2375/)
+- [Download for macOS (Apple Silicon)](https://www.mavenpilot.com/download/2371/)
+- [Download for macOS (Intel)](https://www.mavenpilot.com/download/2373/)
+
+Plug the controller into the computer over USB, choose the DroneTM
+`.kmz`, and pick an existing DJI Fly waypoint mission to replace.
+See the [MavenBridge page](https://www.mavenpilot.com/mavenbridge/) for
+more details.
+
+!!! tip
+
+    The Windows build isn't code-signed, so SmartScreen may warn you.
+    Click **More info**, then **Run anyway**.
+
+    Detecting the controller can be slow, so give it a minute after
+    plugging in.
+
+!!! note
+
+    As with the other methods, you must first create a placeholder
+    waypoint mission in DJI Fly
+    (see [Initialise The Drone](./dji/overview.md#initialise-the-drone)).
+    MavenBridge replaces that mission with the DroneTM flightplan.
+
+    Missions saved only in the DJI cloud won't show up until you open
+    them once in DJI Fly.
+
+!!! info "Litchi Hub Bridge"
+
+    [Litchi Hub Bridge](https://forum.flylitchi.com/t/guide-how-to-use-litchi-hub-with-dji-fly/24332)
+    works in a similar way, but only for flights planned in Litchi Hub.
+    It can't load a DroneTM flightplan (unless imported into Litchi first).
+
 ## Transfer from phones via an MTP app (when DroneTM transfer doesn't work)
 
 Some phones can see the Katmai controller using some kind of MTP app, but can’t run the DroneTM APK mobile app (it crashes on launch).

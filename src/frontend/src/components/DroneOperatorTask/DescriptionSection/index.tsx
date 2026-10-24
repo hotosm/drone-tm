@@ -300,6 +300,17 @@ const DroneOperatorDescriptionBox = () => {
                     extension: getFlightplanFileExtension(droneModel),
                   })}
                 </div>
+                {droneModel.startsWith("DJI_") && (
+                  <a
+                    className="naxatw-block naxatw-px-3 naxatw-pb-2 naxatw-text-[0.75rem] naxatw-text-[#7A7A7A] naxatw-underline hover:naxatw-text-[#D73F3F]"
+                    href="https://docs.drone.hotosm.org/manuals/alternative-transfer/#transfer-from-a-computer-recommended"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setShowDownloadOptions(false)}
+                  >
+                    {m.drone_task_transfer_tools_hint()}
+                  </a>
+                )}
                 <div
                   className="naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 hover:naxatw-bg-redlight"
                   role="button"

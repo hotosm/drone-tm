@@ -26,6 +26,15 @@ Before you start, make sure you have completed the steps in
 
 See [tutorial videos](https://drone.hotosm.org/tutorials) on the DroneTM platform!
 
+!!! tip "Transferring from a laptop"
+
+    If the phone transfer doesn't work, use a free desktop tool like
+    **MavenBridge** ([Windows](https://www.mavenpilot.com/download/2375/),
+    [macOS Apple Silicon](https://www.mavenpilot.com/download/2371/),
+    [macOS Intel](https://www.mavenpilot.com/download/2373/)) to send the
+    downloaded `.kmz` to the controller over USB. See
+    [Alternative Transfer Methods](../alternative-transfer.md#transfer-from-a-computer-recommended).
+
 !!! important
 
       Ensure the following for a successful flight:

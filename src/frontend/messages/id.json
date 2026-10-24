@@ -792,6 +792,7 @@
   "drone_task_download_result": "Unduh hasil",
   "drone_task_download": "Unduh",
   "drone_task_download_flightplan_controller": "Rencana penerbangan {extension} untuk pengendali",
+  "drone_task_transfer_tools_hint": "Transfer dari laptop? Lihat caranya ↗",
   "drone_task_send_flightplan_controller": "Kirim rencana penerbangan langsung ke pengendali (eksperimental)",
   "drone_task_inspect_flightplan_geojson": "Periksa GeoJSON rencana penerbangan",
   "drone_task_area_kml": "Area tugas sebagai KML",

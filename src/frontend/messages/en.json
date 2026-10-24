@@ -792,6 +792,7 @@
   "drone_task_download_result": "Download Result",
   "drone_task_download": "Download",
   "drone_task_download_flightplan_controller": "Flightplan {extension} for controller",
+  "drone_task_transfer_tools_hint": "Transferring from a laptop? See how ↗",
   "drone_task_send_flightplan_controller": "Send flightplan directly to controller (experimental)",
   "drone_task_inspect_flightplan_geojson": "Inspect flightplan GeoJSON",
   "drone_task_area_kml": "Task area as KML",
