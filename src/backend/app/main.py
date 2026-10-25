@@ -9,9 +9,9 @@ from typing import Annotated
 from app.__version__ import __version__
 from app.config import MonitoringTypes, settings
 from app.db.database import get_db
+from app.db.enums import HTTPStatus
 from app.drones import drone_routes
 from app.gcp import gcp_routes
-from app.models.enums import HTTPStatus
 from app.projects import classification_routes, project_routes
 from app.public_routes import router as public_router
 from app.tasks import task_routes

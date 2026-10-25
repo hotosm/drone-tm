@@ -2,6 +2,7 @@ import re
 from uuid import UUID
 
 import numpy as np
+from app.db.enums import ImageStatus
 from app.images.exif_values import pitch_columns_sql, pitch_from_row, to_float
 from app.images.flight_segments import (
     PASS_ORDER_SQL,
@@ -10,7 +11,6 @@ from app.images.flight_segments import (
     segment_break_sql,
 )
 from app.images.image_logic import reject_assigned_images
-from app.models.enums import ImageStatus
 from app.utils import calculate_angular_difference
 from loguru import logger as log
 from psycopg import Connection

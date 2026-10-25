@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
-from app.models.enums import UserRole
+from app.db.enums import UserRole
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.sql import text
 

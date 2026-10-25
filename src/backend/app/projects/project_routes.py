@@ -8,10 +8,7 @@ import geojson
 from app.arq.tasks import MoveEnqueue, _enqueue_task_move, get_redis_pool
 from app.config import settings
 from app.db import database
-from app.dem.glo30 import enqueue_glo30_dem_download
-from app.images.image_classification import ImageClassifier
-from app.jaxa.upload_dem import enqueue_dem_download
-from app.models.enums import (
+from app.db.enums import (
     DEMSource,
     HTTPStatus,
     ImageProcessingStatus,
@@ -19,6 +16,9 @@ from app.models.enums import (
     ProjectCompletionStatus,
     RegulatorApprovalStatus,
 )
+from app.dem.glo30 import enqueue_glo30_dem_download
+from app.images.image_classification import ImageClassifier
+from app.jaxa.upload_dem import enqueue_dem_download
 from app.projects import oam, project_deps, project_logic, project_schemas
 from app.projects.project_deps import normalize_aoi
 from app.projects.s3_paths import (

@@ -3,7 +3,7 @@ from http import HTTPStatus
 
 import pytest
 import pytest_asyncio
-from app.models.enums import (
+from app.db.enums import (
     ImageProcessingStatus,
     OAMUploadStatus,
     RegulatorApprovalStatus,

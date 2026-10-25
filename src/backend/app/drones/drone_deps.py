@@ -1,8 +1,8 @@
 from typing import Annotated
 
 from app.db import database
+from app.db.enums import HTTPStatus
 from app.drones.drone_schemas import DbDrone
-from app.models.enums import HTTPStatus
 from fastapi import Depends, HTTPException, Path
 from psycopg import Connection
 

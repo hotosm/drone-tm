@@ -10,7 +10,7 @@ import { manualOverrideTaskState } from "@Services/project";
 import getTaskStateLabel from "@Utils/taskStateLabel";
 import { m } from "@/paraglide/messages";
 
-// Mirror of backend `State` enum (src/backend/app/models/enums.py). Kept as
+// Mirror of backend `State` enum (src/backend/app/db/enums.py). Kept as
 // a plain string list so this failsafe control surfaces every state the
 // admin might need to force a stuck task into.
 const TASK_STATES = [

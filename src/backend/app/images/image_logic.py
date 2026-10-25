@@ -12,8 +12,8 @@ from typing import Any
 from uuid import UUID
 
 import exiftool
+from app.db.enums import ImageStatus
 from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
-from app.models.enums import ImageStatus
 from loguru import logger as log
 from psycopg import Connection
 from psycopg.rows import dict_row

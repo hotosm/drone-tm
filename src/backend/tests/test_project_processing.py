@@ -6,8 +6,8 @@ from types import SimpleNamespace
 import pytest
 from app import utils as app_utils
 from app.arq import tasks as arq_tasks
+from app.db.enums import ImageProcessingStatus, State
 from app.images import image_processing
-from app.models.enums import ImageProcessingStatus, State
 from app.projects import project_logic
 from minio.error import S3Error
 

@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 
 from app.config import settings
-from app.models.enums import EventType, HTTPStatus, State, UserRole
+from app.db.enums import EventType, HTTPStatus, State, UserRole
 from app.tasks.task_schemas import NewEvent, TaskStats
 from app.users.user_schemas import AuthUser, DbUser
 from app.utils import (

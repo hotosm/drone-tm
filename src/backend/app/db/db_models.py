@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import cast
 
-from app.models.enums import (
+from app.db.enums import (
     DEMSource,
     FinalOutput,
     ImageProcessingStatus,

@@ -1,8 +1,8 @@
 from typing import Annotated
 
 from app.db import database
+from app.db.enums import HTTPStatus
 from app.drones import drone_deps, drone_schemas
-from app.models.enums import HTTPStatus
 from app.users.permissions import (
     IsSuperUser,
     check_permissions,

@@ -1,7 +1,7 @@
 import uuid
 
 import pytest
-from app.models.enums import DEMSource
+from app.db.enums import DEMSource
 from app.projects import project_logic, project_routes
 from app.projects.project_schemas import ProjectIn
 

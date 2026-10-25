@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from app.models.enums import HTTPStatus
+from app.db.enums import HTTPStatus
 from fastapi import HTTPException
 from psycopg import Connection
 from psycopg.rows import class_row

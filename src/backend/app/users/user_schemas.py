@@ -4,7 +4,7 @@ from typing import Any
 
 import psycopg
 from app.config import get_password_hash, settings
-from app.models.enums import HTTPStatus, State, UserRole
+from app.db.enums import HTTPStatus, State, UserRole
 from app.s3 import generate_presigned_put_url, maybe_presign_s3_key
 from fastapi import HTTPException
 from loguru import logger as log

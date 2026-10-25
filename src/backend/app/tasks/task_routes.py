@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from app.db import database
-from app.models.enums import HTTPStatus
+from app.db.enums import HTTPStatus
 from app.projects import project_deps, project_schemas
 from app.tasks import task_logic, task_schemas
 from app.users.user_deps import login_required

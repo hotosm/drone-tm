@@ -5,8 +5,8 @@ from io import BytesIO
 import pytest
 from app.arq.tasks import get_redis_pool
 from app.config import settings
+from app.db.enums import UserRole
 from app.images.image_classification import ImageClassifier
-from app.models.enums import UserRole
 from app.s3 import add_obj_to_bucket, check_file_exists
 from app.users.user_deps import login_dependency
 from app.users.user_schemas import AuthUser

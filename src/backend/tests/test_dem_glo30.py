@@ -2,13 +2,13 @@ import math
 
 import pytest
 from app.config import settings
+from app.db.enums import DEMSource
 from app.dem.glo30 import (
     MAX_DIMENSION_PX,
     PIXEL_DEG,
     dem_crop_url,
     snap_bbox,
 )
-from app.models.enums import DEMSource
 from app.projects.project_schemas import enum_to_str
 
 # These expected bounds were verified against direct GDAL reads of the source COGs.

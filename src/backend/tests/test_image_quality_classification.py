@@ -6,8 +6,8 @@ from datetime import datetime, timedelta, timezone
 import numpy as np
 import pytest
 import shapely.wkb as wkblib
+from app.db.enums import ImageStatus
 from app.images.image_classification import ImageClassifier, QualityThresholds
-from app.models.enums import ImageStatus
 from shapely.geometry import box
 
 

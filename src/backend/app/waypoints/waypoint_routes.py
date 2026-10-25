@@ -8,7 +8,7 @@ from typing import Annotated
 import geojson
 from app.config import settings
 from app.db import database
-from app.models.enums import HTTPStatus
+from app.db.enums import HTTPStatus
 from app.projects import project_deps
 from app.s3 import check_file_exists, get_file_from_bucket
 from app.tasks.task_logic import (

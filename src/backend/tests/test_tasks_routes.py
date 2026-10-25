@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 import pytest
-from app.models.enums import State, UserRole
+from app.db.enums import State, UserRole
 from app.tasks import task_logic, task_schemas
 from app.users.user_schemas import AuthUser
 from fastapi import BackgroundTasks, HTTPException

@@ -1,5 +1,5 @@
 import pytest
-from app.models.enums import HTTPStatus
+from app.db.enums import HTTPStatus
 
 
 @pytest.mark.asyncio

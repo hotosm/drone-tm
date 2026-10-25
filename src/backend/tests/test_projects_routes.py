@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 from app.arq.tasks import get_redis_pool
-from app.models.enums import State
+from app.db.enums import State
 from app.projects import project_deps, project_logic, project_routes, project_schemas
 from fastapi import BackgroundTasks, HTTPException
 from httpx import ASGITransport, AsyncClient

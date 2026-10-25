@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 import geojson
 from app.config import settings
-from app.models.enums import (
+from app.db.enums import (
     DEMSource,
     FinalOutput,
     HTTPStatus,

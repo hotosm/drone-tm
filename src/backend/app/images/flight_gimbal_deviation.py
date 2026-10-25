@@ -27,6 +27,7 @@ from itertools import pairwise
 from statistics import median
 from uuid import UUID
 
+from app.db.enums import ImageStatus
 from app.images.exif_values import pitch_columns_sql, pitch_from_row
 from app.images.flight_segments import (
     PASS_ORDER_SQL,
@@ -35,7 +36,6 @@ from app.images.flight_segments import (
     segment_break_sql,
 )
 from app.images.image_logic import reject_assigned_images
-from app.models.enums import ImageStatus
 from loguru import logger as log
 from psycopg import Connection
 from psycopg.rows import dict_row

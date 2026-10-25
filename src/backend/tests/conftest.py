@@ -11,8 +11,8 @@ import pytest
 import pytest_asyncio
 from app.config import settings
 from app.db.database import get_db, get_db_connection_pool
+from app.db.enums import UserRole
 from app.main import get_application
-from app.models.enums import UserRole
 from app.projects.project_schemas import DbProject, ProjectIn
 from app.users.user_deps import login_dependency, login_required
 from app.users.user_schemas import AuthUser, DbUser

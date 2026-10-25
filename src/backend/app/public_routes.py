@@ -1,6 +1,6 @@
 from app.arq.tasks import get_redis_pool
 from app.config import settings
-from app.models.enums import HTTPStatus
+from app.db.enums import HTTPStatus
 from app.s3 import maybe_presign_s3_key
 from arq import ArqRedis
 from fastapi import APIRouter, Depends, HTTPException, Query

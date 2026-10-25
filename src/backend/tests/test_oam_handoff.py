@@ -3,7 +3,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from app.config import settings
-from app.models.enums import OAMUploadStatus
+from app.db.enums import OAMUploadStatus
 from app.projects import oam
 
 

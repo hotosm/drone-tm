@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from app.models.enums import ImageStatus
+from app.db.enums import ImageStatus
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 

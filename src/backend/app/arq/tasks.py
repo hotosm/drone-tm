@@ -24,6 +24,7 @@ from app.arq.cloudnative import (
 )
 from app.config import settings
 from app.db.database import get_db_connection_pool
+from app.db.enums import HTTPStatus, ImageProcessingStatus, ImageStatus, State
 from app.dem.glo30 import download_and_upload_glo30_dem
 from app.images.flight_gimbal_deviation import mark_and_remove_off_axis_imagery
 from app.images.flight_stationary_removal import mark_and_remove_stationary_imagery
@@ -40,7 +41,6 @@ from app.images.image_processing import (
 )
 from app.images.image_schemas import ProjectImageCreate, ProjectImageOut
 from app.jaxa.upload_dem import download_and_upload_dem
-from app.models.enums import HTTPStatus, ImageProcessingStatus, ImageStatus, State
 from app.projects import project_logic, project_schemas
 from app.projects.project_logic import (
     process_all_drone_images,

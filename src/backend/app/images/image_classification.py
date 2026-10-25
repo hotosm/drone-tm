@@ -10,6 +10,7 @@ from typing import Any, Literal
 import cv2
 import numpy as np
 from app.config import settings
+from app.db.enums import ImageStatus
 from app.images.exif_values import (
     drone_metadata,
     resolve_gimbal_pitch,
@@ -19,7 +20,6 @@ from app.images.solar_position import (
     derive_utc_datetime_from_exif,
     solar_elevation_deg,
 )
-from app.models.enums import ImageStatus
 from app.s3 import (
     delete_objects,
     get_obj_from_bucket,

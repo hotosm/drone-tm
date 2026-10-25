@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Literal
 
 from app.config import settings
-from app.models.enums import EventType, HTTPStatus, State
+from app.db.enums import EventType, HTTPStatus, State
 from app.s3 import maybe_presign_s3_key
 from fastapi import HTTPException
 from loguru import logger as log

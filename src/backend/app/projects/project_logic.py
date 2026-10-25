@@ -12,19 +12,19 @@ import geojson
 import pyproj
 import shapely.wkb as wkblib
 from app.config import settings
-from app.images.image_classification import ImageClassifier, QualityThresholds
-from app.images.image_processing import (
-    ScaleOdmSubmitError,
-    fetch_scaleodm_task_info,
-    submit_scaleodm_task,
-)
-from app.models.enums import (
+from app.db.enums import (
     DEMSource,
     FinalOutput,
     ImageProcessingStatus,
     ImageStatus,
     OAMUploadStatus,
     State,
+)
+from app.images.image_classification import ImageClassifier, QualityThresholds
+from app.images.image_processing import (
+    ScaleOdmSubmitError,
+    fetch_scaleodm_task_info,
+    submit_scaleodm_task,
 )
 from app.projects import project_schemas
 from app.s3 import (

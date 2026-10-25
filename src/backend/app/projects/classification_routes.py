@@ -12,9 +12,9 @@ from app.arq.tasks import (
     validate_s3_access,
 )
 from app.db import database
+from app.db.enums import HTTPStatus, State
 from app.images.flight_gap_identification import identify_flight_gaps
 from app.images.image_classification import ImageClassifier
-from app.models.enums import HTTPStatus, State
 from app.projects import project_deps, project_schemas
 from app.users.permissions import IsProjectCreator, IsSuperUser, check_permissions
 from app.users.user_deps import login_required

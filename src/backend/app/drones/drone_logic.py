@@ -1,5 +1,5 @@
+from app.db.enums import HTTPStatus
 from app.drones.drone_schemas import DroneOut
-from app.models.enums import HTTPStatus
 from fastapi import HTTPException
 from loguru import logger as log
 from psycopg import Connection

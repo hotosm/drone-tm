@@ -6,7 +6,7 @@ from typing import Annotated
 import jwt
 from app.config import get_password_hash, settings, verify_password
 from app.db import database
-from app.models.enums import HTTPStatus
+from app.db.enums import HTTPStatus
 from app.users import user_deps, user_logic, user_schemas
 from app.users.user_deps import init_google_auth, login_required
 from app.users.user_schemas import (

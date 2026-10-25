@@ -6,13 +6,13 @@ from uuid import UUID
 import geojson
 import numpy as np
 import pyproj
+from app.db.enums import ImageStatus
 from app.images.flight_segments import (
     PASS_ORDER_SQL,
     camera_serial_sql,
     group_by_pass,
     segment_break_sql,
 )
-from app.models.enums import ImageStatus
 from app.s3 import maybe_presign_s3_key
 from app.utils import (
     calculate_angular_difference,

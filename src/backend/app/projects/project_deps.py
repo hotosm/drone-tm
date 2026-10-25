@@ -6,7 +6,7 @@ from uuid import UUID
 
 import geojson as geojson_lib
 from app.db import database
-from app.models.enums import HTTPStatus
+from app.db.enums import HTTPStatus
 from app.projects.project_schemas import DbProject
 from app.utils import multipolygon_to_polygon
 from fastapi import Depends, File, HTTPException, Path, UploadFile

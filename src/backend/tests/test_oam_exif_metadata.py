@@ -2,8 +2,8 @@ import uuid
 from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
+from app.db.enums import ImageStatus
 from app.images import image_logic
-from app.models.enums import ImageStatus
 from psycopg.types.json import Json
 
 

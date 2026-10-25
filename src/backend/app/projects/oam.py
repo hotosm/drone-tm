@@ -5,8 +5,8 @@ from urllib.parse import quote, urlencode, urlsplit
 
 import aiohttp
 from app.config import settings
+from app.db.enums import OAMUploadStatus
 from app.images import image_logic
-from app.models.enums import OAMUploadStatus
 from app.projects import project_logic
 from app.s3 import get_orthophoto_url_for_project
 from app.users.user_logic import get_organization_name_for_user
