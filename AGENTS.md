@@ -36,8 +36,9 @@ mirrored in `drone-flightplan` (Python); keep the implementations in parity.
 
 Before non-trivial changes:
 
-1. `docs/decisions/README.md`
-2. Relevant ADRs in `docs/decisions/`
+1. `docs/dev/architecture.md`
+2. `docs/decisions/README.md`
+3. Relevant ADRs in `docs/decisions/`
 
 If ADRs conflict with newer accepted direction in code, follow current implementation direction and document assumptions in PR notes.
 
