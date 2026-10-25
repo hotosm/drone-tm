@@ -22,11 +22,13 @@ Primary active paths:
 - `src/backend/tests/`
 - `src/backend/packages/drone-flightplan/`
 - `src/frontend/src/`
+- `src/qfield-plugin/` (QField plugin for offline flightplan generation)
+- `src/flight-planner/` (offline browser flightplan generator)
 - `docs/decisions/`
 
-Secondary/legacy path (edit only when task requires it):
-
-- `src/qfield-plugin/`
+Note: `src/qfield-plugin/generate/*.js` is also imported by
+`src/flight-planner/`, so changes there affect both. Flightplan logic is
+mirrored in `drone-flightplan` (Python); keep the implementations in parity.
 
 ---
 
@@ -168,7 +170,7 @@ Database schema changes are tracked with Alembic migrations under:
 
 Expected workflow:
 
-1. Update SQLAlchemy models in `src/backend/app/models/` (and related modules).
+1. Update SQLAlchemy models in `src/backend/app/db/db_models.py` and related enums.
 2. Generate a migration revision (typically with autogenerate) from `src/backend`.
 3. Review and adjust the generated migration script before committing.
 
