@@ -997,3 +997,11 @@ wa-details::part(content) {
   font-size: var(--wa-font-size-s);
   min-height: 1.2em;
 }
+
+.maplibregl-ctrl-group button.basemap-toggle {
+  font-size: 0.9rem;
+}
+
+.maplibregl-ctrl-group button.basemap-toggle[aria-pressed="true"] {
+  color: var(--wa-color-brand-fill-loud);
+}

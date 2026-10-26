@@ -2,10 +2,13 @@ import maplibregl, { type Map as MlMap, type LngLatBoundsLike } from "maplibre-g
 import MapboxDraw from "@mapbox/mapbox-gl-draw";
 import type { Bbox } from "../core/dem";
 import type { FlightpathCollection, WaypointCollection } from "../core/types";
+import { BasemapToggle } from "./basemap";
 import { drawStyles } from "./draw-styles";
 import { mapColor } from "./palette";
 
 const OSM_TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const ESRI_IMAGERY_TILES =
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 
 export type DrawMode = "draw" | "takeoff" | "idle";
 
@@ -60,14 +63,26 @@ export function createMap(container: HTMLElement): MapController {
           maxzoom: 19,
           attribution: "© OpenStreetMap contributors",
         },
+        // Esri serves placeholder tiles past z19 in many areas
+        imagery: {
+          type: "raster",
+          tiles: [ESRI_IMAGERY_TILES],
+          tileSize: 256,
+          maxzoom: 19,
+          attribution: "Esri, Vantor, Earthstar Geographics, and the GIS User Community",
+        },
       },
-      layers: [{ id: "osm", type: "raster", source: "osm" }],
+      layers: [
+        { id: "osm", type: "raster", source: "osm" },
+        { id: "imagery", type: "raster", source: "imagery", layout: { visibility: "none" } },
+      ],
     },
     center: [0, 20],
     zoom: 2,
     attributionControl: { compact: true },
   });
 
+  map.addControl(new BasemapToggle(), "top-right");
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
   map.addControl(
     new maplibregl.GeolocateControl({

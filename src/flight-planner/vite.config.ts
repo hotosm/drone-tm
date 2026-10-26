@@ -20,7 +20,9 @@ export default defineConfig({
         runtimeCaching: [
           {
             // DEM crops use OPFS; cache only basemap tiles here.
-            urlPattern: ({ url }) => /\/tiles?\//.test(url.pathname) || /tile\./.test(url.hostname),
+            urlPattern: ({ url }) =>
+              url.hostname !== "server.arcgisonline.com" &&
+              (/\/tiles?\//.test(url.pathname) || /tile\./.test(url.hostname)),
             handler: "CacheFirst",
             options: {
               cacheName: "basemap-tiles",
