@@ -1,6 +1,9 @@
+import shutil
+
 from drone_flightplan.drone_type import DRONE_PARAMS, DroneType
 from fastapi import HTTPException
 from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 
 FLIGHTPLAN_OUTPUTS = {
     "DJI_WMPL": {
@@ -42,11 +45,27 @@ def build_flightplan_download_response(
     outpath: str,
     drone_type: DroneType,
     filename_stem: str,
+    cleanup_dir: str | None = None,
 ):
-    """Wrap a generated flightplan file in the correct download response."""
+    """Wrap a generated flightplan file in the correct download response.
+
+    Args:
+        outpath: The generated flightplan file to serve.
+        drone_type: Used to pick the media type and file extension.
+        filename_stem: Download filename, without extension.
+        cleanup_dir: Temporary directory to remove once the response has been
+            sent. Flightplans are generated per request and are of no use
+            afterwards, so without this they accumulate until the server runs
+            out of disk.
+    """
     config = get_flightplan_output_config(drone_type)
     return FileResponse(
         outpath,
         media_type=config["media_type"],
         filename=f"{filename_stem}{config['suffix']}",
+        background=(
+            BackgroundTask(shutil.rmtree, cleanup_dir, ignore_errors=True)
+            if cleanup_dir
+            else None
+        ),
     )
