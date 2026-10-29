@@ -13,6 +13,8 @@ from app.s3 import (
 from loguru import logger as log
 from osgeo import gdal
 
+gdal.UseExceptions()
+
 SCALEODM_SUBMIT_TIMEOUT_SEC = 30
 
 
@@ -230,20 +232,17 @@ def extract_and_upload_odm_assets(
     if ortho_local and os.path.exists(ortho_local):
         try:
             src_ds = gdal.Open(ortho_local)
-            if src_ds is not None:
-                log.info(
-                    "Source ODM orthophoto: size={}x{}, bands={}, "
-                    "filesize={} bytes, geotransform={}, projection={}",
-                    src_ds.RasterXSize,
-                    src_ds.RasterYSize,
-                    src_ds.RasterCount,
-                    os.path.getsize(ortho_local),
-                    src_ds.GetGeoTransform(),
-                    (src_ds.GetProjection() or "(none)")[:200],
-                )
-                src_ds = None
-            else:
-                log.warning(f"GDAL could not open source ortho at {ortho_local}")
+            log.info(
+                "Source ODM orthophoto: size={}x{}, bands={}, "
+                "filesize={} bytes, geotransform={}, projection={}",
+                src_ds.RasterXSize,
+                src_ds.RasterYSize,
+                src_ds.RasterCount,
+                os.path.getsize(ortho_local),
+                src_ds.GetGeoTransform(),
+                (src_ds.GetProjection() or "(none)")[:200],
+            )
+            src_ds = None
         except Exception as inspect_err:
             log.warning(f"Failed to inspect source ortho: {inspect_err}")
 
@@ -253,14 +252,13 @@ def extract_and_upload_odm_assets(
 
             try:
                 out_ds = gdal.Open(reprojected_path)
-                if out_ds is not None:
-                    log.info(
-                        "Reprojected COG orthophoto: size={}x{}, filesize={} bytes",
-                        out_ds.RasterXSize,
-                        out_ds.RasterYSize,
-                        os.path.getsize(reprojected_path),
-                    )
-                    out_ds = None
+                log.info(
+                    "Reprojected COG orthophoto: size={}x{}, filesize={} bytes",
+                    out_ds.RasterXSize,
+                    out_ds.RasterYSize,
+                    os.path.getsize(reprojected_path),
+                )
+                out_ds = None
             except Exception:
                 pass
 

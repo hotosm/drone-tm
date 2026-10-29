@@ -7,6 +7,8 @@ from typing import ClassVar
 import scrapy
 from osgeo import gdal
 
+gdal.UseExceptions()
+
 base_dir = Path(__file__).resolve().parent
 
 
@@ -153,19 +155,10 @@ class TifSpider(scrapy.Spider):
             )
             vrt_file = str(self.temp_dir / "merged.vrt")
 
-            vrt = gdal.BuildVRT(vrt_file, self.tif_files)
-            if vrt is None:
-                raise RuntimeError(
-                    f"gdal.BuildVRT returned None - input TIF files may be corrupt: {self.tif_files}"
-                )
-            vrt = None  # flush/close the VRT dataset before Translate
+            # Close each dataset so it is flushed to disk before the next step
+            gdal.BuildVRT(vrt_file, self.tif_files).Close()
 
-            result = gdal.Translate(self.output_path, vrt_file)
-            if result is None:
-                raise RuntimeError(
-                    f"gdal.Translate returned None - could not write to {self.output_path}"
-                )
-            result = None  # flush/close
+            gdal.Translate(self.output_path, vrt_file).Close()
 
             # Cleanup tile files
             for file in self.tif_files:

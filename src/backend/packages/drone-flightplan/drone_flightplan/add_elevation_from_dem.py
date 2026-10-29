@@ -17,6 +17,8 @@ import struct
 
 from osgeo import gdal, ogr, osr
 
+gdal.UseExceptions()
+
 log = logging.getLogger(__name__)
 
 
@@ -51,10 +53,7 @@ def add_elevation_from_dem(raster_file, points, outfile) -> int:
     """
     r = gdal.Open(raster_file)
 
-    # Create an empty Spatial Reference object
-    # and set it to the CRS of the input raster
-    rasterSR = osr.SpatialReference()
-    rasterSR.ImportFromProj4(r.GetProjection())
+    rasterSR = r.GetSpatialRef()
     log.info(f"\nRaster Coordinate Reference System: \n{rasterSR}")
     rasterSR.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
 
