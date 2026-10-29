@@ -315,9 +315,7 @@ def create_litchi_csv(
     # Get fieldnames from first waypoint (they're ordered correctly)
     fieldnames = list(waypoints[0].keys())
 
-    output_file_path = resolve_output_path(
-        output_file_path, suffix=".csv", prefix="litchi_mission_"
-    )
+    output_file_path = resolve_output_path(output_file_path, suffix=".csv")
 
     with open(output_file_path, "w", newline="") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)

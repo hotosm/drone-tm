@@ -23,7 +23,6 @@ device and partially supported WPML functions in the DJI waypoint implementation
 import argparse
 import logging
 import os
-import tempfile
 import xml.etree.ElementTree as ET
 import zipfile
 from xml.etree.ElementTree import Element
@@ -36,48 +35,6 @@ from drone_flightplan.output.output_paths import resolve_output_path
 
 # Instantiate logger
 log = logging.getLogger(__name__)
-
-
-def zip_directory(directory_path, zip_path):
-    with zipfile.ZipFile(zip_path, "w") as zipf:
-        for root, _dirs, files in os.walk(directory_path):
-            for file in files:
-                zipf.write(
-                    os.path.join(root, file),
-                    os.path.relpath(
-                        os.path.join(root, file), os.path.join(directory_path, "..")
-                    ),
-                )
-
-
-def create_zip_file(waylines_path_uid, output_file_name=None):
-    """Package a directory containing waylines.wpml into a .kmz file.
-
-    Args:
-        waylines_path_uid: Directory holding the generated waylines.wpml.
-        output_file_name: Destination .kmz path. Defaults to output.kmz
-            alongside the source, as before.
-
-    Returns:
-        Path to the generated .kmz file.
-    """
-    # Create the wpmz folder if it doesn't exist
-    wpmz_path = f"{waylines_path_uid}/wpmz"
-    os.makedirs(wpmz_path, exist_ok=True)
-
-    # Read content of template.kml
-    with open(f"{waylines_path_uid}/waylines.wpml") as f:
-        wpml_content = f.read()
-
-    with open(f"{wpmz_path}/waylines.wpml", "w") as f:
-        f.write(wpml_content)
-
-    # Create a Zip file containing the contents of the wpmz folder directly
-    if output_file_name is None:
-        output_file_name = f"{waylines_path_uid}/output.kmz"
-    zip_directory(wpmz_path, output_file_name)
-
-    return output_file_name
 
 
 def take_photo_action(action_group_element: Element, index: str):
@@ -480,39 +437,19 @@ def create_kml(mission_config, folder):
     return kml
 
 
-def resolve_kmz_path(output_file_path: str | None) -> str:
-    """Resolve the destination .kmz path.
-
-    An existing directory is still accepted, since `output_file_path` used to
-    be treated as the directory the mission tree was written into.
-    """
-    if output_file_path is not None and os.path.isdir(output_file_path):
-        return os.path.join(output_file_path, "output.kmz")
-
-    return resolve_output_path(
-        output_file_path, suffix=".kmz", prefix="dji_flightplan_"
-    )
-
-
 def create_xml(placemarks, global_height, output_file_path: str | None = None):
     mission_config = create_mission_config(global_height)
     folder = create_folder(placemarks)
     kml = create_kml(mission_config, folder)
+    wpml = ET.tostring(kml, encoding="UTF-8", xml_declaration=True)
 
-    tree = ET.ElementTree(kml)
+    # Older callers passed a directory to write into
+    if output_file_path and os.path.isdir(output_file_path):
+        output_file_path = os.path.join(output_file_path, "output.kmz")
+    output_file_name = resolve_output_path(output_file_path, suffix=".kmz")
 
-    output_file_name = resolve_kmz_path(output_file_path)
-
-    # The waylines.wpml / wpmz tree is only scratch space needed to build the
-    # .kmz, so keep it in a managed temp dir. It used to be left behind under
-    # /tmp on every single call.
-    with tempfile.TemporaryDirectory(prefix="dji_flightplan_") as temp_dir:
-        flight_dir = os.path.join(temp_dir, "flight")
-        os.makedirs(flight_dir, exist_ok=True)
-        waylines_path = os.path.join(flight_dir, "waylines.wpml")
-
-        tree.write(waylines_path, encoding="UTF-8", xml_declaration=True)
-        create_zip_file(flight_dir, output_file_name)
+    with zipfile.ZipFile(output_file_name, "w") as kmz:
+        kmz.writestr("wpmz/waylines.wpml", wpml)
 
     return output_file_name
 

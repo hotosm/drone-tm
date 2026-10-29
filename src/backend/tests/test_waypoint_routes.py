@@ -3,7 +3,7 @@ import tempfile
 import uuid
 
 import pytest
-from app.waypoints import waypoint_routes
+from app.waypoints import flightplan_output, waypoint_routes
 from fastapi import HTTPException
 
 
@@ -190,7 +190,7 @@ async def test_terrain_follow_preview_passes_dem_to_placemarks(
     assert captured["dem"], "preview path must receive the DEM file path"
 
 
-def _failing_download_response(*_args, **_kwargs):
+def _unsupported_output_config(*_args, **_kwargs):
     # e.g. an output format without a download mapping
     raise HTTPException(status_code=400, detail="Unsupported output format")
 
@@ -223,9 +223,9 @@ async def test_task_flightplan_download_cleans_up_when_response_fails(
         waypoint_routes, "write_flightplan_file", fake_write_flightplan_file
     )
     monkeypatch.setattr(
-        waypoint_routes,
-        "build_flightplan_download_response",
-        _failing_download_response,
+        flightplan_output,
+        "get_flightplan_output_config",
+        _unsupported_output_config,
     )
 
     response = await client.post(
@@ -250,9 +250,9 @@ async def test_standalone_flightplan_download_cleans_up_when_response_fails(
 
     monkeypatch.setattr(waypoint_routes, "create_flightplan", fake_create_flightplan)
     monkeypatch.setattr(
-        waypoint_routes,
-        "build_flightplan_download_response",
-        _failing_download_response,
+        flightplan_output,
+        "get_flightplan_output_config",
+        _unsupported_output_config,
     )
 
     coordinates = [

@@ -1,6 +1,3 @@
-import os
-import shutil
-import tempfile
 from datetime import datetime
 from typing import Annotated, Literal
 from uuid import UUID
@@ -20,10 +17,7 @@ from app.projects import project_deps, project_schemas
 from app.users.permissions import IsProjectCreator, IsSuperUser, check_permissions
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
-from app.waypoints.flightplan_output import (
-    build_flightplan_download_response,
-    get_flightplan_output_config,
-)
+from app.waypoints.flightplan_output import flightplan_download_response
 from arq import ArqRedis
 from arq.constants import result_key_prefix
 from drone_flightplan.drone_type import DroneType
@@ -942,24 +936,13 @@ async def download_reflight_plan(
             detail="The flightplan generator could not produce a file with the provided data.",
         )
 
-    flightplan_config = get_flightplan_output_config(flight_drone_type)
-
-    # A per-request temp dir, so concurrent downloads for the same task cannot
-    # overwrite or delete each other's file. Removed once the response is sent.
-    temp_dir = tempfile.mkdtemp(prefix="reflight_")
-    try:
-        file_path = os.path.join(
-            temp_dir, f"reflight_{task_id}{flightplan_config['suffix']}"
-        )
-        with open(file_path, "wb") as f:
+    def write_kmz(outfile: str) -> str:
+        with open(outfile, "wb") as f:
             f.write(kmz_bytes)
+        return outfile
 
-        return build_flightplan_download_response(
-            file_path,
-            drone_type=flight_drone_type,
-            filename_stem=f"reflight_task_{task_id}_{flight_drone_type}_project_{project_id}",
-            cleanup_dir=temp_dir,
-        )
-    except Exception:
-        shutil.rmtree(temp_dir, ignore_errors=True)
-        raise
+    return flightplan_download_response(
+        write_kmz,
+        drone_type=flight_drone_type,
+        filename_stem=f"reflight_task_{task_id}_{flight_drone_type}_project_{project_id}",
+    )

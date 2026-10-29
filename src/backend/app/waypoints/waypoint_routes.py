@@ -18,7 +18,7 @@ from app.tasks.task_logic import (
 )
 from app.utils import calculate_flight_time_from_placemarks, merge_multipolygon
 from app.waypoints import waypoint_schemas
-from app.waypoints.flightplan_output import build_flightplan_download_response
+from app.waypoints.flightplan_output import flightplan_download_response
 from app.waypoints.waypoint_logic import (
     check_point_within_buffer,
 )
@@ -187,24 +187,13 @@ async def get_task_flightplan(
 
     # If the user needs a download, wrap in correct response
     if download:
-        # Output writers each treat `outfile` differently (some as a file path,
-        # some as a base dir for a subdirectory tree). They all expect a unique
-        # non-existent path under a writable tmpdir, which is removed again
-        # once the response has been sent, or straight away if the file or
-        # the response cannot be built.
-        temp_dir = tempfile.mkdtemp(prefix="flightplan_")
-        try:
-            outfile = os.path.join(temp_dir, "flightplan")
-            outpath = write_flightplan_file(placemarks, drone_type, outfile, mode)
-            return build_flightplan_download_response(
-                outpath,
-                drone_type=drone_type,
-                filename_stem=f"task-{project_task_index}-{mode.name}-project-{project_id}",
-                cleanup_dir=temp_dir,
-            )
-        except Exception:
-            shutil.rmtree(temp_dir, ignore_errors=True)
-            raise
+        return flightplan_download_response(
+            lambda outfile: write_flightplan_file(
+                placemarks, drone_type, outfile, mode
+            ),
+            drone_type=drone_type,
+            filename_stem=f"task-{project_task_index}-{mode.name}-project-{project_id}",
+        )
 
     flight_data = calculate_flight_time_from_placemarks(placemarks)
 
@@ -318,11 +307,8 @@ async def generate_wmpl_kmz(
             )
             return geojson.loads(points)
         else:
-            # Removed again by the response background task once sent, or
-            # straight away if the file or the response cannot be built
-            temp_dir = tempfile.mkdtemp(prefix="flightplan_")
-            try:
-                output_file = create_flightplan(
+            return flightplan_download_response(
+                lambda outfile: create_flightplan(
                     aoi=boundary,
                     forward_overlap=forward_overlap,
                     side_overlap=side_overlap,
@@ -330,19 +316,13 @@ async def generate_wmpl_kmz(
                     gsd=gsd,
                     flight_mode=flight_mode,
                     dem=dem_path,
-                    outfile=os.path.join(temp_dir, "flightplan"),
+                    outfile=outfile,
                     take_off_point=take_off_point,
                     drone_type=drone_type,
-                )
-                return build_flightplan_download_response(
-                    output_file,
-                    drone_type=drone_type,
-                    filename_stem="output",
-                    cleanup_dir=temp_dir,
-                )
-            except Exception:
-                shutil.rmtree(temp_dir, ignore_errors=True)
-                raise
+                ),
+                drone_type=drone_type,
+                filename_stem="output",
+            )
     finally:
         # The uploaded DEM is only needed while the flightplan is generated
         if dem_path and os.path.exists(dem_path):

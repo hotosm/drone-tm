@@ -311,8 +311,6 @@ async def process_task_metrics(db, tasks_data, project):
 
         if project.is_terrain_follow:
             points = create_waypoint(**waypoint_params)
-            # Scoped temp dir: the DEM directory was never removed, and the
-            # elevation file used a fixed name shared by every concurrent call
             with tempfile.TemporaryDirectory(prefix="dem_") as temp_dir:
                 dem_path = os.path.join(temp_dir, "dem.tif")
                 outfile_with_elevation = os.path.join(

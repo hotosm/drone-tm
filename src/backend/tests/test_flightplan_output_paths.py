@@ -6,7 +6,7 @@ import zipfile
 import geojson
 import pytest
 from app.projects import classification_routes
-from app.waypoints.flightplan_output import build_flightplan_download_response
+from app.waypoints.flightplan_output import flightplan_download_response
 from drone_flightplan.drone_type import DroneType
 from drone_flightplan.output.dji import create_wpml
 from drone_flightplan.output.litchi import create_litchi_csv
@@ -108,36 +108,33 @@ def test_resolve_output_path_creates_missing_parent_directories(tmp_path):
     assert os.path.isdir(os.path.dirname(target))
 
 
-def test_download_response_removes_the_temporary_directory(tmp_path):
-    temp_dir = tmp_path / "flightplan"
-    temp_dir.mkdir()
-    outpath = temp_dir / "mission.kmz"
-    outpath.write_bytes(b"kmz")
+def _write_kmz(outfile):
+    with open(outfile, "wb") as f:
+        f.write(b"kmz")
+    return outfile
 
-    response = build_flightplan_download_response(
-        str(outpath),
-        drone_type=DroneType.DJI_MINI_4_PRO,
-        filename_stem="task-1",
-        cleanup_dir=str(temp_dir),
+
+def test_download_response_removes_the_temporary_directory(isolated_tmpdir):
+    response = flightplan_download_response(
+        _write_kmz, drone_type=DroneType.DJI_MINI_4_PRO, filename_stem="task-1"
     )
 
-    assert response.background is not None
+    assert os.path.dirname(response.path).startswith(str(isolated_tmpdir))
     response.background.func(*response.background.args, **response.background.kwargs)
-    assert not temp_dir.exists()
+    assert list(isolated_tmpdir.iterdir()) == []
 
 
-def test_download_response_without_cleanup_dir_keeps_the_file(tmp_path):
-    outpath = tmp_path / "mission.kmz"
-    outpath.write_bytes(b"kmz")
+def test_download_response_removes_the_temporary_directory_on_error(isolated_tmpdir):
+    def failing_writer(outfile):
+        _write_kmz(outfile)
+        raise RuntimeError("writer failed")
 
-    response = build_flightplan_download_response(
-        str(outpath),
-        drone_type=DroneType.DJI_MINI_4_PRO,
-        filename_stem="task-1",
-    )
+    with pytest.raises(RuntimeError):
+        flightplan_download_response(
+            failing_writer, drone_type=DroneType.DJI_MINI_4_PRO, filename_stem="task-1"
+        )
 
-    assert response.background is None
-    assert outpath.exists()
+    assert list(isolated_tmpdir.iterdir()) == []
 
 
 @pytest.mark.asyncio
@@ -153,16 +150,19 @@ async def test_reflight_downloads_use_a_temp_dir_per_request(
 
     served_paths = []
 
-    def spy_download_response(file_path, **kwargs):
-        served_paths.append(file_path)
-        return build_flightplan_download_response(file_path, **kwargs)
+    def spy_download_response(write_file, **kwargs):
+        def recording_writer(outfile):
+            served_paths.append(outfile)
+            return write_file(outfile)
+
+        return flightplan_download_response(recording_writer, **kwargs)
 
     monkeypatch.setattr(
         classification_routes, "identify_flight_gaps", fake_identify_flight_gaps
     )
     monkeypatch.setattr(
         classification_routes,
-        "build_flightplan_download_response",
+        "flightplan_download_response",
         spy_download_response,
     )
 

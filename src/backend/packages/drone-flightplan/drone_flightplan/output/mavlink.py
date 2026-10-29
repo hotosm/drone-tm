@@ -533,9 +533,7 @@ def create_mavlink_plan(
     # Add all mission items to the output
     lines.extend(mission_items)
 
-    output_file_path = resolve_output_path(
-        output_file_path, suffix=".waypoints", prefix="mavlink_mission_"
-    )
+    output_file_path = resolve_output_path(output_file_path, suffix=".waypoints")
 
     # Write to file with newline separation
     with open(output_file_path, "w") as f:

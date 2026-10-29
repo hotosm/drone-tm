@@ -1,4 +1,7 @@
+import os
 import shutil
+import tempfile
+from collections.abc import Callable
 
 from drone_flightplan.drone_type import DRONE_PARAMS, DroneType
 from fastapi import HTTPException
@@ -41,31 +44,25 @@ def get_flightplan_output_config(drone_type: DroneType) -> dict:
     return config
 
 
-def build_flightplan_download_response(
-    outpath: str,
+def flightplan_download_response(
+    write_file: Callable[[str], str],
     drone_type: DroneType,
     filename_stem: str,
-    cleanup_dir: str | None = None,
-):
-    """Wrap a generated flightplan file in the correct download response.
+) -> FileResponse:
+    """Serve a flightplan written by `write_file(path)` into a per-request temp dir.
 
-    Args:
-        outpath: The generated flightplan file to serve.
-        drone_type: Used to pick the media type and file extension.
-        filename_stem: Download filename, without extension.
-        cleanup_dir: Temporary directory to remove once the response has been
-            sent. Flightplans are generated per request and are of no use
-            afterwards, so without this they accumulate until the server runs
-            out of disk.
+    The dir is removed once the response is sent, or straight away on error.
     """
-    config = get_flightplan_output_config(drone_type)
-    return FileResponse(
-        outpath,
-        media_type=config["media_type"],
-        filename=f"{filename_stem}{config['suffix']}",
-        background=(
-            BackgroundTask(shutil.rmtree, cleanup_dir, ignore_errors=True)
-            if cleanup_dir
-            else None
-        ),
-    )
+    temp_dir = tempfile.mkdtemp(prefix="flightplan_")
+    try:
+        outpath = write_file(os.path.join(temp_dir, "flightplan"))
+        config = get_flightplan_output_config(drone_type)
+        return FileResponse(
+            outpath,
+            media_type=config["media_type"],
+            filename=f"{filename_stem}{config['suffix']}",
+            background=BackgroundTask(shutil.rmtree, temp_dir, ignore_errors=True),
+        )
+    except Exception:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        raise

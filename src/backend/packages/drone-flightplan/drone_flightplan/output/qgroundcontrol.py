@@ -546,9 +546,7 @@ def create_qgroundcontrol_plan(
         "rallyPoints": {"version": 2, "points": []},
     }
 
-    output_file_path = resolve_output_path(
-        output_file_path, suffix=".plan", prefix="qgc_mission_"
-    )
+    output_file_path = resolve_output_path(output_file_path, suffix=".plan")
 
     # Write the plan to file as formatted JSON
     with open(output_file_path, "w") as f:
