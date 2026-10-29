@@ -23,7 +23,6 @@ services:
       MONITORING: ""
       LOG_LEVEL: "INFO"
       AUTH_PROVIDER: "legacy"
-      ODM_ENDPOINT: http://nodeodm:9900
       S3_ENDPOINT_UPLOAD: http://localhost:9000
       S3_ENDPOINT_DOWNLOAD: http://localhost:9000
       DRAGONFLY_DSN: redis://localhost:6379/0
@@ -62,7 +61,6 @@ services:
       file: compose.yaml
       service: arq-worker
     environment:
-      ODM_ENDPOINT: http://nodeodm:9900
       S3_ENDPOINT_UPLOAD: http://localhost:9000
       S3_ENDPOINT_DOWNLOAD: http://localhost:9000
       DRAGONFLY_DSN: redis://localhost:6379/0
@@ -76,8 +74,3 @@ services:
     extends:
       file: compose.yaml
       service: qgis-packager
-
-  nodeodm:
-    extends:
-      file: compose.yaml
-      service: nodeodm

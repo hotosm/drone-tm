@@ -48,7 +48,7 @@ manual upload UI instead.
 ## The GCP TXT File Output
 
 - In the end we have the GCP `.txt` file and all photos in EPSG:4326 projection.
-- These files are sent to NodeODM for processing via ODM 'split merge' mode.
+- These files are sent to ODM for processing via ODM 'split merge' mode.
 - ODM decides on best way to divide up the photos for efficient processing.
 - The GCPs are used to georeference the images.
 - The images are combined into one large orthomosaic.

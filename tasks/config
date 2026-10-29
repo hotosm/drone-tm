@@ -177,7 +177,7 @@ setup:
   # --- ODM URL ---
   echo ""
   just _echo-blue "ODM Processing Server"
-  printf "NodeODM endpoint URL (leave empty to skip): "
+  printf "ScaleODM endpoint URL (leave empty to skip): "
   read odm_endpoint
   if [ -n "$odm_endpoint" ]; then
     just config update-dotenv ODM_ENDPOINT "$odm_endpoint"

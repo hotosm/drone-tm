@@ -88,11 +88,9 @@ DroneTM Frontend: [http://localhost:3040](http://localhost:3040)
 ## End-to-end imagery processing (ScaleODM)
 
 DroneTM submits processing jobs to **ScaleODM**, which reads imagery directly
-from S3 and writes outputs back to S3. The compose stack ships a small NodeODM
-container as a placeholder so the backend boots cleanly, **but NodeODM cannot
-complete an end-to-end run**: it has no S3 writer, so the finalize step (which
-expects the orthophoto to already be in S3) will fail. To exercise the full
-pipeline locally you need ScaleODM running.
+from S3 and writes outputs back to S3. The compose stack does not include a
+processing node, so to exercise the full pipeline locally you need ScaleODM
+running.
 
 1. Start ScaleODM on your host (kind/k3d, see the [ScaleODM
    quickstart](https://github.com/hotosm/scaleodm)). It exposes its API on

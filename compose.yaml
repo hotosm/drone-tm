@@ -35,8 +35,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      nodeodm:
-        condition: service_started
       migrations:
         condition: service_completed_successfully
     ports:
@@ -58,7 +56,8 @@ services:
       # In dev, use the host-exposed RustFS port for presigned URLs.
       # (Path-rewriting proxies like `/s3` break S3 presigned signatures.)
       S3_ENDPOINT_DOWNLOAD: ${S3_ENDPOINT_DOWNLOAD:-http://localhost:9000}
-      # Host-networked ScaleODM needs host-reachable URLs for S3 and webhooks.
+      # ScaleODM's API is host-networked, so it reaches the webhook via localhost.
+      # Its Talos workflow pods can't use localhost for S3: `just start all` sets the gateway IP.
       SCALEODM_S3_ENDPOINT: ${SCALEODM_S3_ENDPOINT:-http://localhost:9000}
       BACKEND_URL_INTERNAL: ${BACKEND_URL_INTERNAL:-http://localhost:${BACKEND_WEB_APP_PORT:-8000}}
       # Dev uses network_mode:service:backend (shared namespace), so localhost
@@ -234,8 +233,6 @@ services:
         condition: service_healthy
       dragonfly:
         condition: service_started
-      nodeodm:
-        condition: service_started
       qgis-packager:
         condition: service_healthy
     volumes:
@@ -274,15 +271,3 @@ services:
       interval: 5s
       retries: 5
       timeout: 5s
-
-  # This container does the actual imagery processing (not persistent, scalable)
-  nodeodm:
-    image: docker.io/opendronemap/nodeodm:3.5.5
-    command: ["--port", "9900", "--log_level", "debug"]
-    env_file: .env
-    ports:
-      - 9900:9900
-    networks:
-      - dtm-network
-    restart: unless-stopped
-    oom_score_adj: 500

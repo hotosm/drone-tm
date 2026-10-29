@@ -41,13 +41,13 @@ all:
   # We only auto-detect when SCALEODM_S3_ENDPOINT is unset/empty, so an
   # explicit value in .env always wins.
   if [ -z "${SCALEODM_S3_ENDPOINT}" ]; then
-    worker=$(docker ps --format '{{{{.Names}}' 2>/dev/null \
+    worker=$({{docker}} ps --format '{{{{.Names}}' 2>/dev/null \
       | grep -m1 'scaleodm.*worker' || true)
     if [ -n "$worker" ]; then
-      net=$(docker inspect "$worker" \
+      net=$({{docker}} inspect "$worker" \
         --format '{{{{range $name,$_ := .NetworkSettings.Networks}}{{{{println $name}}{{{{end}}' \
         2>/dev/null | head -n1 | tr -d '[:space:]')
-      gw=$(docker network inspect "$net" \
+      gw=$({{docker}} network inspect "$net" \
         --format '{{{{(index .IPAM.Config 0).Gateway}}' \
         2>/dev/null | tr -d '[:space:]' || true)
       if [ -n "$gw" ]; then
@@ -68,16 +68,17 @@ all:
 
   {{docker}} compose up -d
 
-  # Soft probe: end-to-end imagery processing requires ScaleODM on the host.
-  # The compose stack ships a NodeODM placeholder, but it can't complete a
-  # ScaleODM-flow run (no S3 writer). See docs/dev/setup.md.
+  # Imagery processing requires ScaleODM on the host. See docs/dev/setup.md.
   scaleodm_url="${SCALEODM_PROBE_URL:-http://localhost:31100/info}"
-  if command -v curl >/dev/null 2>&1; then
-    if ! curl -fsS --max-time 2 "$scaleodm_url" >/dev/null 2>&1; then
-      just _echo-yellow "Warning: ScaleODM not reachable at ${scaleodm_url}."
-      just _echo-yellow "         End-to-end imagery processing won't work until you start it."
-      just _echo-yellow "         See docs/dev/setup.md ('End-to-end imagery processing')."
-    fi
+  if command -v curl >/dev/null 2>&1 \
+    && ! curl -fsS --max-time 2 "$scaleodm_url" >/dev/null 2>&1; then
+    echo ""
+    just _echo-yellow "=================================================================="
+    just _echo-yellow " WARNING: NO PROCESSING BACKEND AVAILABLE"
+    just _echo-yellow " ScaleODM not reachable at ${scaleodm_url}"
+    just _echo-yellow " Imagery processing will fail. Start ScaleODM (just dev), then"
+    just _echo-yellow " re-run 'just start all' so SCALEODM_S3_ENDPOINT is detected."
+    just _echo-yellow "=================================================================="
   fi
 
 # Prompt the user to select a release tag and export GIT_BRANCH.
