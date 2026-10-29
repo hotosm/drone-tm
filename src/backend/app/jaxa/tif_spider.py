@@ -51,7 +51,7 @@ class TifSpider(scrapy.Spider):
         "x-requested-with": "XMLHttpRequest",
     }
 
-    def start_requests(self):
+    async def start(self):
         urls = []
         for coordinate in self.coordinates:
             coords = coordinate.split("_")
