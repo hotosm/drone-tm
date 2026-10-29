@@ -524,6 +524,7 @@
   "proj_desc_project_id": "ID Proyek",
   "proj_desc_uploaded_to_oam": "Diunggah ke OAM",
   "proj_desc_imagery_workflow_heading": "Alur Kerja Citra",
+  "proj_desc_project_details_heading": "Detail Proyek",
   "proj_desc_step_upload_imagery": "Unggah Citra",
   "proj_desc_step_upload_imagery_desc": "Unggah gambar drone ke proyek",
   "proj_desc_step_classify_imagery": "Klasifikasi Citra",

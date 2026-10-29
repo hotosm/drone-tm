@@ -377,15 +377,15 @@ const IndividualProject = () => {
 
   return (
     <>
-      <section className="individual project naxatw-h-screen-nav naxatw-px-3 naxatw-py-8 lg:naxatw-px-20">
-        <div className="naxatw-flex naxatw-items-center naxatw-justify-between naxatw-py-3">
+      <section className="individual project naxatw-h-screen-nav naxatw-px-4 naxatw-py-8 lg:naxatw-px-16">
+        <div className="naxatw-flex naxatw-flex-wrap naxatw-items-center naxatw-justify-between naxatw-gap-3 naxatw-py-3">
           <BreadCrumb
             data={[
               { name: m.individual_project_breadcrumb_project(), navLink: "/projects" },
               { name: projectData?.name || "--", navLink: "" },
             ]}
           />
-          <div className="naxatw-flex naxatw-gap-3">
+          <div className="naxatw-flex naxatw-flex-wrap naxatw-gap-3">
             <Button
               variant="ghost"
               className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
@@ -698,24 +698,26 @@ const IndividualProject = () => {
             />
           </div>
         ) : (
-          <div className="naxatw-flex naxatw-flex-col naxatw-gap-6 md:naxatw-flex-row">
-            <div className="naxatw-relative naxatw-order-2 naxatw-w-full naxatw-max-w-[35rem] naxatw-pb-20">
-              <Tab
-                orientation="row"
-                className="naxatw-bg-transparent hover:naxatw-border-b-2 hover:naxatw-border-red"
-                activeClassName="naxatw-border-b-2 naxatw-bg-transparent naxatw-border-red"
-                onTabChange={(val: string | number) =>
-                  dispatch(
-                    setProjectState({
-                      individualProjectActiveTab: String(val),
-                    }),
-                  )
-                }
-                tabOptions={projectOptions}
-                activeTab={individualProjectActiveTab}
-                clickable
-              />
-              <div className="naxatw-h-fit naxatw-max-h-[calc(100vh-280px)] naxatw-overflow-y-auto naxatw-border-t">
+          <div className="naxatw-flex naxatw-flex-col naxatw-gap-6 lg:naxatw-flex-row">
+            <div className="naxatw-order-2 naxatw-w-full lg:naxatw-flex lg:naxatw-h-[calc(100vh-10rem)] lg:naxatw-max-w-[35rem] lg:naxatw-flex-col">
+              <div className="no-scrollbar naxatw-flex-shrink-0 naxatw-overflow-x-auto">
+                <Tab
+                  orientation="row"
+                  className="naxatw-bg-transparent hover:naxatw-border-b-2 hover:naxatw-border-red"
+                  activeClassName="naxatw-border-b-2 naxatw-bg-transparent naxatw-border-red"
+                  onTabChange={(val: string | number) =>
+                    dispatch(
+                      setProjectState({
+                        individualProjectActiveTab: String(val),
+                      }),
+                    )
+                  }
+                  tabOptions={projectOptions}
+                  activeTab={individualProjectActiveTab}
+                  clickable
+                />
+              </div>
+              <div className="naxatw-border-t lg:naxatw-min-h-0 lg:naxatw-flex-1 lg:naxatw-overflow-y-auto lg:naxatw-pr-3">
                 {getActiveTabContent(
                   individualProjectActiveTab,
                   projectData as Record<string, any>,
@@ -725,26 +727,26 @@ const IndividualProject = () => {
                   () => setIsClassifyDialogOpen(true),
                   () => setIsVerifyDialogOpen(true),
                 )}
-              </div>
-              <div className="naxatw-absolute naxatw-bottom-0 naxatw-flex naxatw-w-full naxatw-justify-center">
                 {projectData?.author_id === userDetails?.id && (
-                  <Button
-                    leftIcon="delete"
-                    size="default"
-                    className="naxatw-border naxatw-bg-gray-500 naxatw-px-2"
-                    title={m.individual_project_button_delete()}
-                    withLoader
-                    isLoading={exportingContent}
-                    onClick={() => {
-                      setShowProjectDeletePrompt(true);
-                    }}
-                  >
-                    {m.individual_project_button_delete()}
-                  </Button>
+                  <div className="naxatw-mt-6 naxatw-flex naxatw-justify-center naxatw-border-t naxatw-py-6">
+                    <Button
+                      leftIcon="delete"
+                      size="default"
+                      className="naxatw-border naxatw-bg-gray-500 naxatw-px-2"
+                      title={m.individual_project_button_delete()}
+                      withLoader
+                      isLoading={exportingContent}
+                      onClick={() => {
+                        setShowProjectDeletePrompt(true);
+                      }}
+                    >
+                      {m.individual_project_button_delete()}
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
-            <div className="naxatw-order-1 naxatw-h-[calc(100vh-10rem)] naxatw-w-full md:naxatw-order-2">
+            <div className="naxatw-order-1 naxatw-h-[calc(100vh-10rem)] naxatw-w-full lg:naxatw-order-2">
               {isProjectDataFetching ? (
                 <Skeleton className="naxatw-h-full naxatw-w-full" />
               ) : (

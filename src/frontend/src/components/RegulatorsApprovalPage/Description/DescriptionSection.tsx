@@ -1,5 +1,5 @@
 /* eslint-disable no-nested-ternary */
-import { useMemo } from "react";
+import { type ReactNode, useMemo } from "react";
 import { useDispatch } from "react-redux";
 import {
   descriptionItems,
@@ -86,6 +86,15 @@ const getDescriptionValue = (projectData: Record<string, any>, key: string) => {
   return projectData?.[key];
 };
 
+const DetailRow = ({ label, children }: { label: string; children: ReactNode }) => (
+  <div className="naxatw-flex naxatw-gap-3">
+    <dt className="naxatw-w-[146px] naxatw-flex-shrink-0 naxatw-font-normal naxatw-text-gray-500">
+      {label}
+    </dt>
+    <dd className="naxatw-font-semibold naxatw-text-gray-900">{children}</dd>
+  </div>
+);
+
 const DescriptionSection = ({
   page = "project-approval",
   projectData,
@@ -146,59 +155,15 @@ const DescriptionSection = ({
           {m.proj_desc_description_heading()}
         </p>
       )}
-      <div className="naxatw-flex naxatw-flex-col naxatw-gap-3 naxatw-text-sm">
-        <p>{projectData?.description || ""}</p>
-        <div className="naxatw-flex naxatw-flex-col naxatw-gap-1">
-          {projectData?.id && (
-            <div className="naxatw-flex naxatw-gap-2">
-              <p className="naxatw-w-[146px]">{m.proj_desc_project_id()}</p>
-              <p>:</p>
-              <p className="naxatw-font-semibold">{projectData.id}</p>
-            </div>
-          )}
-          {localizedItems.map((descriptionItem) => {
-            const dataType = descriptionItem.expectedDataType;
-            const value = getDescriptionValue(projectData, descriptionItem.key);
-            if (hasDescriptionValue(value, dataType)) {
-              const unit = descriptionItem?.unit || descriptionItem?.unite || "";
-              return (
-                <div className="naxatw-flex naxatw-gap-2" key={descriptionItem.key}>
-                  <p className="naxatw-w-[146px]">{descriptionItem.label}</p>
-                  <p>:</p>
-                  <p className="naxatw-font-semibold">
-                    {formatDescriptionValue(value, dataType)} {unit}
-                  </p>
-                </div>
-              );
-            }
-            return null;
-          })}
-
-          {(projectData?.oam_upload_status === "UPLOADING" ||
-            projectData?.oam_upload_status === "FAILED" ||
-            projectData?.oam_upload_status === "UPLOADED") && (
-            <div className="naxatw-flex naxatw-gap-2">
-              <p className="naxatw-w-[146px]">{m.proj_desc_uploaded_to_oam()}</p>
-              <p>:</p>
-              <p className="naxatw-font-semibold">
-                {projectData?.oam_upload_status === "UPLOADING"
-                  ? m.proj_desc_oam_status_awaiting()
-                  : formatString(projectData?.oam_upload_status)}
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
       {page === "project-description" && (onOpenUpload || onOpenWorkflow) && (
-        <div className="naxatw-flex naxatw-flex-col naxatw-gap-3 naxatw-mt-2">
+        <div className="naxatw-flex naxatw-flex-col naxatw-gap-3">
           <p className="naxatw-text-sm naxatw-font-semibold naxatw-text-gray-800">
             {m.proj_desc_imagery_workflow_heading()}
           </p>
 
           {/* Step 1: Upload Imagery */}
           <button
-            className="naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-border-gray-200 naxatw-bg-white naxatw-p-3 naxatw-text-left naxatw-transition-all hover:naxatw-border-red-300 hover:naxatw-bg-red-50"
+            className="naxatw-flex naxatw-h-auto naxatw-items-center naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-border-gray-200 naxatw-bg-white naxatw-p-3 naxatw-text-left naxatw-transition-all hover:naxatw-border-red-300 hover:naxatw-bg-red-50"
             onClick={onOpenUpload || onOpenWorkflow}
           >
             <div className="naxatw-flex naxatw-h-8 naxatw-w-8 naxatw-flex-shrink-0 naxatw-items-center naxatw-justify-center naxatw-rounded-full naxatw-bg-red naxatw-text-sm naxatw-font-bold naxatw-text-white">
@@ -217,7 +182,7 @@ const DescriptionSection = ({
 
           {/* Step 2: Classify Imagery */}
           <button
-            className={`naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-p-3 naxatw-text-left naxatw-transition-all ${
+            className={`naxatw-flex naxatw-h-auto naxatw-items-center naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-p-3 naxatw-text-left naxatw-transition-all ${
               onOpenClassify
                 ? "naxatw-border-gray-200 naxatw-bg-white hover:naxatw-border-red-300 hover:naxatw-bg-red-50"
                 : "naxatw-border-gray-100 naxatw-bg-gray-50 naxatw-cursor-not-allowed naxatw-opacity-60"
@@ -243,7 +208,7 @@ const DescriptionSection = ({
 
           {/* Step 3: Verify Imagery */}
           <button
-            className={`naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-p-3 naxatw-text-left naxatw-transition-all ${
+            className={`naxatw-flex naxatw-h-auto naxatw-items-center naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-p-3 naxatw-text-left naxatw-transition-all ${
               onOpenVerify
                 ? "naxatw-border-gray-200 naxatw-bg-white hover:naxatw-border-red-300 hover:naxatw-bg-red-50"
                 : "naxatw-border-gray-100 naxatw-bg-gray-50 naxatw-cursor-not-allowed naxatw-opacity-60"
@@ -269,7 +234,7 @@ const DescriptionSection = ({
 
           {/* Step 4: Processing */}
           <button
-            className={`naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-p-3 naxatw-text-left naxatw-transition-all ${
+            className={`naxatw-flex naxatw-h-auto naxatw-items-center naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-p-3 naxatw-text-left naxatw-transition-all ${
               isAbleToStartProcessing
                 ? "naxatw-border-gray-200 naxatw-bg-white hover:naxatw-border-red-300 hover:naxatw-bg-red-50"
                 : "naxatw-border-gray-100 naxatw-bg-gray-50 naxatw-cursor-not-allowed naxatw-opacity-60"
@@ -296,7 +261,7 @@ const DescriptionSection = ({
           {/* Step 5: Upload to OAM - author only */}
           {isProjectAuthor && (
             <button
-              className={`naxatw-flex naxatw-items-center naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-p-3 naxatw-text-left naxatw-transition-all ${
+              className={`naxatw-flex naxatw-h-auto naxatw-items-center naxatw-gap-3 naxatw-rounded-lg naxatw-border naxatw-p-3 naxatw-text-left naxatw-transition-all ${
                 canOpenOamDialog
                   ? "naxatw-border-gray-200 naxatw-bg-white hover:naxatw-border-red-300 hover:naxatw-bg-red-50"
                   : "naxatw-border-gray-100 naxatw-bg-gray-50 naxatw-cursor-not-allowed naxatw-opacity-60"
@@ -352,6 +317,45 @@ const DescriptionSection = ({
             )}
           </div>
         )}
+
+      <div
+        className={`naxatw-flex naxatw-flex-col naxatw-gap-3 naxatw-text-sm ${page === "project-description" ? "naxatw-mt-2 naxatw-border-t naxatw-pt-5" : ""}`}
+      >
+        {page === "project-description" && (
+          <p className="naxatw-font-semibold naxatw-text-gray-800">
+            {m.proj_desc_project_details_heading()}
+          </p>
+        )}
+        <p>{projectData?.description || ""}</p>
+        <dl className="naxatw-flex naxatw-flex-col naxatw-gap-1">
+          {projectData?.id && (
+            <DetailRow label={m.proj_desc_project_id()}>{projectData.id}</DetailRow>
+          )}
+          {localizedItems.map((descriptionItem) => {
+            const dataType = descriptionItem.expectedDataType;
+            const value = getDescriptionValue(projectData, descriptionItem.key);
+            if (hasDescriptionValue(value, dataType)) {
+              const unit = descriptionItem?.unit || descriptionItem?.unite || "";
+              return (
+                <DetailRow key={descriptionItem.key} label={descriptionItem.label}>
+                  {formatDescriptionValue(value, dataType)} {unit}
+                </DetailRow>
+              );
+            }
+            return null;
+          })}
+
+          {(projectData?.oam_upload_status === "UPLOADING" ||
+            projectData?.oam_upload_status === "FAILED" ||
+            projectData?.oam_upload_status === "UPLOADED") && (
+            <DetailRow label={m.proj_desc_uploaded_to_oam()}>
+              {projectData?.oam_upload_status === "UPLOADING"
+                ? m.proj_desc_oam_status_awaiting()
+                : formatString(projectData?.oam_upload_status)}
+            </DetailRow>
+          )}
+        </dl>
+      </div>
 
       {page === "project-approval" && projectData?.regulator_approval_status === "PENDING" && (
         <ApprovalSection />

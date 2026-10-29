@@ -524,6 +524,7 @@
   "proj_desc_project_id": "Project ID",
   "proj_desc_uploaded_to_oam": "Uploaded to OAM",
   "proj_desc_imagery_workflow_heading": "Imagery Workflow",
+  "proj_desc_project_details_heading": "Project Details",
   "proj_desc_step_upload_imagery": "Upload Imagery",
   "proj_desc_step_upload_imagery_desc": "Upload drone images to the project",
   "proj_desc_step_classify_imagery": "Classify Imagery",

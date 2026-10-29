@@ -524,6 +524,7 @@
   "proj_desc_project_id": "ID del proyecto",
   "proj_desc_uploaded_to_oam": "Subido a OAM",
   "proj_desc_imagery_workflow_heading": "Flujo de trabajo de imágenes",
+  "proj_desc_project_details_heading": "Detalles del proyecto",
   "proj_desc_step_upload_imagery": "Subir imágenes",
   "proj_desc_step_upload_imagery_desc": "Sube imágenes del dron al proyecto",
   "proj_desc_step_classify_imagery": "Clasificar imágenes",
