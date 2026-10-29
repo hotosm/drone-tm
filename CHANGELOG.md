@@ -1,3 +1,25 @@
+## 2026.11.0 (2026-10-29)
+
+### Feat
+
+- **flight-planner**: add esri as basemap (#912)
+- **frontend**: add scale bar to maps built with useMapLibreGLMap (#905)
+- **frontend**: add ability to clone a project (#898) (#907)
+
+### Fix
+
+- **frontend**: better ui/ux for project details page, buttons first, fix #838
+- **drone-flightplan**: correct axis order in DEM elevation sampling (#872)
+- **backend**: use tempfile for flightplan output instead of /tmp (#868)
+- **backend**: account for small nudge of rc zoom wheel up to 1.05x zoom threshhold
+
+### Refactor
+
+- **backend**: cleanup GDAL usage and tests after merge of #872
+- **backend**: refactors for simplification after #868 merge
+- completely remove nodeodm usage / refs and use ScaleODM
+- **backend**: move enums from models dir --> db dir (consolidate)
+
 ## 2026.10.1 (2026-09-23)
 
 ### Fix
