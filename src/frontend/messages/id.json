@@ -215,7 +215,7 @@
   "create_aoi_total_project_area": "Total Area Proyek: {area}",
   "create_aoi_total_no_fly_zone_area": "Total Area Zona Larangan Terbang: {area}",
   "create_aoi_project_area_required": "Area proyek wajib diisi",
-  "create_aoi_upload_project_placeholder": "Unggah area proyek (file .geojson)",
+  "create_aoi_upload_project_placeholder": "Unggah area proyek (file .geojson dengan poligon)",
   "create_aoi_upload_nfz_placeholder": "Unggah area zona larangan terbang (.geojson)",
   "create_aoi_invalid_geojson": "Geojson tidak valid",
   "create_aoi_unsupported_crs": "Berkas ini menggunakan {crs}, padahal area proyek harus dalam bujur/lintang WGS84. Silakan reproyeksikan ke EPSG:4326 lalu unggah kembali.",
