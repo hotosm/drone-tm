@@ -1,3 +1,10 @@
+## 2026.11.2 (2026-11-03)
+
+### Fix
+
+- **backend**: handle duplicate processing submissions, 409 from ScaleODM
+- **frontend**: update file input instructions (#916)
+
 ## 2026.11.1 (2026-11-03)
 
 ### Fix
