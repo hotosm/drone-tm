@@ -193,6 +193,52 @@ async def test_submit_scaleodm_task_raises_with_server_error_message(monkeypatch
     assert exc_info.value.status == 400
 
 
+@pytest.mark.asyncio
+async def test_submit_scaleodm_task_tracks_active_job_on_conflict(monkeypatch):
+    response = _FakeScaleOdmResponse(
+        status=409,
+        payload={"detail": "already running", "uuid": "odm-pipeline-active"},
+    )
+
+    def make_session(*args, **kwargs):
+        return _FakeScaleOdmSession(response=response)
+
+    monkeypatch.setattr(image_processing.aiohttp, "ClientSession", make_session)
+
+    odm_uuid = await image_processing.submit_scaleodm_task(
+        scaleodm_url="http://scaleodm:31100",
+        read_s3_path="s3://bucket/projects/p/t/images/",
+        write_s3_path="s3://bucket/projects/p/t/odm/",
+        name="DTM-Task-t",
+        options=[],
+    )
+
+    assert odm_uuid == "odm-pipeline-active"
+
+
+@pytest.mark.asyncio
+async def test_submit_scaleodm_task_raises_with_problem_detail(monkeypatch):
+    response = _FakeScaleOdmResponse(
+        status=422, payload={"detail": "20000 images exceeds the largest job"}
+    )
+
+    def make_session(*args, **kwargs):
+        return _FakeScaleOdmSession(response=response)
+
+    monkeypatch.setattr(image_processing.aiohttp, "ClientSession", make_session)
+
+    with pytest.raises(image_processing.ScaleOdmSubmitError) as exc_info:
+        await image_processing.submit_scaleodm_task(
+            scaleodm_url="http://scaleodm:31100",
+            read_s3_path="s3://bucket/projects/p/t/images/",
+            write_s3_path="s3://bucket/projects/p/t/odm/",
+            name="DTM-Task-t",
+            options=[],
+        )
+
+    assert "exceeds the largest job" in str(exc_info.value)
+
+
 # ── process_drone_images (per-task) ───────────────────────────────────────────
 
 
@@ -429,8 +475,10 @@ async def test_process_drone_images_raises_when_state_invalid(monkeypatch):
     conn = _FakeConn()
     ctx = {"job_id": "job-5", "db_pool": _FakePool(conn)}
 
+    transitions = []
+
     async def fake_update_task_state_system(*args, **kwargs):
-        return None
+        transitions.append(args[5])
 
     from app.tasks import task_logic
 
@@ -440,6 +488,9 @@ async def test_process_drone_images_raises_when_state_invalid(monkeypatch):
 
     with pytest.raises(RuntimeError, match="not in a valid state"):
         await project_logic.process_drone_images(ctx, project_id, task_id, "user-123")
+
+    # An in-flight run from an earlier submit must not be flipped to failed.
+    assert State.IMAGE_PROCESSING_FAILED not in transitions
 
 
 @pytest.mark.asyncio

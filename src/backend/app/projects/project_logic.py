@@ -441,6 +441,10 @@ async def preview_split_by_square(boundary: str, meters: int):
         ) from e
 
 
+class TaskNotProcessableError(RuntimeError):
+    """The task's state doesn't allow starting processing."""
+
+
 async def process_drone_images(
     ctx: dict[Any, Any],
     project_id: uuid.UUID,
@@ -498,7 +502,7 @@ async def process_drone_images(
                     timestamp(),
                 )
             if result is None:
-                raise RuntimeError(
+                raise TaskNotProcessableError(
                     "Cannot start processing: task is not in a valid state "
                     "(expected READY_FOR_PROCESSING, IMAGE_PROCESSING_FAILED, "
                     "or IMAGE_PROCESSING_FINISHED)"
@@ -590,6 +594,10 @@ async def process_drone_images(
                 "odm_task_uuid": odm_uuid,
             }
 
+    except TaskNotProcessableError:
+        # The task may be mid-processing from an earlier submit (e.g. a double
+        # click). Marking it failed would invite a duplicate resubmit.
+        raise
     except Exception as e:
         failure_message = str(e).strip() or e.__class__.__name__
         if (

@@ -2,6 +2,7 @@ import json
 import os
 import uuid
 import zipfile
+from http import HTTPStatus
 from typing import Any, Literal
 
 import aiohttp
@@ -81,6 +82,19 @@ async def submit_scaleodm_task(
             except json.JSONDecodeError:
                 payload = None
 
+            # A job for this output is already queued or running. Track it,
+            # since resubmitting would only duplicate the work.
+            if (
+                resp.status == HTTPStatus.CONFLICT
+                and isinstance(payload, dict)
+                and payload.get("uuid")
+            ):
+                log.warning(
+                    f"ScaleODM already has {payload['uuid']} in progress for "
+                    f"{name}; tracking it instead"
+                )
+                return str(payload["uuid"])
+
             if resp.status >= 400:
                 err = None
                 if isinstance(payload, dict):
@@ -88,6 +102,7 @@ async def submit_scaleodm_task(
                         payload.get("error")
                         or payload.get("errorMessage")
                         or payload.get("message")
+                        or payload.get("detail")
                     )
                 raise ScaleOdmSubmitError(
                     err
