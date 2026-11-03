@@ -1,3 +1,9 @@
+## 2026.11.1 (2026-11-03)
+
+### Fix
+
+- **frontend**: add a "join our community" button alongside "talk to us"
+
 ## 2026.11.0 (2026-10-29)
 
 ### Feat
