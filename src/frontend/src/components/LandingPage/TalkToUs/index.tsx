@@ -15,6 +15,14 @@ const TalkToUs = () => {
             {m.landing_talk_to_us_email()}
           </Link>
         </div>
+        <a
+          className="naxatw-self-center naxatw-rounded-[3.125rem] naxatw-bg-white naxatw-px-6 naxatw-py-3 naxatw-text-xl naxatw-font-bold naxatw-text-red hover:naxatw-shadow-lg"
+          href="https://slack.hotosm.org"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {m.landing_talk_to_us_join_community()}
+        </a>
       </div>
     </div>
   );
