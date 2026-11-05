@@ -45,6 +45,37 @@ function bool(raw: unknown, fallback: boolean): boolean {
   return fallback;
 }
 
+// A malformed zone must fail loudly, as ignoring it would plan straight through it.
+function parseNoFlyZones(raw: unknown): PlanParams["noFlyZones"] {
+  if (raw === undefined || raw === null) return [];
+  const valid =
+    Array.isArray(raw) &&
+    raw.every(
+      (ring) =>
+        Array.isArray(ring) &&
+        ring.length >= 4 &&
+        ring.every(
+          (point) => Array.isArray(point) && point.length >= 2 && point.every(Number.isFinite),
+        ),
+    );
+  if (!valid) {
+    throw new ParamsError(
+      "The no-fly zones could not be read.",
+      "Open this project from DroneTM again.",
+    );
+  }
+  return raw as PlanParams["noFlyZones"];
+}
+
+// An import can add restrictions, but must never remove them.
+export function mergeNoFlyZones(
+  current: PlanParams["noFlyZones"],
+  imported: PlanParams["noFlyZones"],
+): PlanParams["noFlyZones"] {
+  const known = new Set(current.map((ring) => JSON.stringify(ring)));
+  return [...current, ...imported.filter((ring) => !known.has(JSON.stringify(ring)))];
+}
+
 export function parseParams(raw: unknown): PlanParams {
   if (!raw || typeof raw !== "object") {
     throw new ParamsError(
@@ -123,6 +154,7 @@ export function parseParams(raw: unknown): PlanParams {
       label: "threshold",
     }),
     takeoffPoint,
+    noFlyZones: parseNoFlyZones(input.noFlyZones),
   };
 }
 

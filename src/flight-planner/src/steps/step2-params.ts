@@ -2,7 +2,7 @@ import { resetTerrain, type Step } from "../app";
 import { DEFAULT_PARAMS, type PlanParams } from "../core/flightplan";
 import { DRONE_CHOICES, GIMBAL_CHOICES } from "../core/qfield";
 import { calculatePreview } from "../core/preview";
-import { ParamsError, paramsBlocker, readParamsFile } from "../core/params";
+import { ParamsError, mergeNoFlyZones, paramsBlocker, readParamsFile } from "../core/params";
 import { download } from "../core/outputs";
 import { coachLead, coachTips } from "../tutorial";
 import { HINTS } from "../tutorial/content";
@@ -283,7 +283,8 @@ export const step2: Step = {
     });
 
     root.querySelector("#params-reset")?.addEventListener("click", () => {
-      ctx.state.params = { ...DEFAULT_PARAMS };
+      // Zones belong to the project, so resetting settings must not remove them
+      ctx.state.params = { ...DEFAULT_PARAMS, noFlyZones: ctx.state.params.noFlyZones };
       ctx.map.setTakeoff(null);
       changed(true);
     });
@@ -298,8 +299,12 @@ export const step2: Step = {
         ) {
           resetTerrain(ctx.state);
         }
-        ctx.state.params = next;
+        ctx.state.params = {
+          ...next,
+          noFlyZones: mergeNoFlyZones(ctx.state.params.noFlyZones, next.noFlyZones),
+        };
         ctx.map.setTakeoff(ctx.state.params.takeoffPoint);
+        ctx.map.showNoFlyZones(ctx.state.params.noFlyZones);
         errorHost.innerHTML = "";
         changed(true);
         ctx.toast("Settings loaded.", "success");

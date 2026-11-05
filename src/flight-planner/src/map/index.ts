@@ -29,6 +29,7 @@ export interface MapController {
   setTakeoff(point: { lon: number; lat: number } | null): void;
   showPlan(waypoints: WaypointCollection | null, path: FlightpathCollection | null): void;
   showTasks(tasks: TaskOutline[]): void;
+  showNoFlyZones(rings: Array<Array<[number, number]>>): void;
   onTaskClick(handler: (planId: string) => void): () => void;
   fitBbox(bbox: Bbox, padding?: number): void;
   onChange(handler: () => void): () => void;
@@ -126,6 +127,19 @@ export function createMap(container: HTMLElement): MapController {
   const taskHandlers = new Set<(planId: string) => void>();
   let taskMarkers: maplibregl.Marker[] = [];
   let tasks: TaskOutline[] = [];
+  let noFlyZones: Array<Array<[number, number]>> = [];
+
+  function paintNoFlyZones(): void {
+    const source = map.getSource("no-fly-zones") as maplibregl.GeoJSONSource | undefined;
+    source?.setData({
+      type: "FeatureCollection",
+      features: noFlyZones.map((ring) => ({
+        type: "Feature" as const,
+        properties: {},
+        geometry: { type: "Polygon" as const, coordinates: [ring] },
+      })),
+    } as never);
+  }
 
   function paintTasks(): void {
     const source = map.getSource("project-tasks") as maplibregl.GeoJSONSource | undefined;
@@ -189,6 +203,20 @@ export function createMap(container: HTMLElement): MapController {
       if (mode === "idle") map.getCanvas().style.cursor = "";
     });
 
+    map.addSource("no-fly-zones", { type: "geojson", data: emptyCollection() });
+    map.addLayer({
+      id: "no-fly-zones-fill",
+      type: "fill",
+      source: "no-fly-zones",
+      paint: { "fill-color": mapColor("noFly"), "fill-opacity": 0.2 },
+    });
+    map.addLayer({
+      id: "no-fly-zones-line",
+      type: "line",
+      source: "no-fly-zones",
+      paint: { "line-color": mapColor("noFly"), "line-width": 2, "line-dasharray": [4, 3] },
+    });
+
     map.addSource("plan-path", { type: "geojson", data: emptyCollection() });
     map.addLayer({
       id: "plan-path-line",
@@ -237,6 +265,7 @@ export function createMap(container: HTMLElement): MapController {
     });
 
     if (tasks.length > 0) paintTasks();
+    paintNoFlyZones();
 
     notify();
   });
@@ -376,6 +405,11 @@ export function createMap(container: HTMLElement): MapController {
     showTasks(next) {
       tasks = next;
       paintTasks();
+    },
+
+    showNoFlyZones(rings) {
+      noFlyZones = rings;
+      paintNoFlyZones();
     },
 
     onTaskClick(handler) {

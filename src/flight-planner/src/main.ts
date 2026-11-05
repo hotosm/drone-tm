@@ -673,6 +673,7 @@ async function loadPlanIntoState(id: string): Promise<boolean> {
   }
   map.showPlan(null, null);
   map.setTakeoff(state.params.takeoffPoint);
+  map.showNoFlyZones(state.params.noFlyZones);
   goTo(state.dem.sampler ? 4 : state.aoi ? 3 : 1);
   await syncProjectTasks();
   return true;
@@ -760,7 +761,10 @@ function resetWorkspace(keepProject: boolean): void {
     ...(keepProject && projectName ? { projectName } : {}),
   };
   state.aoi = null;
-  state.params = { ...DEFAULT_PARAMS };
+  state.params = {
+    ...DEFAULT_PARAMS,
+    noFlyZones: keepProject ? state.params.noFlyZones : [],
+  };
   state.projectBbox = keepProject ? state.projectBbox : null;
   state.result = null;
   resetTerrain(state);
@@ -768,6 +772,7 @@ function resetWorkspace(keepProject: boolean): void {
   map.clearRing();
   map.showPlan(null, null);
   map.setTakeoff(null);
+  map.showNoFlyZones(state.params.noFlyZones);
   goTo(1);
 
   if (keepProject) {
@@ -1098,6 +1103,7 @@ async function runUrlHandoff(): Promise<void> {
     try {
       state.params = await fetchParams(paramsUrl);
       map.setTakeoff(state.params.takeoffPoint);
+      map.showNoFlyZones(state.params.noFlyZones);
       if (state.aoi) state.step = 3;
     } catch (error) {
       paramsFailed = true;
