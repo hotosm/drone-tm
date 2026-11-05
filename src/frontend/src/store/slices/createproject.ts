@@ -20,6 +20,7 @@ export interface CreateProjectState {
   drawnProjectArea: GeojsonType | null;
   drawnNoFlyZone: GeojsonType | null;
   splitGeojson: Record<string, any> | null;
+  projectCentroid: number[] | null;
   isTerrainFollow: boolean;
   requireApprovalFromManagerForLocking: string;
   capturedProjectMap: boolean;
@@ -50,6 +51,7 @@ const initialState: CreateProjectState = {
   drawnProjectArea: null,
   drawnNoFlyZone: null,
   splitGeojson: null,
+  projectCentroid: null,
   isTerrainFollow: true,
   requireApprovalFromManagerForLocking: "not_required",
   capturedProjectMap: true,

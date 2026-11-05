@@ -32,6 +32,7 @@ from hotosm_auth_fastapi import (
     osm_router,
 )
 from loguru import logger as log
+from pg_nearest_city import AsyncNearestCity
 from psycopg import Connection
 from psycopg_pool import AsyncConnectionPool
 
@@ -301,6 +302,10 @@ async def lifespan(app: FastAPI):
     ) as db_pool:
         # The pool is now used within the context manager
         app.state.db_pool = db_pool
+        log.debug("Initialising reverse geocoding database")
+        async with db_pool.connection() as conn:
+            async with AsyncNearestCity(conn):
+                pass
         yield  # FastAPI will run the application here
 
     # Pool will be closed automatically when the context manager exits

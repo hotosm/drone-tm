@@ -15,7 +15,6 @@ dependencies = [
   "sqlalchemy==2.0.23",
   "geoalchemy2==0.14.2",
   "psycopg[c,pool]==3.2.1",
-  "requests==2.32.3",
   "requests-oauthlib==2.0.0",
   "loguru==0.7.2",
   "minio==7.2.0",
@@ -42,6 +41,7 @@ dependencies = [
   "stream-zip==0.0.84",
   "hotosm-auth[fastapi]==0.2.10",
   "geojson-aoi-parser>=1.0.0",
+  "pg-nearest-city==3.0.0",
   "drone-flightplan",
 ]
 requires-python = ">=3.11"

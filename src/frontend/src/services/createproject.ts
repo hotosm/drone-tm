@@ -41,8 +41,8 @@ export const regulatorComment = (payload: Record<string, any>) => {
   });
 };
 
-export const getDroneAltitude = (country: string) =>
-  authenticated(api).get(`/drones/drone-altitude/${country}/`);
+export const getDroneAltitude = (params: { lon?: number; lat?: number }) =>
+  authenticated(api).get("/drones/drone-altitude/by-location/", { params });
 
 export const getProjectWayPoints = (params: Record<string, any>, geojsonData: any) =>
   authenticated(api).post(`/projects/waypoints/`, geojsonData, { params });

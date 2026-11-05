@@ -153,14 +153,15 @@ class DroneFlightHeight(BaseModel):
             )
 
     @staticmethod
-    async def one(db: Connection, country: str):
+    async def one(db: Connection, country_code: str):
         try:
             async with db.cursor(row_factory=class_row(DroneFlightHeight)) as cur:
                 await cur.execute(
                     """
-                    SELECT * FROM drone_flight_height WHERE country = %(country)s;
+                    SELECT * FROM drone_flight_height
+                    WHERE country_code = %(country_code)s;
                 """,
-                    {"country": country},
+                    {"country_code": country_code},
                 )
                 return await cur.fetchone()
         except Exception as e:

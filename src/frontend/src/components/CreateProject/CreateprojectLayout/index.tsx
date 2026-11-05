@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useTypedSelector, useTypedDispatch } from "@Store/hooks";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { FieldValues, useForm } from "react-hook-form";
 import {
   UseCaseForm,
@@ -25,9 +25,7 @@ import { convertGeojsonToFile } from "@Utils/convertLayerUtils";
 import prepareFormData from "@Utils/prepareFormData";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
 import { getFrontOverlap, getSideOverlap, gsdToAltitude, m2ToKm2 } from "@Utils/index";
-import { useEffect, useState } from "react";
-import { getCountry } from "@Services/common";
-import { setCommonState } from "@Store/actions/common";
+import { useEffect } from "react";
 import { m } from "@/paraglide/messages";
 
 /**
@@ -70,7 +68,7 @@ const defaultWizardState = {
   splitGeojson: null,
   uploadedProjectArea: null,
   uploadedNoFlyZone: null,
-  projectCountry: null,
+  projectCentroid: null,
   capturedProjectMap: true,
   projectMapImage: null,
   isTerrainFollow: true,
@@ -89,7 +87,6 @@ const isBlank = (value: unknown) => value === undefined || value === null || val
 const CreateprojectLayout = () => {
   const dispatch = useTypedDispatch();
   const navigate = useNavigate();
-  const [projectCentroid, setProjectCentroid] = useState<number[] | null>(null);
 
   const activeStep = useTypedSelector((state) => state.createproject.activeStep);
   const useCase = useTypedSelector((state) => state.createproject.useCase);
@@ -202,25 +199,6 @@ const CreateprojectLayout = () => {
     dispatch(setCreateProjectState({ activeStep: activeStep - 1 }));
   };
 
-  const { data: countryResponse, isFetching: isFetchingCountry } = useQuery({
-    queryFn: () =>
-      getCountry({
-        lon: projectCentroid?.[0] || 0,
-        lat: projectCentroid?.[1] || 0,
-        format: "json",
-      }),
-    queryKey: ["country", projectCentroid?.[0], projectCentroid?.[1]],
-    enabled: !!projectCentroid,
-  });
-
-  useEffect(() => {
-    dispatch(
-      setCommonState({
-        projectCountry: countryResponse?.data?.address?.country || null,
-      }),
-    );
-  }, [countryResponse, dispatch]);
-
   const onSubmit = async (data: any) => {
     if (activeStep === 1) {
       if (!useCase.length) {
@@ -263,7 +241,7 @@ const CreateprojectLayout = () => {
         return;
       }
       const newCentroid = centroid(data.outline)?.geometry?.coordinates;
-      setProjectCentroid(newCentroid);
+      dispatch(setCreateProjectState({ projectCentroid: newCentroid }));
     }
 
     if (activeStep === 5 && !splitGeojson) return;
@@ -383,13 +361,7 @@ const CreateprojectLayout = () => {
               className="!naxatw-bg-red !naxatw-text-white"
               rightIcon="chevron_right"
               withLoader
-              isLoading={
-                isPending ||
-                isCreatingProject ||
-                isSubmitting ||
-                !capturedProjectMap ||
-                isFetchingCountry
-              }
+              isLoading={isPending || isCreatingProject || isSubmitting || !capturedProjectMap}
               disabled={
                 isPending ||
                 isCreatingProject ||
