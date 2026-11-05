@@ -68,14 +68,14 @@ const KeyParameters = ({ formProps }: { formProps: UseFormPropsType }) => {
   const measurementType = useTypedSelector((state) => state.createproject.measurementType);
   const isTerrainFollow = useTypedSelector((state) => state.createproject.isTerrainFollow);
   const imageMergeType = useTypedSelector((state) => state.createproject.imageMergeType);
-  const projectCountry = useTypedSelector((state) => state.common.projectCountry);
+  const projectCentroid = useTypedSelector((state) => state.createproject.projectCentroid);
   const demType = useTypedSelector((state) => state.createproject.demType);
 
   const { data: droneAltitude } = useQuery({
-    queryKey: ["drone-altitude", projectCountry],
-    queryFn: () => getDroneAltitude(projectCountry || ""),
+    queryKey: ["drone-altitude", projectCentroid],
+    queryFn: () => getDroneAltitude({ lon: projectCentroid?.[0], lat: projectCentroid?.[1] }),
     select: (data) => data.data,
-    enabled: !!projectCountry,
+    enabled: !!projectCentroid,
   });
 
   // get altitude

@@ -19,7 +19,6 @@ export interface CommonState {
   isCertifiedDroneUser: "yes" | "no";
   projectSearchKey: string;
   selectedDocumentDetails: documentDetailType | null;
-  projectCountry: string | null;
 }
 
 const initialState: CommonState = {
@@ -33,7 +32,6 @@ const initialState: CommonState = {
   isCertifiedDroneUser: "no",
   projectSearchKey: "",
   selectedDocumentDetails: null,
-  projectCountry: null,
 };
 
 const setCommonState: CaseReducer<CommonState, PayloadAction<Partial<CommonState>>> = (

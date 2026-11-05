@@ -9,7 +9,8 @@ from app.users.permissions import (
 )
 from app.users.user_deps import login_required
 from app.users.user_schemas import AuthUser
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pg_nearest_city import AsyncNearestCity
 from psycopg import Connection
 
 router = APIRouter(
@@ -92,14 +93,21 @@ async def get_all_altitudes(
     return altitudes
 
 
-@router.get("/drone-altitude/{country}/")
-async def get_drone_altitude_by_country(
-    country: str,
+@router.get("/drone-altitude/by-location/")
+async def get_drone_altitude_by_location(
+    lon: Annotated[float, Query(ge=-180, le=180)],
+    lat: Annotated[float, Query(ge=-90, le=90)],
     db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
 ):
-    """Get drone altitude details by country."""
-    result = await drone_schemas.DroneFlightHeight.one(db, country)
+    """Get drone altitude details for the country containing a location."""
+    async with AsyncNearestCity(db) as geocoder:
+        location = await geocoder.query(lon, lat)
+
+    if not location:
+        return []
+
+    result = await drone_schemas.DroneFlightHeight.one(db, location.country_alpha3)
 
     if not result:
         return []

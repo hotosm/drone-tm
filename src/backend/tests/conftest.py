@@ -6,6 +6,7 @@ import uuid
 from collections.abc import AsyncGenerator
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 import pytest_asyncio
@@ -159,7 +160,9 @@ async def test_get_project(db, create_test_project):
 @pytest_asyncio.fixture(autouse=True)
 async def app() -> AsyncGenerator[FastAPI, Any]:
     """Get the FastAPI test server."""
-    yield get_application()
+    # The geocoder data import outlasts LifespanManager's 5s startup timeout
+    with patch("app.main.AsyncNearestCity"):
+        yield get_application()
 
 
 @pytest_asyncio.fixture(scope="function")
