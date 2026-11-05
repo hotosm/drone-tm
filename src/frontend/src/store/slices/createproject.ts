@@ -52,7 +52,7 @@ const initialState: CreateProjectState = {
   drawnProjectArea: null,
   drawnNoFlyZone: null,
   splitGeojson: null,
-  isTerrainFollow: false,
+  isTerrainFollow: true,
   requireApprovalFromManagerForLocking: "not_required",
   capturedProjectMap: true,
   projectMapImage: null,

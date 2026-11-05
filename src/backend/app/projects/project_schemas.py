@@ -149,7 +149,7 @@ class ProjectIn(BaseModel):
     front_overlap: float | None = None
     side_overlap: float | None = None
     gimble_angles_degrees: list[int] | None = None
-    is_terrain_follow: bool = False
+    is_terrain_follow: bool = True
     dem_source: Annotated[DEMSource, PlainSerializer(enum_to_str)] = DEMSource.GLO30
     outline: Annotated[
         FeatureCollection | Feature | Polygon, AfterValidator(validate_geojson)

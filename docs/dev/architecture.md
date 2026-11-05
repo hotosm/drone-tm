@@ -126,7 +126,8 @@ flowchart LR
 ```
 
 For terrain following, the generators sample a project's digital elevation
-model (DEM). By default this is GLO-30 served through
+model (DEM). New projects enable terrain following regardless of the selected
+outputs, unless the user explicitly turns it off. By default the DEM is GLO-30 served through
 [OpenAerialMap](https://api.imagery.hotosm.org/browser/stac/collections/cop-dem-glo-30)
 (TiTiler), with JAXA or a user-uploaded DEM as alternatives. QField
 bundles the DEM, while the browser planner caches it so it is available offline.

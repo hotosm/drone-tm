@@ -241,6 +241,8 @@ services:
     env_file: .env
     environment:
       QGIS_URL: ${QGIS_URL:-http://localhost:8080}
+      S3_ENDPOINT_UPLOAD: ${S3_ENDPOINT_UPLOAD:-http://localhost:9000}
+      S3_ENDPOINT_DOWNLOAD: ${S3_ENDPOINT_DOWNLOAD:-http://localhost:9000}
       SCALEODM_S3_ENDPOINT: ${SCALEODM_S3_ENDPOINT:-http://localhost:9000}
       BACKEND_URL_INTERNAL: ${BACKEND_URL_INTERNAL:-http://localhost:${BACKEND_WEB_APP_PORT:-8000}}
       DRAGONFLY_DSN: redis://localhost:6379/0

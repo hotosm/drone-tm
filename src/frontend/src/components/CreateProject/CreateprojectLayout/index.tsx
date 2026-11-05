@@ -73,7 +73,7 @@ const defaultWizardState = {
   projectCountry: null,
   capturedProjectMap: true,
   projectMapImage: null,
-  isTerrainFollow: false,
+  isTerrainFollow: true,
   requireApprovalFromManagerForLocking: "not_required",
   requiresApprovalFromRegulator: "not_required",
   regulatorEmails: [],
@@ -118,7 +118,7 @@ const CreateprojectLayout = () => {
     no_fly_zones: undefined,
     gsd_cm_px: "",
     task_split_dimension: "",
-    is_terrain_follow: false,
+    is_terrain_follow: true,
     // task_split_type: 1,
     per_task_instructions: "",
     deadline_at: "",
@@ -221,12 +221,6 @@ const CreateprojectLayout = () => {
       }),
     );
   }, [countryResponse, dispatch]);
-
-  useEffect(() => {
-    if (useCase.includes("DIGITAL_SURFACE_MODEL") || useCase.includes("DIGITAL_TERRAIN_MODEL")) {
-      dispatch(setCreateProjectState({ isTerrainFollow: true }));
-    }
-  }, [useCase, dispatch]);
 
   const onSubmit = async (data: any) => {
     if (activeStep === 1) {

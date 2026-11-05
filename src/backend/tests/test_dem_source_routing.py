@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+from app.arq import tasks as arq_tasks
 from app.db.enums import DEMSource
 from app.jaxa.jaxa_coordinates import get_covering_tiles
 from app.projects import project_logic, project_routes
@@ -49,7 +50,6 @@ def project(dem_source=None, **overrides) -> ProjectIn:
     fields = {
         "name": f"TEST_{uuid.uuid4()}",
         "outline": AOI,
-        "is_terrain_follow": True,
         "final_output": ["ORTHOPHOTO_2D"],
         **overrides,
     }
@@ -79,6 +79,105 @@ async def enqueue(project_info, dem_stored=False):
 
 def test_default_dem_source_is_glo30():
     assert project().dem_source == DEMSource.GLO30
+
+
+@pytest.mark.parametrize(
+    "final_output",
+    [
+        ["ORTHOPHOTO_2D"],
+        ["DIGITAL_SURFACE_MODEL"],
+        ["DIGITAL_TERRAIN_MODEL"],
+        ["POINT_CLOUD"],
+        ["ORTHOPHOTO_2D", "DIGITAL_SURFACE_MODEL", "DIGITAL_TERRAIN_MODEL"],
+    ],
+)
+@pytest.mark.parametrize("terrain_follow", [None, False])
+@pytest.mark.asyncio
+async def test_terrain_follow_defaults_on_unless_explicitly_disabled(
+    final_output, terrain_follow
+):
+    overrides = {} if terrain_follow is None else {"is_terrain_follow": terrain_follow}
+    project_info = project(final_output=final_output, **overrides)
+
+    tasks = await enqueue(project_info)
+
+    assert project_info.is_terrain_follow is (terrain_follow is None)
+    assert tasks.queued_names == (
+        ["enqueue_glo30_dem_download"] if terrain_follow is None else []
+    )
+
+
+def test_far_apart_areas_suggest_disabling_terrain_follow():
+    square = [[0, 0], [0.01, 0], [0.01, 0.01], [0, 0.01], [0, 0]]
+    far_square = [[x + 2, y] for x, y in square]
+    project_info = project(
+        outline={
+            "type": "Feature",
+            "properties": {},
+            "geometry": {
+                "type": "MultiPolygon",
+                "coordinates": [[square], [far_square]],
+            },
+        }
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        project_routes._validate_glo30_coverage(project_info)
+
+    assert exc_info.value.status_code == 422
+    assert "turn off terrain following" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
+async def test_imagery_project_does_not_enable_terrain_follow(monkeypatch):
+    """Imagery projects are flown already, and queue no DEM to follow."""
+    created = {}
+
+    class Connection:
+        async def __aenter__(self):
+            return object()
+
+        async def __aexit__(self, *_):
+            return False
+
+    class Pool:
+        def connection(self):
+            return Connection()
+
+    class StopAfterCreate(Exception):
+        pass
+
+    async def list_jpegs(*_):
+        return ["a.jpg", "b.jpg", "c.jpg"]
+
+    gps = iter([(0.0, 0.0), (0.0, 0.01), (0.01, 0.01)])
+
+    async def fetch_gps(*_):
+        return next(gps)
+
+    async def build_hull(*_):
+        return AOI
+
+    async def capture(_db, project_in, _user_id):
+        created["project"] = project_in
+        raise StopAfterCreate
+
+    monkeypatch.setattr(arq_tasks, "_list_s3_jpegs", list_jpegs)
+    monkeypatch.setattr(arq_tasks, "_fetch_gps_for_key", fetch_gps)
+    monkeypatch.setattr(arq_tasks, "_build_buffered_hull_geojson", build_hull)
+    monkeypatch.setattr(DbProject, "create", capture)
+
+    with pytest.raises(StopAfterCreate):
+        await arq_tasks.create_project_from_imagery_exif(
+            {"db_pool": Pool(), "redis": object()},
+            "user",
+            "https://s3.example.com",
+            "bucket",
+            "path",
+            "name",
+        )
+
+    assert created["project"].is_terrain_follow is False
 
 
 @pytest.mark.asyncio

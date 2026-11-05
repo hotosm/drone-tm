@@ -1972,6 +1972,8 @@ async def create_project_from_imagery_exif(
             outline=outline,
             task_split_dimension=_TASK_SPLIT_METERS,
             final_output=["ORTHOPHOTO_2D"],
+            # Already flown, and this flow queues no DEM to follow
+            is_terrain_follow=False,
         )
 
         t_proj = time.perf_counter()

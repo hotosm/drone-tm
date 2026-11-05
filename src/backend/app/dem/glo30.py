@@ -55,7 +55,8 @@ def snap_bbox(
     if width > MAX_DIMENSION_PX or height > MAX_DIMENSION_PX:
         raise ValueError(
             f"Project AOI needs a {width}x{height} px DEM, over the "
-            f"{MAX_DIMENSION_PX} px limit. Split the project, or upload a DEM."
+            f"{MAX_DIMENSION_PX} px limit. Split the project, upload a DEM, "
+            "or turn off terrain following."
         )
 
     return (minx, miny, maxx, maxy), width, height
