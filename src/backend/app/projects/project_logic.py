@@ -49,6 +49,7 @@ from drone_flightplan import (
     calculate_parameters,
     create_placemarks,
     create_waypoint,
+    no_fly_polygons,
     terrain_following_waylines,
 )
 from drone_flightplan.enums import FlightMode
@@ -60,8 +61,8 @@ from minio.error import S3Error
 from psycopg import Connection
 from psycopg.rows import dict_row
 from shapely.errors import GEOSException
-from shapely.geometry import shape
-from shapely.ops import transform
+from shapely.geometry import mapping, shape
+from shapely.ops import transform, unary_union
 
 # No SfM algorithm flag for now, so ODM uses its default incremental
 # reconstruction. Triangulation (ODX fork / OpenSfM 1.0 only) is kept commented
@@ -416,6 +417,34 @@ async def create_tasks_from_geojson(
     except Exception as e:
         log.exception(e)
         raise HTTPException(e) from e
+
+
+def no_fly_zone_rings(no_fly_zones: dict | None) -> list[list[list[float]]]:
+    """List no-fly zones as coordinate rings, for clients generating flight plans."""
+    if not no_fly_zones:
+        return []
+    return [
+        [list(coordinate) for coordinate in zone.exterior.coords]
+        for zone in no_fly_polygons(no_fly_zones)
+    ]
+
+
+def clip_tasks_to_no_fly_zones(tasks: dict, no_fly_zones: dict) -> FeatureCollection:
+    """Cut no-fly zones out of task boundaries, whatever client produced them.
+
+    A task left in pieces becomes several tasks. One inside a zone is removed.
+    """
+    zones = unary_union(no_fly_polygons(no_fly_zones))
+    clipped = []
+    for task in tasks["features"]:
+        remainder = shape(task["geometry"]).difference(zones)
+        parts = remainder.geoms if hasattr(remainder, "geoms") else [remainder]
+        clipped.extend(
+            Feature(geometry=mapping(part), properties=task.get("properties"))
+            for part in parts
+            if part.geom_type == "Polygon" and not part.is_empty
+        )
+    return FeatureCollection(clipped)
 
 
 async def preview_split_by_square(boundary: str, meters: int):
