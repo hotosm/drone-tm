@@ -75,10 +75,10 @@ def format_tile_name(tile5_lon, tile5_lat, tile1_lon, tile1_lat):
     return f"{tile5}_{tile1}"
 
 
-def get_covering_tiles(polygon_geojson):
-    """Main function to get the list of tile names covering the polygon."""
+def get_polygon_tiles(exterior_ring):
+    """Get the set of tile names covering a polygon's exterior ring."""
     # Parse the GeoJSON polygon
-    polygon = parse_polygon(polygon_geojson["coordinates"][0])
+    polygon = parse_polygon(exterior_ring)
 
     # Get bounding box
     min_lon, min_lat, max_lon, max_lat = get_bounding_box(polygon)
@@ -96,4 +96,11 @@ def get_covering_tiles(polygon_geojson):
             name = format_tile_name(tile5_lon, tile5_lat, tile1_lon, tile1_lat)
             tile_names.add(name)
 
-    return sorted(tile_names)
+    return tile_names
+
+
+def get_covering_tiles(geometry):
+    """Main function to get the list of tile names covering the geometry."""
+    coordinates = geometry["coordinates"]
+    polygons = coordinates if geometry["type"] == "MultiPolygon" else [coordinates]
+    return sorted(set().union(*(get_polygon_tiles(p[0]) for p in polygons)))

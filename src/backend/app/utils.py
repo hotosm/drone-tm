@@ -224,13 +224,14 @@ def write_wkb(shape):
 
 
 def merge_multipolygon(features: Feature | FeatCol | MultiPolygon | Polygon):
-    """Merge multiple Polygons or MultiPolygons into a single Polygon.
+    """Union Polygons or MultiPolygons into a single geometry.
 
     Args:
         features: geojson features to merge.
 
     Returns:
-        A GeoJSON FeatureCollection containing the merged Polygon.
+        A GeoJSON FeatureCollection of one Polygon, or a MultiPolygon if the
+        areas are disjoint.
     """
     try:
 
@@ -256,16 +257,9 @@ def merge_multipolygon(features: Feature | FeatCol | MultiPolygon | Polygon):
             multi_polygons.append(polygon)
 
         merged_polygon = unary_union(multi_polygons)
-        if isinstance(merged_polygon, MultiPolygon):
-            merged_polygon = merged_polygon.convex_hull
-
-        merged_geojson = mapping(merged_polygon)
-        if merged_geojson["type"] == "MultiPolygon":
-            log.error(
-                "Resulted GeoJSON contains disjoint Polygons. "
-                "Adjacent polygons are preferred."
-            )
-        return geojson.FeatureCollection([geojson.Feature(geometry=merged_geojson)])
+        return geojson.FeatureCollection(
+            [geojson.Feature(geometry=mapping(merged_polygon))]
+        )
     except Exception as e:
         raise HTTPException(
             status_code=400,
@@ -545,6 +539,17 @@ async def send_reset_password_email(email: str, token: str):
         log.error(f"Error sending email: {e}")
 
 
+def _kml_polygons(rings: list) -> list[str]:
+    """Convert GeoJSON Polygon rings to KML Polygon elements."""
+    kml_polygons = []
+    for ring in rings:
+        coord_string = " ".join([f"{lon},{lat}" for lon, lat in ring])
+        kml_polygons.append(
+            f"<Polygon><outerBoundaryIs><LinearRing><coordinates>{coord_string}</coordinates></LinearRing></outerBoundaryIs></Polygon>"
+        )
+    return kml_polygons
+
+
 def geojson_to_kml(geojson_data: dict) -> str:
     """Converts GeoJSON data to KML format.
 
@@ -577,7 +582,7 @@ def geojson_to_kml(geojson_data: dict) -> str:
                     f"<description>{feature['properties']['description']}</description>"
                 )
 
-        # Handle different geometry types (Point, LineString, Polygon)
+        # Handle different geometry types (Point, LineString, Polygon, MultiPolygon)
         if geometry_type == "Point":
             lon, lat = coordinates
             kml_output.append(f"<Point><coordinates>{lon},{lat}</coordinates></Point>")
@@ -587,11 +592,12 @@ def geojson_to_kml(geojson_data: dict) -> str:
                 f"<LineString><coordinates>{coord_string}</coordinates></LineString>"
             )
         elif geometry_type == "Polygon":
+            kml_output.extend(_kml_polygons(coordinates))
+        elif geometry_type == "MultiPolygon":
+            kml_output.append("<MultiGeometry>")
             for polygon in coordinates:
-                coord_string = " ".join([f"{lon},{lat}" for lon, lat in polygon])
-                kml_output.append(
-                    f"<Polygon><outerBoundaryIs><LinearRing><coordinates>{coord_string}</coordinates></LinearRing></outerBoundaryIs></Polygon>"
-                )
+                kml_output.extend(_kml_polygons(polygon))
+            kml_output.append("</MultiGeometry>")
 
         kml_output.append("</Placemark>")
 

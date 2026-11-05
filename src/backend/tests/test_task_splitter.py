@@ -34,8 +34,8 @@ def test_multi_feature_merges():
     assert result.area == pytest.approx(2.0)
 
 
-def test_disjoint_features_uses_convex_hull():
-    """Disjoint features fall back to convex hull."""
+def test_disjoint_features_stay_separate():
+    """Disjoint features stay as separate areas."""
     far_square = Polygon([[(10, 10), (11, 10), (11, 11), (10, 11), (10, 10)]])
     fc = FeatureCollection(
         [
@@ -44,9 +44,28 @@ def test_disjoint_features_uses_convex_hull():
         ]
     )
     result = TaskSplitter.geojson_to_shapely_polygon(fc)
-    # Convex hull of disjoint squares is a single polygon
-    assert result.geom_type == "Polygon"
-    assert result.area > 2.0
+    assert result.geom_type == "MultiPolygon"
+    assert result.area == pytest.approx(2.0)
+
+
+def test_split_by_square_grids_disjoint_areas_separately():
+    """Tasks cover each area, with none spanning the gap between them."""
+    small_square = [(0, 0), (0.01, 0), (0.01, 0.01), (0, 0.01), (0, 0)]
+    # Far enough apart that a shared grid would exceed the cell limit
+    far_square = [(x + 5, y + 5) for x, y in small_square]
+    fc = FeatureCollection(
+        [
+            Feature(geometry=Polygon([small_square])),
+            Feature(geometry=Polygon([far_square])),
+        ]
+    )
+
+    tasks = split_by_square(fc, meters=500)["features"]
+
+    assert {task["geometry"]["type"] for task in tasks} == {"Polygon"}
+    longitudes = [task["geometry"]["coordinates"][0][0][0] for task in tasks]
+    assert any(lon < 1 for lon in longitudes)
+    assert any(lon > 4 for lon in longitudes)
 
 
 def test_empty_raises():

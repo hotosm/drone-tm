@@ -79,7 +79,7 @@ const MapSection = ({ projectData }: IMapSectionProps) => {
           />
         )}
 
-        {projectData?.no_fly_zones_geojson && (
+        {projectData?.no_fly_zones && (
           <VectorLayer
             map={map as Map}
             id="no-fly-zone-area"
@@ -87,7 +87,7 @@ const MapSection = ({ projectData }: IMapSectionProps) => {
             geojson={
               {
                 type: "FeatureCollection",
-                features: [projectData?.no_fly_zones_geojson],
+                features: [projectData?.no_fly_zones],
               } as GeojsonType
             }
             layerOptions={{

@@ -1,9 +1,15 @@
 import uuid
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
+from app.arq import tasks as arq_tasks
 from app.db.enums import DEMSource
+from app.jaxa.jaxa_coordinates import get_covering_tiles
 from app.projects import project_logic, project_routes
-from app.projects.project_schemas import ProjectIn
+from app.projects.project_schemas import DbProject, ProjectIn
+from app.utils import geojson_to_kml
+from fastapi import HTTPException
 
 AOI = {
     "type": "FeatureCollection",
@@ -44,7 +50,6 @@ def project(dem_source=None, **overrides) -> ProjectIn:
     fields = {
         "name": f"TEST_{uuid.uuid4()}",
         "outline": AOI,
-        "is_terrain_follow": True,
         "final_output": ["ORTHOPHOTO_2D"],
         **overrides,
     }
@@ -74,6 +79,105 @@ async def enqueue(project_info, dem_stored=False):
 
 def test_default_dem_source_is_glo30():
     assert project().dem_source == DEMSource.GLO30
+
+
+@pytest.mark.parametrize(
+    "final_output",
+    [
+        ["ORTHOPHOTO_2D"],
+        ["DIGITAL_SURFACE_MODEL"],
+        ["DIGITAL_TERRAIN_MODEL"],
+        ["POINT_CLOUD"],
+        ["ORTHOPHOTO_2D", "DIGITAL_SURFACE_MODEL", "DIGITAL_TERRAIN_MODEL"],
+    ],
+)
+@pytest.mark.parametrize("terrain_follow", [None, False])
+@pytest.mark.asyncio
+async def test_terrain_follow_defaults_on_unless_explicitly_disabled(
+    final_output, terrain_follow
+):
+    overrides = {} if terrain_follow is None else {"is_terrain_follow": terrain_follow}
+    project_info = project(final_output=final_output, **overrides)
+
+    tasks = await enqueue(project_info)
+
+    assert project_info.is_terrain_follow is (terrain_follow is None)
+    assert tasks.queued_names == (
+        ["enqueue_glo30_dem_download"] if terrain_follow is None else []
+    )
+
+
+def test_far_apart_areas_suggest_disabling_terrain_follow():
+    square = [[0, 0], [0.01, 0], [0.01, 0.01], [0, 0.01], [0, 0]]
+    far_square = [[x + 2, y] for x, y in square]
+    project_info = project(
+        outline={
+            "type": "Feature",
+            "properties": {},
+            "geometry": {
+                "type": "MultiPolygon",
+                "coordinates": [[square], [far_square]],
+            },
+        }
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        project_routes._validate_glo30_coverage(project_info)
+
+    assert exc_info.value.status_code == 422
+    assert "turn off terrain following" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
+async def test_imagery_project_does_not_enable_terrain_follow(monkeypatch):
+    """Imagery projects are flown already, and queue no DEM to follow."""
+    created = {}
+
+    class Connection:
+        async def __aenter__(self):
+            return object()
+
+        async def __aexit__(self, *_):
+            return False
+
+    class Pool:
+        def connection(self):
+            return Connection()
+
+    class StopAfterCreate(Exception):
+        pass
+
+    async def list_jpegs(*_):
+        return ["a.jpg", "b.jpg", "c.jpg"]
+
+    gps = iter([(0.0, 0.0), (0.0, 0.01), (0.01, 0.01)])
+
+    async def fetch_gps(*_):
+        return next(gps)
+
+    async def build_hull(*_):
+        return AOI
+
+    async def capture(_db, project_in, _user_id):
+        created["project"] = project_in
+        raise StopAfterCreate
+
+    monkeypatch.setattr(arq_tasks, "_list_s3_jpegs", list_jpegs)
+    monkeypatch.setattr(arq_tasks, "_fetch_gps_for_key", fetch_gps)
+    monkeypatch.setattr(arq_tasks, "_build_buffered_hull_geojson", build_hull)
+    monkeypatch.setattr(DbProject, "create", capture)
+
+    with pytest.raises(StopAfterCreate):
+        await arq_tasks.create_project_from_imagery_exif(
+            {"db_pool": Pool(), "redis": object()},
+            "user",
+            "https://s3.example.com",
+            "bucket",
+            "path",
+            "name",
+        )
+
+    assert created["project"].is_terrain_follow is False
 
 
 @pytest.mark.asyncio
@@ -144,3 +248,98 @@ def test_an_unknown_dem_source_is_rejected_before_it_reaches_postgres():
 
     with pytest.raises(ValidationError):
         project("NOT_A_SOURCE")
+
+
+def test_covering_tiles_includes_every_disjoint_area():
+    """A split project downloads DEM tiles for each of its areas."""
+    square = [[85.1, 27.1], [85.2, 27.1], [85.2, 27.2], [85.1, 27.2], [85.1, 27.1]]
+    far_square = [[lon + 10, lat + 10] for lon, lat in square]
+
+    tiles = get_covering_tiles(
+        {"type": "MultiPolygon", "coordinates": [[square], [far_square]]}
+    )
+
+    assert tiles == sorted(
+        get_covering_tiles({"type": "Polygon", "coordinates": [square]})
+        + get_covering_tiles({"type": "Polygon", "coordinates": [far_square]})
+    )
+
+
+def _disjoint_project(dem_source: DEMSource, offset_degrees: float) -> ProjectIn:
+    square = AOI["features"][0]["geometry"]["coordinates"]
+    far_square = [[[lon + offset_degrees, lat] for lon, lat in square[0]]]
+    outline = {
+        "type": "MultiPolygon",
+        "coordinates": [square, far_square],
+    }
+    feature = {"type": "Feature", "properties": {}, "geometry": outline}
+    return project(
+        dem_source,
+        outline={"type": "FeatureCollection", "features": [feature]},
+    )
+
+
+def test_glo30_rejects_areas_too_far_apart_for_one_crop():
+    with pytest.raises(HTTPException) as error:
+        project_routes._validate_glo30_coverage(
+            _disjoint_project(DEMSource.GLO30, offset_degrees=5)
+        )
+
+    assert error.value.status_code == 422
+    assert "upload a DEM" in error.value.detail
+
+
+def test_glo30_allows_nearby_disjoint_areas():
+    project_routes._validate_glo30_coverage(
+        _disjoint_project(DEMSource.GLO30, offset_degrees=0.5)
+    )
+
+
+def test_jaxa_allows_distant_areas():
+    project_routes._validate_glo30_coverage(
+        _disjoint_project(DEMSource.JAXA, offset_degrees=5)
+    )
+
+
+@pytest.mark.asyncio
+async def test_failed_dem_upload_rejects_uncovered_glo30_fallback(monkeypatch):
+    """The project must not commit if its GLO-30 fallback can't cover it."""
+    db = SimpleNamespace(commit=AsyncMock())
+
+    async def fake_create(_db, _project_info, _user_id):
+        return uuid.uuid4()
+
+    async def failing_upload(*_args):
+        raise OSError("S3 unavailable")
+
+    monkeypatch.setattr(DbProject, "create", fake_create)
+    monkeypatch.setattr(project_logic, "upload_file_to_s3", failing_upload)
+
+    with pytest.raises(HTTPException) as error:
+        await project_routes.create_project(
+            project_info=_disjoint_project(DEMSource.UPLOAD, offset_degrees=5),
+            db=db,
+            background_tasks=RecordingBackgroundTasks(),
+            user_data=SimpleNamespace(id="1", email="a@hotosm.org", name="a"),
+            dem=object(),
+            image=None,
+        )
+
+    assert error.value.status_code == 422
+    db.commit.assert_not_awaited()
+
+
+def test_kml_export_keeps_every_disjoint_area():
+    square = AOI["features"][0]["geometry"]["coordinates"]
+    far_square = [[[lon + 5, lat] for lon, lat in square[0]]]
+    feature = {
+        "type": "Feature",
+        "properties": {},
+        "geometry": {"type": "MultiPolygon", "coordinates": [square, far_square]},
+    }
+
+    kml = geojson_to_kml({"type": "FeatureCollection", "features": [feature]})
+
+    assert kml.count("<Polygon>") == 2
+    assert kml.count("<Placemark>") == 1
+    assert "<MultiGeometry>" in kml

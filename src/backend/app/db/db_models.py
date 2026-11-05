@@ -124,7 +124,7 @@ class DbProject(Base):
     last_updated = cast(datetime, Column(DateTime, default=timestamp))
     deadline_at = cast(datetime, Column(DateTime, default=timestamp))
     # GEOMETRY
-    outline = cast(WKBElement, Column(Geometry("POLYGON", srid=4326)))
+    outline = cast(WKBElement, Column(Geometry("MULTIPOLYGON", srid=4326)))
     centroid = cast(WKBElement, Column(Geometry("POINT", srid=4326)))
     no_fly_zones = cast(WKBElement, Column(Geometry("MULTIPOLYGON", srid=4326)))
 

@@ -117,7 +117,7 @@ const MapSection = ({ selectedTab, setValue }: { selectedTab: string; setValue: 
       setValue("outline", bufferGeojson);
     } else {
       dispatch(setCreateProjectState({ noFlyZone: bufferGeojson }));
-      setValue("no_fly_zone", bufferGeojson);
+      setValue("no_fly_zones", bufferGeojson);
     }
     setDrawMode("static");
     setBufferGeojson(null);

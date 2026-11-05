@@ -73,7 +73,7 @@ const defaultWizardState = {
   projectCountry: null,
   capturedProjectMap: true,
   projectMapImage: null,
-  isTerrainFollow: false,
+  isTerrainFollow: true,
   requireApprovalFromManagerForLocking: "not_required",
   requiresApprovalFromRegulator: "not_required",
   regulatorEmails: [],
@@ -96,7 +96,6 @@ const CreateprojectLayout = () => {
   const totalProjectArea = useTypedSelector((state) => state.createproject.totalProjectArea);
   const splitGeojson = useTypedSelector((state) => state.createproject.splitGeojson);
   const isTerrainFollow = useTypedSelector((state) => state.createproject.isTerrainFollow);
-  const isNoflyzonePresent = useTypedSelector((state) => state.createproject.isNoflyzonePresent);
   const requireApprovalFromManagerForLocking = useTypedSelector(
     (state) => state.createproject.requireApprovalFromManagerForLocking,
   );
@@ -118,7 +117,7 @@ const CreateprojectLayout = () => {
     no_fly_zones: undefined,
     gsd_cm_px: "",
     task_split_dimension: "",
-    is_terrain_follow: false,
+    is_terrain_follow: true,
     // task_split_type: 1,
     per_task_instructions: "",
     deadline_at: "",
@@ -222,12 +221,6 @@ const CreateprojectLayout = () => {
     );
   }, [countryResponse, dispatch]);
 
-  useEffect(() => {
-    if (useCase.includes("DIGITAL_SURFACE_MODEL") || useCase.includes("DIGITAL_TERRAIN_MODEL")) {
-      dispatch(setCreateProjectState({ isTerrainFollow: true }));
-    }
-  }, [useCase, dispatch]);
-
   const onSubmit = async (data: any) => {
     if (activeStep === 1) {
       if (!useCase.length) {
@@ -267,13 +260,6 @@ const CreateprojectLayout = () => {
       }
       if (totalProjectArea > MAX_PROJECT_AREA_SQM) {
         toast.error(m.create_aoi_project_area_exceed({ area: m2ToKm2(MAX_PROJECT_AREA_SQM) }));
-        return;
-      }
-      if (
-        isNoflyzonePresent === "yes" &&
-        (!data?.no_fly_zones || data?.no_fly_zones?.length === 0)
-      ) {
-        toast.error(m.create_aoi_upload_or_draw_save_nfz());
         return;
       }
       const newCentroid = centroid(data.outline)?.geometry?.coordinates;
@@ -337,7 +323,6 @@ const CreateprojectLayout = () => {
     delete refactoredData?.side_spacing;
 
     // remove key
-    if (isNoflyzonePresent === "no") delete refactoredData?.no_fly_zones;
     delete refactoredData?.dem;
     if (measurementType === "gsd") delete refactoredData?.altitude_from_ground;
     else delete refactoredData?.gsd_cm_px;

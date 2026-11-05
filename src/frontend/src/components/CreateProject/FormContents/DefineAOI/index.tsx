@@ -6,6 +6,8 @@ import ErrorMessage from "@Components/common/FormUI/ErrorMessage";
 import { UseFormPropsType } from "@Components/common/FormUI/types";
 import { FormControl, Label } from "@Components/common/FormUI";
 import FileUpload from "@Components/common/UploadArea";
+import { FlexRow } from "@Components/common/Layouts";
+import Switch from "@Components/RadixComponents/Switch";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
 import { m2ToKm2 } from "@Utils/index";
 import { setCreateProjectState } from "@Store/actions/createproject";
@@ -34,6 +36,7 @@ function isAllGeoJSON(obj: unknown): obj is AllGeoJSON {
 const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
   const dispatch = useTypedDispatch();
   const [selectedTab, setSelectedTab] = useState<string>("project");
+  const [mergeDisjoint, setMergeDisjoint] = useState(false);
   const projectArea = useTypedSelector((state) => state.createproject.projectArea);
   const noFlyZoneArea = useTypedSelector((state) => state.createproject.noFlyZone);
   const totalProjectArea = useTypedSelector((state) => state.createproject.totalProjectArea);
@@ -63,6 +66,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
         normalizeAoi(
           prepareFormData({
             project_geojson: uploadedFile,
+            merge: mergeDisjoint,
           }),
         );
       }
@@ -196,6 +200,17 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
                     }}
                   />
                   <ErrorMessage message={errors?.outline?.message as string} />
+                  <FlexRow className="naxatw-mt-3 naxatw-items-center naxatw-justify-between naxatw-gap-3">
+                    <label htmlFor="merge-disjoint" className="naxatw-text-body-md">
+                      {m.create_aoi_merge_disjoint()}
+                    </label>
+                    <Switch
+                      id="merge-disjoint"
+                      checked={mergeDisjoint}
+                      disabled={isNormalizingAoi}
+                      onCheckedChange={setMergeDisjoint}
+                    />
+                  </FlexRow>
                 </FormControl>
               )}
             </>

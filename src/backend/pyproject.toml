@@ -41,7 +41,7 @@ dependencies = [
   "opencv-python-headless==4.12.0.88",
   "stream-zip==0.0.84",
   "hotosm-auth[fastapi]==0.2.10",
-  "geojson-aoi-parser>=0.3.5",
+  "geojson-aoi-parser>=1.0.0",
   "drone-flightplan",
 ]
 requires-python = ">=3.11"

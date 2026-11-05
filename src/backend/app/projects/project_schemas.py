@@ -149,7 +149,7 @@ class ProjectIn(BaseModel):
     front_overlap: float | None = None
     side_overlap: float | None = None
     gimble_angles_degrees: list[int] | None = None
-    is_terrain_follow: bool = False
+    is_terrain_follow: bool = True
     dem_source: Annotated[DEMSource, PlainSerializer(enum_to_str)] = DEMSource.GLO30
     outline: Annotated[
         FeatureCollection | Feature | Polygon, AfterValidator(validate_geojson)
@@ -253,7 +253,7 @@ class DbProject(BaseModel):
     description: str | None = None
     per_task_instructions: str | None = None
     organisation_id: int | None = None
-    outline: Polygon | Feature | FeatureCollection | None
+    outline: Polygon | MultiPolygon | Feature | FeatureCollection | None
     centroid: Point | Feature | Polygon | None = None
     no_fly_zones: MultiPolygon | Polygon | Feature | None = None
     total_task_count: int = 0
@@ -670,14 +670,14 @@ class DbProject(BaseModel):
             VALUES (
                 gen_random_uuid(),
                 %(author_id)s,
-                ST_GeomFromGeoJSON(%(outline)s),
+                ST_Multi(ST_GeomFromGeoJSON(%(outline)s)),
                 ST_Centroid(ST_GeomFromGeoJSON(%(outline)s)),
                 NOW(),
                 {value_placeholders}
             )
             RETURNING id;
         """
-        # We only want the first geometry (they should be merged previously)
+        # validate_geojson unions this to one Polygon or MultiPolygon
         outline_geometry = json.dumps(project.outline["features"][0]["geometry"])
         # Add required author_id and outline as json
         model_dump.update(
@@ -687,7 +687,6 @@ class DbProject(BaseModel):
             }
         )
         # Append no fly zones if they are present
-        # FIXME they are merged to a single geom!
         if project.no_fly_zones:
             no_fly_geoms = json.dumps(project.no_fly_zones["features"][0]["geometry"])
             model_dump.update(
@@ -805,7 +804,7 @@ class ProjectInfo(BaseModel):
     description: str | None = None
     per_task_instructions: str | None = None
     requires_approval_from_manager_for_locking: bool | None = None
-    outline: Polygon | Feature | FeatureCollection | None
+    outline: Polygon | MultiPolygon | Feature | FeatureCollection | None
     no_fly_zones: Polygon | Feature | FeatureCollection | MultiPolygon | None = None
     requires_approval_from_regulator: bool | None = False
     regulator_emails: list[EmailStr] | None = None

@@ -661,7 +661,7 @@ async def test_preview_split_multi_feature(client):
 
 @pytest.mark.asyncio
 async def test_normalize_aoi_merges_multi_feature_upload(client):
-    """Multipart AOIs should be merged before being returned to the frontend."""
+    """Multipart AOIs should be merged when requested."""
     multi_featcol = json.dumps(
         {
             "type": "FeatureCollection",
@@ -709,7 +709,9 @@ async def test_normalize_aoi_merges_multi_feature_upload(client):
             "application/geo+json",
         ),
     }
-    response = await client.post("/api/projects/normalize-aoi/", files=files)
+    response = await client.post(
+        "/api/projects/normalize-aoi/", files=files, data={"merge": "true"}
+    )
 
     assert response.status_code == 200
     body = response.json()
@@ -719,8 +721,8 @@ async def test_normalize_aoi_merges_multi_feature_upload(client):
 
 
 @pytest.mark.asyncio
-async def test_normalize_aoi_converts_multipolygon_upload(client):
-    """A single-feature MultiPolygon AOI should be coerced to one Polygon."""
+async def test_normalize_aoi_splits_disjoint_multipolygon(client):
+    """Disjoint areas stay separate, unless a merge is requested."""
     multipolygon = json.dumps(
         {
             "type": "FeatureCollection",
@@ -767,9 +769,134 @@ async def test_normalize_aoi_converts_multipolygon_upload(client):
 
     assert response.status_code == 200
     body = response.json()
-    assert body["type"] == "FeatureCollection"
+    assert [f["geometry"]["type"] for f in body["features"]] == ["Polygon", "Polygon"]
+
+    files["project_geojson"] = ("aoi.geojson", BytesIO(multipolygon))
+    response = await client.post(
+        "/api/projects/normalize-aoi/", files=files, data={"merge": "true"}
+    )
+
+    assert response.status_code == 200
+    body = response.json()
     assert len(body["features"]) == 1
     assert body["features"][0]["geometry"]["type"] == "Polygon"
+
+
+@pytest.mark.asyncio
+async def test_normalize_aoi_drops_holes(client):
+    """Holes are dropped, as no-fly zones are uploaded separately."""
+    polygon_with_hole = json.dumps(
+        {
+            "type": "Polygon",
+            "coordinates": [
+                [[85.0, 27.0], [85.1, 27.0], [85.1, 27.1], [85.0, 27.1], [85.0, 27.0]],
+                [
+                    [85.04, 27.04],
+                    [85.06, 27.04],
+                    [85.06, 27.06],
+                    [85.04, 27.06],
+                    [85.04, 27.04],
+                ],
+            ],
+        }
+    ).encode("utf-8")
+
+    response = await client.post(
+        "/api/projects/normalize-aoi/",
+        files={"project_geojson": ("aoi.geojson", BytesIO(polygon_with_hole))},
+    )
+
+    assert response.status_code == 200
+    assert len(response.json()["features"][0]["geometry"]["coordinates"]) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("content", "detail"),
+    [
+        (b'{"type": "Feature", "broken', "The file could not be read as GeoJSON."),
+        (b"not geojson", "The file could not be read as GeoJSON."),
+        (
+            json.dumps(
+                {
+                    "type": "Feature",
+                    "properties": {},
+                    "geometry": {"type": "Point", "coordinates": [85.0, 27.0]},
+                }
+            ).encode("utf-8"),
+            "No Polygon geometries found in the AOI.",
+        ),
+    ],
+)
+async def test_normalize_aoi_returns_friendly_errors(client, content, detail):
+    """Unusable uploads explain the problem, without internal details."""
+    response = await client.post(
+        "/api/projects/normalize-aoi/",
+        files={"project_geojson": ("aoi.geojson", BytesIO(content))},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == detail
+
+
+@pytest.mark.asyncio
+async def test_create_project_keeps_disjoint_outline(db, auth_user, project_info):
+    """A project stores every disjoint area of its outline."""
+    square = [[0, 0], [0.01, 0], [0.01, 0.01], [0, 0.01], [0, 0]]
+    far_square = [[x + 1, y + 1] for x, y in square]
+    project_info.outline = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {
+                    "type": "MultiPolygon",
+                    "coordinates": [[square], [far_square]],
+                },
+            }
+        ],
+    }
+
+    project_id = await project_schemas.DbProject.create(db, project_info, auth_user.id)
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            "SELECT ST_NumGeometries(outline) FROM projects WHERE id = %s",
+            (project_id,),
+        )
+        assert (await cur.fetchone())[0] == 2
+
+
+@pytest.mark.asyncio
+async def test_create_project_returns_no_fly_zones(client, db, auth_user, project_info):
+    """Drawn no-fly zones are stored and returned for the project maps."""
+    square = [[0, 0], [0.01, 0], [0.01, 0.01], [0, 0.01], [0, 0]]
+    far_square = [[x + 1, y + 1] for x, y in square]
+    no_fly_zones = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "id": "drawn-zone",
+                "type": "Feature",
+                "properties": {},
+                "geometry": {"type": "Polygon", "coordinates": [ring]},
+            }
+            for ring in (square, far_square)
+        ],
+    }
+    # Revalidate, as the merge of zones only runs when ProjectIn is parsed
+    project = project_schemas.ProjectIn.model_validate(
+        {**project_info.model_dump(), "no_fly_zones": no_fly_zones}
+    )
+
+    project_id = await project_schemas.DbProject.create(db, project, auth_user.id)
+
+    response = await client.get(f"/api/projects/{project_id}")
+    assert response.status_code == 200
+    geometry = response.json()["no_fly_zones"]["geometry"]
+    assert geometry["type"] == "MultiPolygon"
+    assert len(geometry["coordinates"]) == 2
 
 
 async def _insert_classification_test_task(

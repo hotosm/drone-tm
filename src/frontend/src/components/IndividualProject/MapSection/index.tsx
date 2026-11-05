@@ -421,7 +421,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             }}
           />
         )}
-        {projectData?.no_fly_zones_geojson && showTaskArea && (
+        {projectData?.no_fly_zones && showTaskArea && (
           <VectorLayer
             map={map as Map}
             id="no-fly-zone-area"
@@ -429,7 +429,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
             geojson={
               {
                 type: "FeatureCollection",
-                features: [projectData?.no_fly_zones_geojson],
+                features: [projectData?.no_fly_zones],
               } as GeojsonType
             }
             layerOptions={{
