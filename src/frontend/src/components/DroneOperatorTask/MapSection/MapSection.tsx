@@ -141,6 +141,7 @@ const MapSection = ({ className }: { className?: string }) => {
             ],
           },
           battery_warning: data.battery_warning,
+          no_fly_return_warning: data.no_fly_return_warning,
           estimated_flight_time_minutes: data.estimated_flight_time_minutes,
           rotationAngle: data.rotation_angle ?? 0,
         };
@@ -183,6 +184,11 @@ const MapSection = ({ className }: { className?: string }) => {
       toast.warn(
         `The estimated flight time of ${taskWayPointsData.estimated_flight_time_minutes} minutes
          exceeds 80% of ${friendlyModelName}'s battery life. Consider splitting the task into smaller parts.`,
+      );
+    }
+    if (taskWayPointsData?.no_fly_return_warning) {
+      toast.warn(
+        "Returning home early would cross a no-fly zone. Don't press Return to Home mid-flight, and keep enough battery to finish.",
       );
     }
   }, [taskWayPointsData]);
