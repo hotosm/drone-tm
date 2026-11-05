@@ -42,7 +42,6 @@ from app.tasks.task_splitter import (
 )
 from app.utils import (
     calculate_flight_time_from_placemarks,
-    merge_multipolygon,
     timestamp,
 )
 from drone_flightplan import (
@@ -425,8 +424,6 @@ async def preview_split_by_square(boundary: str, meters: int):
     Use a lambda function to remove the "z" dimension from each
     coordinate in the feature's geometry.
     """
-    boundary = merge_multipolygon(boundary)
-
     try:
         return await run_in_threadpool(
             lambda: split_by_square(
@@ -1658,8 +1655,8 @@ async def process_waypoints_and_waylines(
     """Processes and returns counts of waypoints and waylines.
 
     Args:
-        boundary: A normalised FeatureCollection containing one Polygon
-            feature (already parsed and merged by normalize_aoi).
+        boundary: A FeatureCollection of Polygons, from normalize_aoi.
+            Counts are estimated from the first Polygon.
     """
     geometry = shape(boundary["features"][0]["geometry"])
     centroid = geometry.centroid

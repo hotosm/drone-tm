@@ -5,11 +5,12 @@ from typing import Annotated
 from uuid import UUID
 
 import geojson as geojson_lib
+import psycopg
 from app.db import database
 from app.db.enums import HTTPStatus
 from app.projects.project_schemas import DbProject
 from app.utils import multipolygon_to_polygon
-from fastapi import Depends, File, HTTPException, Path, UploadFile
+from fastapi import Depends, File, Form, HTTPException, Path, UploadFile
 from geojson import FeatureCollection
 from geojson_aoi import parse_aoi_async
 from loguru import logger as log
@@ -97,16 +98,15 @@ async def geojson_upload(
 async def normalize_aoi(
     db: Annotated[Connection, Depends(database.get_db)],
     project_geojson: UploadFile = File(...),
+    merge: bool = Form(False),
 ) -> geojson_lib.FeatureCollection:
-    """Normalise an uploaded AOI GeoJSON to a single-polygon FeatureCollection.
+    """Normalise an uploaded AOI GeoJSON to a FeatureCollection of Polygons.
 
     Accepts any GeoJSON type (Polygon, MultiPolygon, Feature,
-    FeatureCollection, GeometryCollection) and returns a FeatureCollection
-    containing one merged Polygon.
+    FeatureCollection, GeometryCollection). Disjoint areas stay as separate
+    Polygons, unless merge is set, which joins them by their convex hull.
 
-    Uses geojson-aoi-parser for PostGIS-based normalisation (z-removal,
-    polygon orientation, type coercion) with merge=True to combine
-    multiple features into a single polygon via ST_UnaryUnion.
+    Holes are dropped, as no-fly zones are uploaded separately.
     """
     file_ext = (project_geojson.filename or "").rsplit(".", 1)[-1].lower()
     if file_ext not in ("geojson", "json"):
@@ -115,51 +115,25 @@ async def normalize_aoi(
     content = await project_geojson.read()
 
     try:
-        featcol = await parse_aoi_async(db, content, merge=True)
-    except Exception as e:
-        log.warning(f"geojson-aoi-parser failed: {e}")
+        featcol = await parse_aoi_async(db, content, merge=merge)
+    except (json.JSONDecodeError, UnicodeDecodeError, OSError) as e:
+        log.warning(f"Could not read uploaded AOI: {e}")
         raise HTTPException(
             status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
-            detail=f"Invalid GeoJSON: {e}",
+            detail="The file could not be read as GeoJSON.",
+        ) from e
+    except ValueError as e:
+        raise HTTPException(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY, detail=str(e)
+        ) from e
+    except psycopg.Error as e:
+        log.warning(f"PostGIS rejected uploaded AOI: {e}")
+        raise HTTPException(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+            detail="The AOI contains invalid geometry. Please fix it and retry.",
         ) from e
 
-    features = featcol.get("features", [])
-    if not features:
-        raise HTTPException(status_code=400, detail="GeoJSON contains no geometries")
-
-    feature_geom_types = {
-        feature.get("geometry", {}).get("type")
-        for feature in features
-        if feature.get("geometry")
-    }
-
-    # Merge multipart AOIs into a single polygon via PostGIS.
-    # geojson-aoi-parser currently normalizes structure, but may still return
-    # either multiple features or a single MultiPolygon geometry.
-    # Once merge=True guarantees a single Polygon this block can be removed.
-    if len(features) > 1 or "MultiPolygon" in feature_geom_types:
-        geom_jsons = [json.dumps(f["geometry"]) for f in features]
-        async with db.cursor() as cur:
-            await cur.execute(
-                """
-                SELECT ST_AsGeoJSON(
-                    CASE
-                        WHEN ST_GeometryType(merged_geom) = 'ST_MultiPolygon'
-                            THEN ST_ConvexHull(merged_geom)
-                        ELSE merged_geom
-                    END
-                )
-                FROM (
-                    SELECT ST_UnaryUnion(ST_Collect(ST_GeomFromGeoJSON(geom))) AS merged_geom
-                    FROM unnest(%s::text[]) AS geom
-                ) merged
-                """,
-                (geom_jsons,),
-            )
-            row = await cur.fetchone()
-            if row and row[0]:
-                featcol = geojson_lib.FeatureCollection(
-                    [geojson_lib.Feature(geometry=json.loads(row[0]))]
-                )
+    for feature in featcol["features"]:
+        feature["geometry"]["coordinates"] = feature["geometry"]["coordinates"][:1]
 
     return featcol

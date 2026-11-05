@@ -1,9 +1,14 @@
 import uuid
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from app.db.enums import DEMSource
+from app.jaxa.jaxa_coordinates import get_covering_tiles
 from app.projects import project_logic, project_routes
-from app.projects.project_schemas import ProjectIn
+from app.projects.project_schemas import DbProject, ProjectIn
+from app.utils import geojson_to_kml
+from fastapi import HTTPException
 
 AOI = {
     "type": "FeatureCollection",
@@ -144,3 +149,98 @@ def test_an_unknown_dem_source_is_rejected_before_it_reaches_postgres():
 
     with pytest.raises(ValidationError):
         project("NOT_A_SOURCE")
+
+
+def test_covering_tiles_includes_every_disjoint_area():
+    """A split project downloads DEM tiles for each of its areas."""
+    square = [[85.1, 27.1], [85.2, 27.1], [85.2, 27.2], [85.1, 27.2], [85.1, 27.1]]
+    far_square = [[lon + 10, lat + 10] for lon, lat in square]
+
+    tiles = get_covering_tiles(
+        {"type": "MultiPolygon", "coordinates": [[square], [far_square]]}
+    )
+
+    assert tiles == sorted(
+        get_covering_tiles({"type": "Polygon", "coordinates": [square]})
+        + get_covering_tiles({"type": "Polygon", "coordinates": [far_square]})
+    )
+
+
+def _disjoint_project(dem_source: DEMSource, offset_degrees: float) -> ProjectIn:
+    square = AOI["features"][0]["geometry"]["coordinates"]
+    far_square = [[[lon + offset_degrees, lat] for lon, lat in square[0]]]
+    outline = {
+        "type": "MultiPolygon",
+        "coordinates": [square, far_square],
+    }
+    feature = {"type": "Feature", "properties": {}, "geometry": outline}
+    return project(
+        dem_source,
+        outline={"type": "FeatureCollection", "features": [feature]},
+    )
+
+
+def test_glo30_rejects_areas_too_far_apart_for_one_crop():
+    with pytest.raises(HTTPException) as error:
+        project_routes._validate_glo30_coverage(
+            _disjoint_project(DEMSource.GLO30, offset_degrees=5)
+        )
+
+    assert error.value.status_code == 422
+    assert "upload a DEM" in error.value.detail
+
+
+def test_glo30_allows_nearby_disjoint_areas():
+    project_routes._validate_glo30_coverage(
+        _disjoint_project(DEMSource.GLO30, offset_degrees=0.5)
+    )
+
+
+def test_jaxa_allows_distant_areas():
+    project_routes._validate_glo30_coverage(
+        _disjoint_project(DEMSource.JAXA, offset_degrees=5)
+    )
+
+
+@pytest.mark.asyncio
+async def test_failed_dem_upload_rejects_uncovered_glo30_fallback(monkeypatch):
+    """The project must not commit if its GLO-30 fallback can't cover it."""
+    db = SimpleNamespace(commit=AsyncMock())
+
+    async def fake_create(_db, _project_info, _user_id):
+        return uuid.uuid4()
+
+    async def failing_upload(*_args):
+        raise OSError("S3 unavailable")
+
+    monkeypatch.setattr(DbProject, "create", fake_create)
+    monkeypatch.setattr(project_logic, "upload_file_to_s3", failing_upload)
+
+    with pytest.raises(HTTPException) as error:
+        await project_routes.create_project(
+            project_info=_disjoint_project(DEMSource.UPLOAD, offset_degrees=5),
+            db=db,
+            background_tasks=RecordingBackgroundTasks(),
+            user_data=SimpleNamespace(id="1", email="a@hotosm.org", name="a"),
+            dem=object(),
+            image=None,
+        )
+
+    assert error.value.status_code == 422
+    db.commit.assert_not_awaited()
+
+
+def test_kml_export_keeps_every_disjoint_area():
+    square = AOI["features"][0]["geometry"]["coordinates"]
+    far_square = [[[lon + 5, lat] for lon, lat in square[0]]]
+    feature = {
+        "type": "Feature",
+        "properties": {},
+        "geometry": {"type": "MultiPolygon", "coordinates": [square, far_square]},
+    }
+
+    kml = geojson_to_kml({"type": "FeatureCollection", "features": [feature]})
+
+    assert kml.count("<Polygon>") == 2
+    assert kml.count("<Placemark>") == 1
+    assert "<MultiGeometry>" in kml

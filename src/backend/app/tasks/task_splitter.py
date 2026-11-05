@@ -9,7 +9,7 @@ import geojson
 from geojson import Feature, FeatureCollection, GeoJSON
 from pyproj import Transformer
 from shapely.errors import GEOSException
-from shapely.geometry import Polygon, shape
+from shapely.geometry import MultiPolygon, Polygon, shape
 from shapely.geometry.geo import mapping
 from shapely.ops import transform as shapely_transform
 from shapely.ops import unary_union
@@ -114,13 +114,14 @@ class TaskSplitter:
     @staticmethod
     def geojson_to_shapely_polygon(
         geojson: FeatureCollection | Feature | dict,
-    ) -> Polygon:
-        """Parse GeoJSON and return shapely Polygon.
+    ) -> Polygon | MultiPolygon:
+        """Parse GeoJSON and return shapely Polygon or MultiPolygon.
 
         The GeoJSON may be of type FeatureCollection, Feature, or Polygon.
         If multiple geometries are present they are merged via unary_union
         so that FeatureCollections exported by QGIS (or similar) work
-        without requiring the caller to pre-merge.
+        without requiring the caller to pre-merge. Disjoint geometries
+        give a MultiPolygon.
         """
         features = TaskSplitter.geojson_to_featcol(geojson).get("features", [])
         log.debug("Converting AOI to Shapely geometry")
@@ -135,7 +136,7 @@ class TaskSplitter:
                 shape(features[0].get("geometry"))
             )
 
-        log.info(f"AOI contains {len(features)} geometries, merging into one polygon")
+        log.info(f"AOI contains {len(features)} geometries, merging")
         polygons = [
             TaskSplitter._ensure_valid_polygonal_geometry(shape(f.get("geometry")))
             for f in features
@@ -146,8 +147,6 @@ class TaskSplitter:
             raise GeometryTopologyError(
                 "Failed to merge AOI geometries due to topology issues"
             ) from e
-        if merged.geom_type == "MultiPolygon":
-            merged = merged.convex_hull
         return TaskSplitter._ensure_valid_polygonal_geometry(merged)
 
     @staticmethod
@@ -205,6 +204,20 @@ class TaskSplitter:
         )
 
     def splitBySquare(self, meters: int) -> FeatureCollection:
+        # A separate grid per area, as a task can't span disjoint areas and a
+        # shared grid over distant areas would exceed the cell limit.
+        areas = getattr(self.aoi, "geoms", [self.aoi])
+        self.split_features = FeatureCollection(
+            [
+                feature
+                for area in areas
+                for feature in self._split_polygon_by_square(area, meters)
+            ]
+        )
+        return self.split_features
+
+    @staticmethod
+    def _split_polygon_by_square(aoi: Polygon, meters: int) -> list[Feature]:
         # Set up transformations: WGS84 (EPSG:4326) <-> Web Mercator (EPSG:3857)
         transformer_to_mercator = Transformer.from_crs(
             "EPSG:4326", "EPSG:3857", always_xy=True
@@ -215,7 +228,7 @@ class TaskSplitter:
 
         # Transform AOI to Web Mercator for accurate grid calculations in meters
         aoi_mercator = TaskSplitter._ensure_valid_polygonal_geometry(
-            shapely_transform(transformer_to_mercator.transform, self.aoi)
+            shapely_transform(transformer_to_mercator.transform, aoi)
         )
         xmin, ymin, xmax, ymax = aoi_mercator.bounds
         est_cols = int((xmax - xmin) / meters) + 1
@@ -338,14 +351,7 @@ class TaskSplitter:
             if p.area > 0
         ]
 
-        # Convert polygons to GeoJSON FeatureCollection
-        merged_geojson = FeatureCollection(
-            [Feature(geometry=mapping(p)) for p in polygons_wgs84]
-        )
-
-        # Store the result in the instance variable and return it
-        self.split_features = merged_geojson
-        return self.split_features
+        return [Feature(geometry=mapping(p)) for p in polygons_wgs84]
 
 
 def split_by_square(

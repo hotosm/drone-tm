@@ -1067,7 +1067,7 @@ requires-dist = [
     { name = "gdal", specifier = "==3.10.3" },
     { name = "geoalchemy2", specifier = "==0.14.2" },
     { name = "geojson", specifier = "==3.1.0" },
-    { name = "geojson-aoi-parser", specifier = ">=0.3.5" },
+    { name = "geojson-aoi-parser", specifier = ">=1.0.0" },
     { name = "geojson-pydantic", specifier = "==1.1.0" },
     { name = "hotosm-auth", extras = ["fastapi"], specifier = "==0.2.10" },
     { name = "itsdangerous", specifier = "==2.2.0" },
@@ -1298,14 +1298,14 @@ wheels = [
 
 [[package]]
 name = "geojson-aoi-parser"
-version = "0.3.5"
+version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "psycopg" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6a/72/23ea59fc5d8408e1b20de9c7d45b7977b8979e1ea2d50278c44082182bfa/geojson_aoi_parser-0.3.5.tar.gz", hash = "sha256:4005883ab0eab4b2f8273ac19277e75e521e4aeafcbabcd106a01019f826e783", size = 76172, upload-time = "2025-10-10T23:02:03.242Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0e/1e/4f4542184c06fc42ce3f41d5d62f260f04ec006c830b676957fc538285ad/geojson_aoi_parser-1.0.0.tar.gz", hash = "sha256:b458f8126796296741137cf0a5fe7f103e9f4c494d4936e2d11f7894a4528db2", size = 101318, upload-time = "2026-11-04T23:35:43.017Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/a3/73b1d460a243939221815e3d65710cd13fce0f26c0621a44cb7c43ca8813/geojson_aoi_parser-0.3.5-py3-none-any.whl", hash = "sha256:37d73f096c34ba12dba653198fd52369edf6edc713a3591284ececdb4093296e", size = 29266, upload-time = "2025-10-10T23:02:02.093Z" },
+    { url = "https://files.pythonhosted.org/packages/a0/e1/2909c49514171a89df16e204251e887ee19726755438cb96fb26d49c1e64/geojson_aoi_parser-1.0.0-py3-none-any.whl", hash = "sha256:6afd577275b0f8faa2c290aaa061059d15e1e592d73786c3ac19df78b1266824", size = 26214, upload-time = "2026-11-04T23:35:41.821Z" },
 ]
 
 [[package]]

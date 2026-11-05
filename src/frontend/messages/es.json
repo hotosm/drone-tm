@@ -217,6 +217,7 @@
   "create_aoi_total_no_fly_zone_area": "Área total de la zona de exclusión aérea: {area}",
   "create_aoi_project_area_required": "El área del proyecto es obligatoria",
   "create_aoi_upload_project_placeholder": "Cargar el área del proyecto (archivo .geojson con un polígono)",
+  "create_aoi_merge_disjoint": "Unir las áreas separadas en una sola, usando su envolvente convexa. Déjalo sin marcar para dividirlas en tareas por separado.",
   "create_aoi_upload_nfz_placeholder": "Cargar el área de zona de exclusión aérea (.geojson)",
   "create_aoi_invalid_geojson": "GeoJSON no válido",
   "create_aoi_unsupported_crs": "Este archivo usa {crs}, pero las áreas de proyecto deben estar en longitud/latitud WGS84. Reproyéctalo a EPSG:4326 y vuelve a cargarlo.",

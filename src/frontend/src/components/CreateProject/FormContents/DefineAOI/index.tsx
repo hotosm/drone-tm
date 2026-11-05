@@ -34,6 +34,7 @@ function isAllGeoJSON(obj: unknown): obj is AllGeoJSON {
 const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
   const dispatch = useTypedDispatch();
   const [selectedTab, setSelectedTab] = useState<string>("project");
+  const [mergeDisjoint, setMergeDisjoint] = useState(false);
   const projectArea = useTypedSelector((state) => state.createproject.projectArea);
   const noFlyZoneArea = useTypedSelector((state) => state.createproject.noFlyZone);
   const totalProjectArea = useTypedSelector((state) => state.createproject.totalProjectArea);
@@ -63,6 +64,7 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
         normalizeAoi(
           prepareFormData({
             project_geojson: uploadedFile,
+            merge: mergeDisjoint,
           }),
         );
       }
@@ -196,6 +198,16 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
                     }}
                   />
                   <ErrorMessage message={errors?.outline?.message as string} />
+                  <label className="naxatw-mt-3 naxatw-flex naxatw-items-start naxatw-gap-2 naxatw-text-body-md">
+                    <input
+                      type="checkbox"
+                      className="naxatw-mt-1"
+                      checked={mergeDisjoint}
+                      disabled={isNormalizingAoi}
+                      onChange={(event) => setMergeDisjoint(event.target.checked)}
+                    />
+                    {m.create_aoi_merge_disjoint()}
+                  </label>
                 </FormControl>
               )}
             </>

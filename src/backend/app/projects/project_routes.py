@@ -16,7 +16,7 @@ from app.db.enums import (
     ProjectCompletionStatus,
     RegulatorApprovalStatus,
 )
-from app.dem.glo30 import enqueue_glo30_dem_download
+from app.dem.glo30 import enqueue_glo30_dem_download, snap_bbox
 from app.images.image_classification import ImageClassifier
 from app.jaxa.upload_dem import enqueue_dem_download
 from app.projects import oam, project_deps, project_logic, project_schemas
@@ -343,6 +343,7 @@ async def create_project(
     project_info.dem_source = project_logic.resolve_dem_source(
         requested_dem_source, project_info.is_terrain_follow, bool(dem)
     )
+    _validate_glo30_coverage(project_info)
 
     # Create project in database first
     project_id = await project_schemas.DbProject.create(db, project_info, user_data.id)
@@ -376,6 +377,7 @@ async def create_project(
             dem_source,
         )
         project_info.dem_source = dem_source
+        _validate_glo30_coverage(project_info)
         await project_logic.update_dem_source(db, project_id, dem_source)
 
     # The frontend immediately follows this response with
@@ -399,6 +401,17 @@ async def create_project(
         )
 
     return {"message": "Project successfully created", "project_id": project_id}
+
+
+def _validate_glo30_coverage(project_info: project_schemas.ProjectIn) -> None:
+    """Reject a GLO-30 project whose areas are too far apart for one DEM crop."""
+    if project_info.dem_source != DEMSource.GLO30:
+        return
+    geometry = project_info.outline["features"][0]["geometry"]
+    try:
+        snap_bbox(shape(geometry).bounds)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
 
 
 async def _enqueue_terrain_dem(
@@ -480,22 +493,26 @@ async def preview_split_by_square(
 
     The AOI is normalised via geojson-aoi-parser so that any valid GeoJSON
     type (including multi-feature FeatureCollections exported by QGIS) is
-    accepted and merged into a single Polygon.
+    accepted. Disjoint areas are split separately.
     """
-    aoi_geometry = aoi["features"][0]["geometry"]
+    result_geojson = aoi
 
     if no_fly_zones:
         no_fly_content = await no_fly_zones.read()
         no_fly_zones_geojson = geojson.loads(no_fly_content)
         no_fly_features = no_fly_zones_geojson.get("features", [])
         if no_fly_features:
+            aoi_geometry = {
+                "type": "GeometryCollection",
+                "geometries": [f["geometry"] for f in aoi["features"]],
+            }
             nfz_geoms = [json.dumps(f["geometry"]) for f in no_fly_features]
             async with db.cursor() as cur:
                 await cur.execute(
                     """
                     SELECT ST_AsGeoJSON(
                         ST_Difference(
-                            ST_GeomFromGeoJSON(%(aoi)s),
+                            ST_UnaryUnion(ST_GeomFromGeoJSON(%(aoi)s)),
                             ST_UnaryUnion(ST_Collect(ST_GeomFromGeoJSON(nfz)))
                         )
                     )
@@ -505,9 +522,8 @@ async def preview_split_by_square(
                 )
                 row = await cur.fetchone()
                 if row and row[0]:
-                    aoi_geometry = json.loads(row[0])
+                    result_geojson = geojson.Feature(geometry=json.loads(row[0]))
 
-    result_geojson = geojson.Feature(geometry=aoi_geometry)
     return await project_logic.preview_split_by_square(result_geojson, dimension)
 
 
@@ -516,7 +532,7 @@ async def normalize_project_aoi(
     user: Annotated[AuthUser, Depends(login_required)],
     aoi: Annotated[geojson.FeatureCollection, Depends(normalize_aoi)],
 ):
-    """Normalise an uploaded AOI and return a merged single-polygon FeatureCollection."""
+    """Normalise an uploaded AOI and return a FeatureCollection of Polygons."""
     return aoi
 
 
@@ -850,7 +866,7 @@ async def get_project_waypoints_counts(
     """Count waypoints and waylines within AOI.
 
     The AOI is normalised via geojson-aoi-parser so that any valid GeoJSON
-    type is accepted and merged into a single Polygon.
+    type is accepted.
     """
     return await project_logic.process_waypoints_and_waylines(
         side_overlap,
