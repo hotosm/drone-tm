@@ -96,7 +96,6 @@ const CreateprojectLayout = () => {
   const totalProjectArea = useTypedSelector((state) => state.createproject.totalProjectArea);
   const splitGeojson = useTypedSelector((state) => state.createproject.splitGeojson);
   const isTerrainFollow = useTypedSelector((state) => state.createproject.isTerrainFollow);
-  const isNoflyzonePresent = useTypedSelector((state) => state.createproject.isNoflyzonePresent);
   const requireApprovalFromManagerForLocking = useTypedSelector(
     (state) => state.createproject.requireApprovalFromManagerForLocking,
   );
@@ -263,13 +262,6 @@ const CreateprojectLayout = () => {
         toast.error(m.create_aoi_project_area_exceed({ area: m2ToKm2(MAX_PROJECT_AREA_SQM) }));
         return;
       }
-      if (
-        isNoflyzonePresent === "yes" &&
-        (!data?.no_fly_zones || data?.no_fly_zones?.length === 0)
-      ) {
-        toast.error(m.create_aoi_upload_or_draw_save_nfz());
-        return;
-      }
       const newCentroid = centroid(data.outline)?.geometry?.coordinates;
       setProjectCentroid(newCentroid);
     }
@@ -331,7 +323,6 @@ const CreateprojectLayout = () => {
     delete refactoredData?.side_spacing;
 
     // remove key
-    if (isNoflyzonePresent === "no") delete refactoredData?.no_fly_zones;
     delete refactoredData?.dem;
     if (measurementType === "gsd") delete refactoredData?.altitude_from_ground;
     else delete refactoredData?.gsd_cm_px;

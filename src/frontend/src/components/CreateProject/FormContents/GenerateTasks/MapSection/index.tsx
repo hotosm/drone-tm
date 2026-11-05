@@ -25,6 +25,7 @@ const MapSection = () => {
   });
 
   const projectArea = useTypedSelector((state) => state.createproject.projectArea);
+  const noFlyZone = useTypedSelector((state) => state.createproject.noFlyZone);
   const splitGeojson = useTypedSelector((state) => state.createproject.splitGeojson);
   const capturedProjectMap = useTypedSelector((state) => state.createproject.capturedProjectMap);
 
@@ -119,6 +120,21 @@ const MapSection = () => {
           paint: {
             "line-color": "#D33A38",
             "line-width": 1,
+          },
+        }}
+      />
+      <VectorLayer
+        map={map as Map}
+        isMapLoaded={isMapLoaded}
+        id="no-fly-zone-outline"
+        geojson={noFlyZone as GeojsonType}
+        visibleOnMap={!!noFlyZone}
+        layerOptions={{
+          type: "line",
+          paint: {
+            "line-color": "#484848",
+            "line-width": 2,
+            "line-dasharray": [4, 3],
           },
         }}
       />

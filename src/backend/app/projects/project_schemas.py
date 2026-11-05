@@ -687,7 +687,6 @@ class DbProject(BaseModel):
             }
         )
         # Append no fly zones if they are present
-        # FIXME they are merged to a single geom!
         if project.no_fly_zones:
             no_fly_geoms = json.dumps(project.no_fly_zones["features"][0]["geometry"])
             model_dump.update(

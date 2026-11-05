@@ -868,6 +868,37 @@ async def test_create_project_keeps_disjoint_outline(db, auth_user, project_info
         assert (await cur.fetchone())[0] == 2
 
 
+@pytest.mark.asyncio
+async def test_create_project_returns_no_fly_zones(client, db, auth_user, project_info):
+    """Drawn no-fly zones are stored and returned for the project maps."""
+    square = [[0, 0], [0.01, 0], [0.01, 0.01], [0, 0.01], [0, 0]]
+    far_square = [[x + 1, y + 1] for x, y in square]
+    no_fly_zones = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "id": "drawn-zone",
+                "type": "Feature",
+                "properties": {},
+                "geometry": {"type": "Polygon", "coordinates": [ring]},
+            }
+            for ring in (square, far_square)
+        ],
+    }
+    # Revalidate, as the merge of zones only runs when ProjectIn is parsed
+    project = project_schemas.ProjectIn.model_validate(
+        {**project_info.model_dump(), "no_fly_zones": no_fly_zones}
+    )
+
+    project_id = await project_schemas.DbProject.create(db, project, auth_user.id)
+
+    response = await client.get(f"/api/projects/{project_id}")
+    assert response.status_code == 200
+    geometry = response.json()["no_fly_zones"]["geometry"]
+    assert geometry["type"] == "MultiPolygon"
+    assert len(geometry["coordinates"]) == 2
+
+
 async def _insert_classification_test_task(
     db, *, project_id: str, task_index: int = 1
 ) -> str:

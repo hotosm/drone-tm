@@ -13,7 +13,6 @@ export interface CreateProjectState {
   measurementType: "gsd" | "altitude";
   contributionsOption: "public" | "invite_with_email";
   generateTaskOption: "divide_hexagon" | "divide_rectangle";
-  isNoflyzonePresent: "yes" | "no";
   projectArea: GeojsonType | null;
   noFlyZone: GeojsonType | null;
   drawProjectAreaEnable: boolean;
@@ -44,7 +43,6 @@ const initialState: CreateProjectState = {
   measurementType: "gsd",
   contributionsOption: "public",
   generateTaskOption: "divide_rectangle",
-  isNoflyzonePresent: "no",
   projectArea: null,
   noFlyZone: null,
   drawProjectAreaEnable: false,
@@ -89,7 +87,6 @@ const setDemType: CaseReducer<CreateProjectState, PayloadAction<string>> = (stat
 });
 const resetUploadedAndDrawnAreas: CaseReducer<CreateProjectState> = (state) => ({
   ...state,
-  isNoflyzonePresent: initialState.isNoflyzonePresent,
   projectArea: initialState.projectArea,
   noFlyZone: initialState.noFlyZone,
   drawProjectAreaEnable: initialState.drawProjectAreaEnable,
