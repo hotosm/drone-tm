@@ -132,6 +132,16 @@ outputs, unless the user explicitly turns it off. By default the DEM is GLO-30 s
 (TiTiler), with JAXA or a user-uploaded DEM as alternatives. QField
 bundles the DEM, while the browser planner caches it so it is available offline.
 
+No-fly zones are cut out of tasks, then enforced again by both flight plan
+generators (`drone-flightplan`, and the JavaScript port shared by QField and the
+browser planner), which must stay in step. Waypoints within 20 m of a zone are
+dropped, and a no-photo waypoint is added if the straight line home is blocked.
+Generation then fails if any leg, there and back from takeoff, still comes within
+20 m. A takeoff point is required, and pilots are warned if returning home early
+would cross a zone, as that can't be planned around. QField receives zones as an attribute on each task, as the
+packager drops unknown project variables, so projects must be re-exported to
+pick them up. The browser planner receives them with its flight parameters.
+
 ### Imagery
 
 After a flight, users upload their images to S3. Workers read the metadata and
