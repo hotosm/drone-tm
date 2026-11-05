@@ -11,9 +11,14 @@ from drone_flightplan.create_flightplan import (
 )
 from drone_flightplan.create_placemarks import create_placemarks
 from drone_flightplan.output.dji import create_wpml
-from drone_flightplan.waypoints import create_waypoint
+from drone_flightplan.waypoints import (
+    NoFlyZoneConflictError,
+    create_waypoint,
+    no_fly_polygons,
+)
 
 __all__ = [
+    "NoFlyZoneConflictError",
     "add_elevation_from_dem",
     "build_placemarks",
     "calculate_parameters",
@@ -21,6 +26,7 @@ __all__ = [
     "create_placemarks",
     "create_waypoint",
     "create_wpml",
+    "no_fly_polygons",
     "write_flightplan_file",
 ]
 
