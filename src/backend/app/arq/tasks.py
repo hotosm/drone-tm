@@ -1356,12 +1356,14 @@ async def generate_qfield_project(
                                 'geometry', ST_AsGeoJSON(t.outline)::json,
                                 'properties', json_build_object(
                                     'project_task_id', t.project_task_index,
-                                    'status', COALESCE(le.state::text, 'UNLOCKED')
+                                    'status', COALESCE(le.state::text, 'UNLOCKED'),
+                                    'no_fly_zones', ST_AsGeoJSON(p.no_fly_zones)
                                 )
                             )
                         ), '[]'::json)
                     ) AS geojson
                     FROM tasks t
+                    JOIN projects p ON p.id = t.project_id
                     LEFT JOIN latest_event le ON le.task_id = t.id
                     WHERE t.project_id = %s
                     """,

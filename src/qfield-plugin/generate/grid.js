@@ -269,6 +269,73 @@ function createPath(points, forwardSpacing, rotationAngle, polygon3857, gimbalAn
     return newData;
 }
 
+function nearNoFlyZone(point, zones, clearance) {
+    for (var i = 0; i < zones.length; i++) {
+        if (Geo.pointWithinDistance(point.x, point.y, zones[i], clearance)) return true;
+    }
+    return false;
+}
+
+// Drop waypoints too close to a no-fly zone. This alone can't keep a drone out,
+// as it flies straight between what remains: see roundTripIsClear.
+function removeNoFlyPoints(path, zones, clearance) {
+    var kept = [];
+    for (var i = 0; i < path.length; i++) {
+        if (!nearNoFlyZone(path[i], zones, clearance)) kept.push(path[i]);
+    }
+    return kept;
+}
+
+function legIsClear(a, b, zones, clearance) {
+    for (var z = 0; z < zones.length; z++) {
+        if (Geo.segmentWithinDistance(a.x, a.y, b.x, b.y, zones[z], clearance)) return false;
+    }
+    return true;
+}
+
+// Drones fly straight home when a mission ends. Reversing the path can't help,
+// as both ends must connect to takeoff, so fly via the nearest waypoint with a
+// clear line to both the last waypoint and home.
+function addReturnHomeWaypoint(waypoints, home, zones, clearance) {
+    var last = waypoints[waypoints.length - 1];
+    if (legIsClear(last, home, zones, clearance)) return waypoints;
+
+    var via = null;
+    var viaDistance = Infinity;
+    for (var i = 0; i < waypoints.length - 1; i++) {
+        var point = waypoints[i];
+        var total = Geo.distance(last.x, last.y, point.x, point.y) +
+            Geo.distance(point.x, point.y, home.x, home.y);
+        if (total < viaDistance && legIsClear(last, point, zones, clearance) &&
+            legIsClear(point, home, zones, clearance)) {
+            via = point;
+            viaDistance = total;
+        }
+    }
+    if (!via) return waypoints;
+
+    // A unique heading stops terrain simplification merging this into the last
+    // flight line, which could drop the row end and shortcut through a zone.
+    return waypoints.concat([{
+        x: via.x, y: via.y, angle: 0, take_photo: false, gimbal_angle: via.gimbal_angle
+    }]);
+}
+
+function roundTripIsClear(waypoints, home, zones, clearance) {
+    var route = [home].concat(waypoints).concat([home]);
+    for (var i = 1; i < route.length; i++) {
+        if (!legIsClear(route[i - 1], route[i], zones, clearance)) return false;
+    }
+    return true;
+}
+
+function everyWaypointHasClearReturn(waypoints, home, zones, clearance) {
+    for (var i = 0; i < waypoints.length; i++) {
+        if (!legIsClear(waypoints[i], home, zones, clearance)) return false;
+    }
+    return true;
+}
+
 // Simplify waypoints to waylines (keep only start and end of each segment)
 function removeMiddlePoints(data) {
     if (!data || data.length === 0) return [];
