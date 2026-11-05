@@ -292,6 +292,14 @@ Item {
     return coords
   }
 
+  // The packager keeps task attributes but drops unknown project variables,
+  // so each task carries its project's no-fly zones as GeoJSON text.
+  function taskNoFlyZones(feature) {
+    var geojson = feature.attribute("no_fly_zones")
+    if (!geojson) return []
+    return JSON.parse(geojson).coordinates.map(function(polygon) { return polygon[0] })
+  }
+
   function generateFlightplan(config) {
     // Get the selected task feature
     var taskId = config.taskId
@@ -331,10 +339,10 @@ Item {
       // When DEM is selected with waylines mode, generate ALL points first
       // (as waypoints), then simplify to waylines after DEM sampling.
       // This matches the Python create_flightplan.py flow for terrain following.
-      var generateConfig = config
+      var generateConfig = JSON.parse(JSON.stringify(config))
+      generateConfig.noFlyZones = taskNoFlyZones(feature)
       var actualFlightMode = config.flightMode
       if (config.demLayer && config.flightMode === "waylines") {
-        generateConfig = JSON.parse(JSON.stringify(config))
         generateConfig.flightMode = "waypoints"
         log("DEM + waylines: generating all waypoints first for terrain-aware simplification")
       }
@@ -350,6 +358,9 @@ Item {
         .arg(result.estimatedFlightTimeMinutes)
       if (result.batteryWarning) {
         msg += qsTr(' - Battery warning!')
+      }
+      if (result.noFlyReturnWarning) {
+        msg += qsTr(' - Returning home early would cross a no-fly zone')
       }
       mainWindow.displayToast(msg)
 

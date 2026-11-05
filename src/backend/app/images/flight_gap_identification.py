@@ -19,7 +19,7 @@ from app.utils import (
     circular_mean_list,
     circular_mean_pair,
 )
-from drone_flightplan import create_flightplan
+from drone_flightplan import NoFlyZoneConflictError, create_flightplan
 from drone_flightplan.drone_type import CAMERA_MODEL_ALIASES, DRONE_PARAMS, DroneType
 from drone_flightplan.enums import FlightMode
 from loguru import logger as log
@@ -160,8 +160,14 @@ def _generate_flightplan_for_geometry(
     front_overlap: float = 70,
     side_overlap: float = 70,
     flight_mode: FlightMode = FlightMode.WAYPOINTS,
+    no_fly_zones: dict | None = None,
+    take_off_point: list[float] | None = None,
 ):
-    """Generate a reflight plan for an already-derived reconstruction AOI."""
+    """Generate a reflight plan for an already-derived reconstruction AOI.
+
+    With no-fly zones, returns None without the task's real takeoff point, as
+    the flight there and back can't be checked from a guessed location.
+    """
     if reconstruction_aoi is None or reconstruction_aoi.is_empty:
         return None
 
@@ -192,12 +198,17 @@ def _generate_flightplan_for_geometry(
                 drone_type=drone_type,
                 rotation_angle=rotation_angle,
                 outfile=temp_outfile,
+                take_off_point=take_off_point,
+                no_fly_zones=no_fly_zones,
             )
 
             if result_path and os.path.exists(result_path):
                 with open(result_path, "rb") as f:
                     return {"kmz_bytes": f.read(), "geometry": reconstruction_aoi}
             return None
+    except NoFlyZoneConflictError as e:
+        log.warning(f"No reflight plan generated: {e}")
+        return None
 
     finally:
         geojson.loads = original_loads
@@ -331,6 +342,7 @@ def _generate_reconstruction_flightplan(
     drone_type: DroneType,
     average_altitude,
     average_azimuth,
+    **no_fly_options,
 ):
     """
     Generates a kmz flight plan to cover detected missing imagery gaps.
@@ -340,6 +352,7 @@ def _generate_reconstruction_flightplan(
         task_aoi (Polygon): The task AOI.
         global_side_median (float): The measured side-lap distance (in meters).
         drone_type (DroneType): The drone model to optimize parameters for.
+        no_fly_options: Passed to `_generate_flightplan_for_geometry`.
     """
     if not confirmed_gaps:
         return None
@@ -399,6 +412,7 @@ def _generate_reconstruction_flightplan(
         front_overlap=front_overlap,
         side_overlap=side_overlap,
         flight_mode=mode,
+        **no_fly_options,
     )
 
 
@@ -840,7 +854,10 @@ async def identify_flight_gaps(
     task_outline_query = """
                     SELECT
                         ST_AsGeoJSON(t.outline)::json as geometry,
-                        p.altitude_from_ground
+                        p.altitude_from_ground,
+                        ST_AsGeoJSON(p.no_fly_zones)::json as no_fly_zones,
+                        ST_AsGeoJSON(t.take_off_point)::json -> 'coordinates'
+                            as take_off_point
                     FROM tasks t
                     JOIN projects p ON p.id = t.project_id
                     WHERE t.id = %(task_id)s
@@ -853,6 +870,12 @@ async def identify_flight_gaps(
         log.error(f"Task {task_id}: No geometry found for task")
         return None
     task_aoi_outline = shape(task_row["geometry"])
+    no_fly_options = {}
+    if task_row["no_fly_zones"]:
+        no_fly_options = {
+            "no_fly_zones": task_row["no_fly_zones"],
+            "take_off_point": task_row["take_off_point"],
+        }
 
     # If override parameters provided, set gap geometries
     if manual_gaps and gap_type and flight_drone_type and overall_average_altitude:
@@ -868,6 +891,7 @@ async def identify_flight_gaps(
             drone_type=flight_drone_type,
             average_altitude=overall_average_altitude,
             rotation_angle=overall_rotation,
+            **no_fly_options,
         )
 
     # Resolve altitude and overlap independently so either can be overridden.
@@ -955,6 +979,7 @@ async def identify_flight_gaps(
                     drone_type=flight_drone_type,
                     average_altitude=overall_average_altitude,
                     rotation_angle=overall_rotation,
+                    **no_fly_options,
                 )
 
         if result:
@@ -1033,6 +1058,7 @@ async def identify_flight_gaps(
                     flight_drone_type,
                     overall_average_altitude,
                     overall_rotation,
+                    **no_fly_options,
                 )
 
         if result:

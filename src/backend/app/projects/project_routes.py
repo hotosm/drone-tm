@@ -216,7 +216,10 @@ async def flightplanner_params(
     gimbal_angles = project.gimble_angles_degrees or []
     gimbal_angle = str(gimbal_angles[0]) if gimbal_angles else None
 
-    params: dict = {"terrainFollow": project.is_terrain_follow}
+    params: dict = {
+        "terrainFollow": project.is_terrain_follow,
+        "noFlyZones": project_logic.no_fly_zone_rings(project.no_fly_zones),
+    }
 
     # Prefer GSD when both settings are present.
     if project.gsd_cm_px is not None:
@@ -461,6 +464,11 @@ async def upload_project_task_boundaries(
         dict: JSON containing success message, project ID, and number of tasks.
     """
     log.debug("Creating tasks for each polygon in project")
+    if project.no_fly_zones:
+        task_featcol = project_logic.clip_tasks_to_no_fly_zones(
+            task_featcol, project.no_fly_zones
+        )
+
     redis_pool = None
     try:
         redis_pool = await get_redis_pool()

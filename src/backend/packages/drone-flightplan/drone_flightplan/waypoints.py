@@ -1,12 +1,13 @@
 import argparse
 import json
 import logging
-from math import atan2, degrees, sqrt
+from itertools import pairwise
+from math import atan2, cos, degrees, radians, sqrt
 
 import geojson
 import pyproj
 from shapely.affinity import rotate
-from shapely.geometry import Point, Polygon, shape
+from shapely.geometry import LineString, Point, Polygon, shape
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform
 
@@ -15,6 +16,20 @@ from drone_flightplan.drone_type import DRONE_SPECS, DroneType
 from drone_flightplan.enums import FlightMode, GimbalAngle
 
 log = logging.getLogger(__name__)
+
+# Keeps a drone clear of a no-fly zone despite GPS error, wind and turn overshoot.
+NO_FLY_ZONE_CLEARANCE_METERS = 20
+
+
+NO_FLY_ZONE_CONFLICT_MESSAGE = (
+    "This flight plan would enter a no-fly zone, or pass within "
+    f"{NO_FLY_ZONE_CLEARANCE_METERS} m of one. "
+    "Move the takeoff point, or split the task around the zone."
+)
+
+
+class NoFlyZoneConflictError(ValueError):
+    """A flight plan can't avoid a no-fly zone."""
 
 
 def add_buffer_to_aoi(
@@ -505,21 +520,116 @@ def generate_3d_waypoints(
     return return_path + forward_path
 
 
-def exclude_no_fly_zones(points: list[dict], no_fly_zones: list[Polygon]) -> list[dict]:
-    """Exclude waypoints that fall within defined no-fly zones.
+def no_fly_polygons(no_fly_zones: dict) -> list[Polygon]:
+    """Read GeoJSON no-fly zones as Polygons, ignoring any holes in them."""
+    if "features" in no_fly_zones:
+        geometries = [feature["geometry"] for feature in no_fly_zones["features"]]
+    else:
+        geometries = [no_fly_zones.get("geometry", no_fly_zones)]
+
+    polygons = []
+    for geometry in geometries:
+        zone = shape(geometry)
+        parts = zone.geoms if hasattr(zone, "geoms") else [zone]
+        polygons.extend(Polygon(part.exterior) for part in parts)
+    return polygons
+
+
+def exclude_no_fly_zones(
+    points: list[dict], no_fly_zones: list[Polygon], clearance: float
+) -> list[dict]:
+    """Exclude waypoints too close to a no-fly zone.
+
+    This alone can't keep a drone out, as it flies straight between what
+    remains, so the finished path must go through `route_round_trip` as well.
 
     Parameters:
         points (list[dict]): A list of waypoints.
-        no_fly_zones (list[Polygon]): A list of Polygons representing no-fly zones.
+        no_fly_zones (list[Polygon]): No-fly zones, in the points' CRS.
+        clearance (float): The distance to keep from a zone, in the points' CRS.
 
     Returns:
-        list[dict]: A list of waypoints excluding those within no-fly zones.
+        list[dict]: A list of waypoints clear of the no-fly zones.
     """
     return [
         point
         for point in points
-        if not any(nfz.contains(point["coordinates"]) for nfz in no_fly_zones)
+        if all(nfz.distance(point["coordinates"]) > clearance for nfz in no_fly_zones)
     ]
+
+
+def leg_is_clear(
+    start: Point, end: Point, no_fly_zones: list[Polygon], clearance: float
+) -> bool:
+    """Whether a straight flight between two points stays clear of no-fly zones."""
+    leg = LineString([start, end])
+    return all(nfz.distance(leg) > clearance for nfz in no_fly_zones)
+
+
+def add_return_home_waypoint(
+    points: list[dict], no_fly_zones: list[Polygon], clearance: float
+) -> list[dict]:
+    """Route the flight home around no-fly zones, if the direct line is blocked.
+
+    Drones fly straight home when a mission ends. Reversing the path can't help,
+    as both ends must connect to the takeoff point, so this flies via the nearest
+    waypoint with a clear line to both the last waypoint and home.
+
+    Parameters:
+        points (list[dict]): The path, starting at the takeoff point.
+        no_fly_zones (list[Polygon]): No-fly zones, in the points' CRS.
+        clearance (float): The distance to keep from a zone, in the points' CRS.
+
+    Returns:
+        list[dict]: The path, with an extra final waypoint if one was needed.
+    """
+    home = points[0]["coordinates"]
+    last = points[-1]["coordinates"]
+    if leg_is_clear(last, home, no_fly_zones, clearance):
+        return points
+
+    via_candidates = [
+        point
+        for point in points[1:-1]
+        if leg_is_clear(last, point["coordinates"], no_fly_zones, clearance)
+        and leg_is_clear(point["coordinates"], home, no_fly_zones, clearance)
+    ]
+    if not via_candidates:
+        return points
+
+    via = min(
+        via_candidates,
+        key=lambda point: (
+            last.distance(point["coordinates"]) + home.distance(point["coordinates"])
+        ),
+    )
+    # A unique heading stops terrain simplification merging this into the last
+    # flight line, which could drop the row end and shortcut through a zone.
+    return [*points, {**via, "angle": 0, "take_photo": False}]
+
+
+def route_round_trip(
+    points: list[dict], no_fly_zones: list[Polygon], clearance: float
+) -> tuple[list[dict], bool]:
+    """Finish a path that starts at takeoff, keeping both ways clear of zones.
+
+    Returns:
+        tuple: The path, and whether returning home early would cross a zone.
+
+    Raises:
+        NoFlyZoneConflictError: If the flight there and back can't avoid a zone.
+    """
+    points = add_return_home_waypoint(points, no_fly_zones, clearance)
+    home = points[0]["coordinates"]
+    legs = pairwise(point["coordinates"] for point in [*points, points[0]])
+    if not all(leg_is_clear(*leg, no_fly_zones, clearance) for leg in legs):
+        raise NoFlyZoneConflictError(NO_FLY_ZONE_CONFLICT_MESSAGE)
+
+    return_is_clear = all(
+        leg_is_clear(point["coordinates"], home, no_fly_zones, clearance)
+        for point in points
+    )
+    return points, not return_is_clear
 
 
 def remove_middle_points(data: dict):
@@ -583,7 +693,8 @@ def create_waypoint(
         rotation_angle (float | None): The rotation angle for the flight grid in
             degrees, or None to let `auto_rotation` pick the optimal angle.
         generate_3d (bool): Flag to determine if 3D waypoints should be generated.
-        no_fly_zones (dict, optional): GeoJSON dictionary representing no-fly zones.
+        no_fly_zones (dict, optional): GeoJSON no-fly zones to stay clear of.
+            Raises NoFlyZoneConflictError if the flight can't avoid one.
         mode (str): "waypoints" for individual points, "waylines" for path lines.
         drone_type (DroneType): the drone to create the flightplan for.
         gimbal_angle (GimbalAngle): the gimbal angle to set for the flight.
@@ -593,7 +704,8 @@ def create_waypoint(
     Returns:
         dict: A dictionary containing the generated waypoints in GeoJSON format,
               the rotation angle actually applied to the grid, a battery warning
-              flag, and the estimated flight time.
+              flag, a flag if returning home early would cross a no-fly zone,
+              and the estimated flight time.
     """
 
     parameters = calculate_parameters(
@@ -684,6 +796,23 @@ def create_waypoint(
         gimbal_angle=gimbal_angle,
     )
 
+    no_fly_polygons_3857 = [
+        transform(transformer_to_3857, zone)
+        for zone in (no_fly_polygons(no_fly_zones) if no_fly_zones else [])
+    ]
+    # Mercator stretches distances away from the equator
+    no_fly_clearance = NO_FLY_ZONE_CLEARANCE_METERS / cos(radians(polygon.centroid.y))
+    if no_fly_polygons_3857:
+        initial_path = exclude_no_fly_zones(
+            initial_path, no_fly_polygons_3857, no_fly_clearance
+        )
+        if not take_off_point:
+            raise NoFlyZoneConflictError(
+                "Set a takeoff point first: this project has no-fly zones."
+            )
+        if not initial_path:
+            raise NoFlyZoneConflictError(NO_FLY_ZONE_CONFLICT_MESSAGE)
+
     # Path initialization
     path = []
 
@@ -730,13 +859,11 @@ def create_waypoint(
     else:
         waypoints = path
 
-    # If no-fly zones are provided, exclude points that fall inside no-fly zones
-    if no_fly_zones:
-        no_fly_polygons = [
-            transform(transformer_to_3857, shape(zone["geometry"]))
-            for zone in no_fly_zones["features"]
-        ]
-        waypoints = exclude_no_fly_zones(waypoints, no_fly_polygons)
+    no_fly_return_warning = False
+    if no_fly_polygons_3857:
+        waypoints, no_fly_return_warning = route_round_trip(
+            waypoints, no_fly_polygons_3857, no_fly_clearance
+        )
 
     # Calculate total distance
     total_distance = 0
@@ -788,6 +915,7 @@ def create_waypoint(
         "geojson": geojson.dumps(feature_collection, indent=2),
         "rotation_angle": rotation_angle,
         "battery_warning": battery_warning,
+        "no_fly_return_warning": no_fly_return_warning,
         "estimated_flight_time_minutes": round(estimated_flight_time_minutes, 2),
     }
 

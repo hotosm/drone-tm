@@ -37,6 +37,7 @@ def build_placemarks(
     take_off_point: list[float] | None = None,
     drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
     gimbal_angle: GimbalAngle = GimbalAngle.OFF_NADIR,
+    no_fly_zones: dict | None = None,
 ):
     """Generate placemarks for a flight plan, applying terrain following when
     a DEM is provided.
@@ -84,6 +85,7 @@ def build_placemarks(
         drone_type=drone_type,
         mode=waypoint_mode,
         gimbal_angle=gimbal_angle,
+        no_fly_zones=no_fly_zones,
     )
     points_geojson = waypoint_data["geojson"]
 
@@ -160,6 +162,7 @@ def create_flightplan(
     take_off_point: list[float] | None = None,
     drone_type: DroneType = DroneType.DJI_MINI_4_PRO,
     gimbal_angle: GimbalAngle = GimbalAngle.OFF_NADIR,
+    no_fly_zones: dict | None = None,
 ):
     """Arguments:
         aoi: The area of interest in GeoJSON format.
@@ -170,6 +173,7 @@ def create_flightplan(
         image_interval: The time interval between two consecutive images in seconds.
         rotation_angle: The rotation angle for the flight grid in degrees, or
             None to auto-align with the longest edge of the AOI.
+        no_fly_zones: GeoJSON no-fly zones to stay clear of.
 
     Returns:
         Path to the generated drone flightplan file (e.g. kmz).
@@ -187,6 +191,7 @@ def create_flightplan(
         take_off_point=take_off_point,
         drone_type=drone_type,
         gimbal_angle=gimbal_angle,
+        no_fly_zones=no_fly_zones,
     )
     return write_flightplan_file(placemarks, drone_type, outfile, flight_mode)
 

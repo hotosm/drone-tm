@@ -42,6 +42,7 @@ export interface PlanParams {
   terrainFollow: boolean;
   threshold: number;
   takeoffPoint: TakeoffPoint | null;
+  noFlyZones: Array<Array<[number, number]>>;
 }
 
 export const DEFAULT_PARAMS: PlanParams = {
@@ -59,6 +60,7 @@ export const DEFAULT_PARAMS: PlanParams = {
   terrainFollow: true,
   threshold: 5,
   takeoffPoint: null,
+  noFlyZones: [],
 };
 
 export interface PlanResult {
@@ -66,6 +68,7 @@ export interface PlanResult {
   flightpath: FlightpathCollection;
   parameters: FlightParameters;
   batteryWarning: boolean;
+  noFlyReturnWarning: boolean;
   estimatedFlightTimeMinutes: number;
   terrainFollowing: boolean;
   sampled?: { ok: number; missing: number };
@@ -83,6 +86,8 @@ function toGenerateConfig(params: PlanParams, flightMode: FlightModeKey): Genera
     droneType: params.droneType,
     gimbalAngle: params.gimbalAngle,
     imageInterval: params.imageInterval,
+    noFlyZones: params.noFlyZones,
+    takeoffPoint: params.takeoffPoint,
   };
 }
 
@@ -106,6 +111,7 @@ export function buildPlan(
       flightpath: buildFlightpathGeojson(waypoints, params.takeoffPoint),
       parameters: result.parameters,
       batteryWarning: result.batteryWarning,
+      noFlyReturnWarning: result.noFlyReturnWarning,
       estimatedFlightTimeMinutes: result.estimatedFlightTimeMinutes,
       terrainFollowing: false,
     };
@@ -142,6 +148,7 @@ export function buildPlan(
     flightpath: buildFlightpathGeojson(placemarks, params.takeoffPoint),
     parameters: result.parameters,
     batteryWarning: result.batteryWarning,
+    noFlyReturnWarning: result.noFlyReturnWarning,
     estimatedFlightTimeMinutes: result.estimatedFlightTimeMinutes,
     terrainFollowing: true,
     sampled: { ok, missing },

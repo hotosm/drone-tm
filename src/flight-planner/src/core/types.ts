@@ -61,11 +61,14 @@ export interface GenerateConfig {
   droneType?: DroneTypeKey;
   gimbalAngle?: GimbalAngleKey;
   imageInterval?: number;
+  noFlyZones?: Array<Array<[number, number]>>;
+  takeoffPoint?: { lon: number; lat: number } | null;
 }
 
 export interface GenerateResult {
   geojson: WaypointCollection;
   batteryWarning: boolean;
+  noFlyReturnWarning: boolean;
   estimatedFlightTimeMinutes: number;
   parameters: FlightParameters;
 }

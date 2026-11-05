@@ -8,6 +8,7 @@ const FALLBACK = {
   white: "#ffffff",
   static: "#615f66",
   task: "#344f7b",
+  noFly: "#484848",
 } as const;
 
 export type MapColor = keyof typeof FALLBACK;

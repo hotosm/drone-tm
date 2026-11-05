@@ -255,7 +255,7 @@ class DbProject(BaseModel):
     organisation_id: int | None = None
     outline: Polygon | MultiPolygon | Feature | FeatureCollection | None
     centroid: Point | Feature | Polygon | None = None
-    no_fly_zones: MultiPolygon | Polygon | Feature | None = None
+    no_fly_zones: dict | None = None
     total_task_count: int = 0
     tasks: list[TaskOut] | None = []
     requires_approval_from_manager_for_locking: bool | None = None

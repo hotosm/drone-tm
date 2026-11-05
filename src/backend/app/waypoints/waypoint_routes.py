@@ -23,6 +23,7 @@ from app.waypoints.waypoint_logic import (
     check_point_within_buffer,
 )
 from drone_flightplan import (
+    NoFlyZoneConflictError,
     build_placemarks,
     create_flightplan,
     create_waypoint,
@@ -180,7 +181,13 @@ async def get_task_flightplan(
             take_off_point=take_off_point,
             drone_type=drone_type,
             gimbal_angle=gimbal_angle,
+            no_fly_zones=project.no_fly_zones,
         )
+    except NoFlyZoneConflictError as e:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "NO_FLY_ZONE_CONFLICT", "message": str(e)},
+        ) from e
     finally:
         if dem_path and os.path.exists(dem_path):
             os.remove(dem_path)
@@ -203,6 +210,7 @@ async def get_task_flightplan(
         "drones": list(DroneType.__members__.keys()),
         "rotation_angle": waypoint_data["rotation_angle"],
         "battery_warning": waypoint_data["battery_warning"],
+        "no_fly_return_warning": waypoint_data["no_fly_return_warning"],
         "estimated_flight_time_minutes": waypoint_data["estimated_flight_time_minutes"],
     }
 

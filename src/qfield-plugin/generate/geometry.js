@@ -120,6 +120,34 @@ function pointWithinDistance(px, py, coords, dist) {
     return false;
 }
 
+// Whether two segments share a point, ignoring collinear overlap. A collinear
+// segment is still caught by the distance check in segmentWithinDistance.
+function segmentsIntersect(ax, ay, bx, by, cx, cy, dx, dy) {
+    function side(px, py, qx, qy, rx, ry) {
+        return (qx - px) * (ry - py) - (qy - py) * (rx - px);
+    }
+    var d1 = side(cx, cy, dx, dy, ax, ay);
+    var d2 = side(cx, cy, dx, dy, bx, by);
+    var d3 = side(ax, ay, bx, by, cx, cy);
+    var d4 = side(ax, ay, bx, by, dx, dy);
+    return ((d1 > 0) !== (d2 > 0)) && ((d3 > 0) !== (d4 > 0));
+}
+
+function segmentWithinDistance(x1, y1, x2, y2, coords, dist) {
+    if (pointInPolygon(x1, y1, coords)) return true;
+    var n = coords.length;
+    for (var i = 0, j = n - 1; i < n; j = i++) {
+        var ax = coords[j].x, ay = coords[j].y;
+        var bx = coords[i].x, by = coords[i].y;
+        if (segmentsIntersect(x1, y1, x2, y2, ax, ay, bx, by)) return true;
+        if (pointToSegmentDistance(x1, y1, ax, ay, bx, by) <= dist) return true;
+        if (pointToSegmentDistance(x2, y2, ax, ay, bx, by) <= dist) return true;
+        if (pointToSegmentDistance(ax, ay, x1, y1, x2, y2) <= dist) return true;
+        if (pointToSegmentDistance(bx, by, x1, y1, x2, y2) <= dist) return true;
+    }
+    return false;
+}
+
 // Rotate an entire polygon (array of {x,y}) around a center point
 function rotatePolygon(coords, angleDeg, center) {
     var result = [];

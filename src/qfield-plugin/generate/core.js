@@ -6,6 +6,9 @@
 .import "drone_specs.js" as Specs
 .import "terrain.js" as Terrain
 
+// Keeps a drone clear of a no-fly zone despite GPS error, wind and turn overshoot.
+var NO_FLY_ZONE_CLEARANCE_METERS = 20;
+
 // ============================================================================
 // Flightplan generation - main entry point
 // Port of create_flightplan.py and waypoints.py::create_waypoint
@@ -25,11 +28,17 @@
 //     droneType: drone type key (default "DJI_MINI_4_PRO")
 //     gimbalAngle: gimbal angle string (default "-80")
 //     imageInterval: seconds between photos (default 2)
+//     noFlyZones: array of [lon, lat] rings the flight must stay clear of
+//     takeoffPoint: {lon, lat}, required with noFlyZones
+//
+// Throws if the flight there and back can't avoid a no-fly zone. A final
+// no-photo waypoint is added if the direct line home is blocked.
 //
 // Returns:
 //   Object with:
 //     geojson: GeoJSON FeatureCollection of waypoints
 //     batteryWarning: boolean
+//     noFlyReturnWarning: true if returning home early would cross a no-fly zone
 //     estimatedFlightTimeMinutes: number
 //     parameters: calculated flight parameters
 //
@@ -107,6 +116,14 @@ function generate(polygonCoords, config) {
         grid, forwardSpacing, rotationAngle, poly3857, gimbalAngle
     );
 
+    var noFlyZones = projectRings(config.noFlyZones || []);
+    // Mercator stretches distances away from the equator
+    var latitudeRadians = polygonCoords[0][1] * Math.PI / 180;
+    var noFlyClearance = NO_FLY_ZONE_CLEARANCE_METERS / Math.cos(latitudeRadians);
+    if (noFlyZones.length > 0) {
+        path = Grid.removeNoFlyPoints(path, noFlyZones, noFlyClearance);
+    }
+
     // Debug: log grid and path sizes for diagnostics
     // (console.log outputs to QField log via Qt message handler)
     console.log("DroneTM grid: " + grid.length + " points, path: " + path.length +
@@ -120,6 +137,13 @@ function generate(polygonCoords, config) {
         waypoints = Grid.removeMiddlePoints(path);
     } else {
         waypoints = path;
+    }
+
+    var noFlyReturnWarning = false;
+    if (noFlyZones.length > 0) {
+        var route = routeRoundTrip(waypoints, config.takeoffPoint, noFlyZones, noFlyClearance);
+        waypoints = route.waypoints;
+        noFlyReturnWarning = route.returnWarning;
     }
 
     // Calculate total distance and flight time
@@ -176,9 +200,44 @@ function generate(polygonCoords, config) {
     return {
         geojson: geojson,
         batteryWarning: batteryWarning,
+        noFlyReturnWarning: noFlyReturnWarning,
         estimatedFlightTimeMinutes: Math.round(estimatedFlightTimeMinutes * 100) / 100,
         parameters: parameters
     };
+}
+
+// Finish a path, keeping the flight there and back clear of no-fly zones
+function routeRoundTrip(waypoints, takeoffPoint, zones, clearance) {
+    if (!takeoffPoint) {
+        throw new Error("Set a takeoff point first: this project has no-fly zones.");
+    }
+    var home = Geo.toMercator(takeoffPoint.lon, takeoffPoint.lat);
+    var route = waypoints.length > 0
+        ? Grid.addReturnHomeWaypoint(waypoints, home, zones, clearance)
+        : waypoints;
+    if (route.length === 0 || !Grid.roundTripIsClear(route, home, zones, clearance)) {
+        throw new Error(
+            "This flight plan would enter a no-fly zone, or pass within " +
+            NO_FLY_ZONE_CLEARANCE_METERS + " m of one. " +
+            "Move the takeoff point, or split the task around the zone."
+        );
+    }
+    return {
+        waypoints: route,
+        returnWarning: !Grid.everyWaypointHasClearReturn(route, home, zones, clearance)
+    };
+}
+
+function projectRings(rings) {
+    var projected = [];
+    for (var r = 0; r < rings.length; r++) {
+        var ring = [];
+        for (var i = 0; i < rings[r].length; i++) {
+            ring.push(Geo.toMercator(rings[r][i][0], rings[r][i][1]));
+        }
+        projected.push(ring);
+    }
+    return projected;
 }
 
 // Add DEM elevations to a flightplan GeoJSON and create placemarks

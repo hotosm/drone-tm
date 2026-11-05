@@ -76,6 +76,7 @@ async def test_terrain_follow_missing_dem_can_override(
         return {"type": "FeatureCollection", "features": []}, {
             "rotation_angle": 0,
             "battery_warning": False,
+            "no_fly_return_warning": False,
             "estimated_flight_time_minutes": 0,
         }
 
@@ -124,6 +125,7 @@ async def test_terrain_follow_dem_present_in_s3_downloads_before_generation(
         return {"type": "FeatureCollection", "features": []}, {
             "rotation_angle": 0,
             "battery_warning": False,
+            "no_fly_return_warning": False,
             "estimated_flight_time_minutes": 0,
         }
 
@@ -177,6 +179,7 @@ async def test_terrain_follow_preview_passes_dem_to_placemarks(
         return {"type": "FeatureCollection", "features": []}, {
             "rotation_angle": 0,
             "battery_warning": False,
+            "no_fly_return_warning": False,
             "estimated_flight_time_minutes": 0,
         }
 
@@ -210,6 +213,7 @@ async def test_task_flightplan_download_cleans_up_when_response_fails(
         return {"type": "FeatureCollection", "features": []}, {
             "rotation_angle": 0,
             "battery_warning": False,
+            "no_fly_return_warning": False,
             "estimated_flight_time_minutes": 0,
         }
 

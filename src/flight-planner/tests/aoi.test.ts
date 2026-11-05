@@ -10,6 +10,22 @@ const SQUARE: Array<[number, number]> = [
 ];
 
 describe("validateRing", () => {
+  it("accepts a task whose rounded coordinates repeat a vertex", () => {
+    // From a real task, where the sliver merge left a repeated corner
+    const result = validateRing([
+      [85.300887, 27.711687],
+      [85.300887, 27.712483],
+      [85.300887, 27.712522],
+      [85.300887, 27.712522],
+      [85.301786, 27.712627],
+      [85.301786, 27.712483],
+      [85.301786, 27.711687],
+      [85.300887, 27.711687],
+    ]);
+
+    expect(result.ring).toHaveLength(7);
+  });
+
   it("accepts a closed square", () => {
     const result = validateRing(SQUARE);
 

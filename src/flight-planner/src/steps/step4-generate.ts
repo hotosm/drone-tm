@@ -61,6 +61,8 @@ export const step4: Step = {
 
   blocker(state) {
     if (!state.aoi) return "Mark a flight area first.";
+    if (state.params.noFlyZones.length > 0 && !state.params.takeoffPoint)
+      return "Set a takeoff point first: this project has no-fly zones.";
     if (!state.dem.sampler && !state.dem.skipped)
       return "Get the terrain first, or choose to skip it.";
     return null;
@@ -114,6 +116,14 @@ export const step4: Step = {
            Fits comfortably within one battery.
          </wa-callout>`;
 
+    const noFlyReturnCallout = result.noFlyReturnWarning
+      ? `<wa-callout variant="warning" appearance="outlined">
+           <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
+           <strong>Returning home early would cross a no-fly zone.</strong>
+           <p>Don't press Return to Home mid-flight, and keep enough battery to finish.</p>
+         </wa-callout>`
+      : "";
+
     const missingCallout =
       result.sampled && result.sampled.missing > 0
         ? `<wa-callout variant="warning" appearance="outlined" size="s">
@@ -145,6 +155,7 @@ export const step4: Step = {
       </div>
 
       ${batteryCallout}
+      ${noFlyReturnCallout}
       ${missingCallout}
 
       ${coachTips("generate")}

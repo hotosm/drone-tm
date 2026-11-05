@@ -133,7 +133,7 @@ export function validateRing(input: Array<[number, number]>): AoiResult {
     );
   }
 
-  const ring = input.map((position, index) => {
+  const positions = input.map((position, index) => {
     if (
       !Array.isArray(position) ||
       typeof position[0] !== "number" ||
@@ -156,6 +156,12 @@ export function validateRing(input: Array<[number, number]>): AoiResult {
     }
     return [lon, lat] as [number, number];
   });
+
+  // Rounding can repeat a vertex, and the zero-length edge reads as a crossing.
+  const ring = positions.filter(
+    ([lon, lat], index) =>
+      index === 0 || lon !== positions[index - 1][0] || lat !== positions[index - 1][1],
+  );
 
   const [firstLon, firstLat] = ring[0];
   const [lastLon, lastLat] = ring[ring.length - 1];

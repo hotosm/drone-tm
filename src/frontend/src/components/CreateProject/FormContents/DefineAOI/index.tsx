@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useTypedDispatch, useTypedSelector } from "@Store/hooks";
 import { Controller } from "react-hook-form";
@@ -125,6 +125,14 @@ const DefineAOI = ({ formProps }: { formProps: UseFormPropsType }) => {
       console.log(err);
     }
   };
+
+  const splitAreas = useRef({ projectArea, noFlyZoneArea });
+  useEffect(() => {
+    const { current } = splitAreas;
+    if (current.projectArea === projectArea && current.noFlyZoneArea === noFlyZoneArea) return;
+    splitAreas.current = { projectArea, noFlyZoneArea };
+    dispatch(setCreateProjectState({ splitGeojson: null }));
+  }, [projectArea, noFlyZoneArea, dispatch]);
 
   useEffect(() => {
     const calculatedTotalProjectArea = projectArea && area(projectArea as FeatureCollection);

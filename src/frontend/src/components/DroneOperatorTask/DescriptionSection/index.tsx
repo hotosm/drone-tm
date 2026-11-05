@@ -80,6 +80,10 @@ const DroneOperatorDescriptionBox = () => {
         payload = null;
       }
 
+      if (payload?.detail?.code === "NO_FLY_ZONE_CONFLICT") {
+        throw new Error(payload.detail.message);
+      }
+
       if (payload?.detail?.code === "MISSING_TERRAIN_DEM") {
         const shouldProceed = await askMissingDemOverride();
         if (!shouldProceed) {
