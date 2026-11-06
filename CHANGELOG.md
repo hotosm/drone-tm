@@ -1,3 +1,10 @@
+## 2026.12.0 (2026-11-06)
+
+### Feat
+
+- add project size processing limit, with link to support for >5000 default imgs (#921)
+- replace Nominatim with pg-nearest-city for drone altitude lookup (#920)
+
 ## 2026.11.2 (2026-11-03)
 
 ### Fix
