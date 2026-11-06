@@ -974,6 +974,8 @@
   "processing_dialog_no_tasks_ready_help": "Sube imágenes y marca las tareas como listas para procesar en el paso de Verificación primero.",
   "processing_dialog_final_processing_title": "Procesamiento final del proyecto",
   "processing_dialog_final_processing_desc": "Une todas las imágenes de las tareas en una única ortofoto y modelo 3D de alta calidad. Esto tarda más.",
+  "processing_dialog_final_processing_deadline_warning": "El procesamiento se detiene después de 48 horas, por lo que los proyectos muy grandes pueden no terminar. Si esto ocurre, procesa las tareas individualmente.",
+  "processing_dialog_request_large_processing": "Solicitar soporte para proyectos más grandes",
   "processing_dialog_gcp_saved": "Archivo GCP guardado para este proyecto.",
   "processing_dialog_gcp_not_yet": "Aún no hay archivo GCP (opcional).",
   "processing_dialog_gcp_saved_help": "El gcp.txt guardado se incluirá en el procesamiento final.",

@@ -899,6 +899,17 @@ const ProcessingStatusDialog = () => {
           <p className="naxatw-mt-1 naxatw-text-xs naxatw-text-gray-500">
             {m.processing_dialog_final_processing_desc()}
           </p>
+          <p className="naxatw-mt-1 naxatw-text-xs naxatw-text-amber-700">
+            {m.processing_dialog_final_processing_deadline_warning()}{" "}
+            <a
+              href="https://roadmap.hotosm.org/#tech-request"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="naxatw-font-semibold naxatw-underline"
+            >
+              {m.processing_dialog_request_large_processing()}
+            </a>
+          </p>
         </div>
 
         {/* GCP status card with actions */}
