@@ -754,6 +754,18 @@ async def process_all_imagery(
             ),
         )
 
+    image_count = await project_logic.count_assigned_images(db, project_id=project.id)
+    if image_count > settings.ODM_MAX_IMAGES:
+        raise HTTPException(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+            detail=(
+                f"This project has {image_count} images, above the processing "
+                f"limit of {settings.ODM_MAX_IMAGES}. "
+                "Process individual tasks instead, or request support at "
+                "https://roadmap.hotosm.org/#tech-request."
+            ),
+        )
+
     # Flip to PROCESSING and reset the cloudnative flags atomically. The
     # ARQ worker (process_all_drone_images) re-runs this kind of reset
     # later, but that's after worker latency - between the two updates the

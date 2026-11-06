@@ -228,6 +228,8 @@ class Settings(BaseSettings):
 
     # ODM (ScaleODM) API endpoint
     ODM_ENDPOINT: str | None = "http://host.docker.internal:31100"
+    # Larger runs tend to exhaust the cluster or hit ScaleODM's 48 hour deadline.
+    ODM_MAX_IMAGES: int = 5000
     # In-cluster S3 endpoint passed to ScaleODM workflow pods.
     # Needed when the browser-facing S3 hostname differs from what
     # workflow pods can resolve (self-hosted MinIO/RustFS).

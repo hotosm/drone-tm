@@ -1252,6 +1252,119 @@ async def test_process_imagery_enqueues_when_transfer_complete(
 
 
 @pytest.mark.asyncio
+async def test_process_all_imagery_rejects_project_over_image_limit(
+    client, app, db, auth_user, create_test_project, monkeypatch
+):
+    project_id = create_test_project
+    task_id = await _insert_classification_test_task(db, project_id=project_id)
+    monkeypatch.setattr(project_routes.settings, "ODM_MAX_IMAGES", 1)
+
+    for _ in range(2):
+        await _insert_classification_test_image(
+            db,
+            project_id=project_id,
+            uploaded_by=auth_user.id,
+            status="assigned",
+            task_id=task_id,
+            s3_key=f"projects/{project_id}/{task_id}/images/{uuid.uuid4()}.jpg",
+        )
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO task_events (
+                event_id, project_id, task_id, user_id, state, comment, updated_at, created_at
+            )
+            VALUES (
+                gen_random_uuid(), %s, %s, %s, %s, %s, NOW(), NOW()
+            )
+            """,
+            (
+                project_id,
+                task_id,
+                auth_user.id,
+                "READY_FOR_PROCESSING",
+                "Ready",
+            ),
+        )
+    await db.commit()
+
+    class FakeRedis:
+        async def enqueue_job(self, *args, **kwargs):
+            pytest.fail("Over-limit project must not be enqueued")
+
+    app.dependency_overrides[get_redis_pool] = lambda: FakeRedis()
+
+    response = await client.post(f"/api/projects/process_all_imagery/{project_id}/")
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == (
+        "This project has 2 images, above the processing limit of 1. "
+        "Process individual tasks instead, or request support at "
+        "https://roadmap.hotosm.org/#tech-request."
+    )
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            "SELECT image_processing_status FROM projects WHERE id = %s",
+            (project_id,),
+        )
+        status = (await cur.fetchone())[0]
+    assert status != "PROCESSING"
+
+
+@pytest.mark.asyncio
+async def test_process_all_imagery_allows_project_at_image_limit(
+    client, app, db, auth_user, create_test_project, monkeypatch
+):
+    project_id = create_test_project
+    task_id = await _insert_classification_test_task(db, project_id=project_id)
+    monkeypatch.setattr(project_routes.settings, "ODM_MAX_IMAGES", 1)
+
+    await _insert_classification_test_image(
+        db,
+        project_id=project_id,
+        uploaded_by=auth_user.id,
+        status="assigned",
+        task_id=task_id,
+        s3_key=f"projects/{project_id}/{task_id}/images/{uuid.uuid4()}.jpg",
+    )
+
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO task_events (
+                event_id, project_id, task_id, user_id, state, comment, updated_at, created_at
+            )
+            VALUES (
+                gen_random_uuid(), %s, %s, %s, %s, %s, NOW(), NOW()
+            )
+            """,
+            (
+                project_id,
+                task_id,
+                auth_user.id,
+                "READY_FOR_PROCESSING",
+                "Ready",
+            ),
+        )
+    await db.commit()
+
+    class FakeJob:
+        job_id = "job-at-limit"
+
+    class FakeRedis:
+        async def enqueue_job(self, *args, **kwargs):
+            return FakeJob()
+
+    app.dependency_overrides[get_redis_pool] = lambda: FakeRedis()
+
+    response = await client.post(f"/api/projects/process_all_imagery/{project_id}/")
+
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
 async def test_process_all_imagery_blocks_when_all_ready_tasks_transferring(
     client, db, auth_user, create_test_project
 ):

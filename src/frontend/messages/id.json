@@ -974,6 +974,8 @@
   "processing_dialog_no_tasks_ready_help": "Unggah citra dan tandai tugas yang siap diproses pada langkah Verifikasi Citra terlebih dahulu.",
   "processing_dialog_final_processing_title": "Pemrosesan Akhir Proyek",
   "processing_dialog_final_processing_desc": "Menggabungkan semua gambar tugas menjadi satu ortofoto dan model 3D berkualitas tinggi. Ini membutuhkan waktu lebih lama.",
+  "processing_dialog_final_processing_deadline_warning": "Pemrosesan berhenti setelah 48 jam, sehingga proyek yang sangat besar mungkin tidak selesai. Jika ini terjadi, proses tugas satu per satu.",
+  "processing_dialog_request_large_processing": "Minta dukungan untuk proyek yang lebih besar",
   "processing_dialog_gcp_saved": "File GCP disimpan untuk proyek ini.",
   "processing_dialog_gcp_not_yet": "Belum ada file GCP (opsional).",
   "processing_dialog_gcp_saved_help": "gcp.txt yang disimpan akan dimasukkan dalam pemrosesan akhir.",

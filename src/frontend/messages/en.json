@@ -974,6 +974,8 @@
   "processing_dialog_no_tasks_ready_help": "Upload imagery and mark tasks ready for processing in the Verify Imagery step first.",
   "processing_dialog_final_processing_title": "Final Project Processing",
   "processing_dialog_final_processing_desc": "Stitches all task images together into a single high-quality orthophoto and 3D model. This takes longer.",
+  "processing_dialog_final_processing_deadline_warning": "Processing stops after 48 hours, so very large projects may not finish. If that happens, process tasks individually instead.",
+  "processing_dialog_request_large_processing": "Request support for larger projects",
   "processing_dialog_gcp_saved": "GCP file saved for this project.",
   "processing_dialog_gcp_not_yet": "No GCP file yet (optional).",
   "processing_dialog_gcp_saved_help": "The saved gcp.txt will be included in final processing.",
