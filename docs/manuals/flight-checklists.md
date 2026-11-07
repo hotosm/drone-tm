@@ -51,7 +51,7 @@ from your flight, check the following:
 - [ ] Arms fully extended
 - [ ] Propellers clean and intact
 - [ ] No damage or loose parts
-- [ ] SD card installed in drone
+- [ ] SD card installed in drone, if required
 - [ ] Drone powers on
 
 ## 4. Controller
@@ -68,7 +68,8 @@ from your flight, check the following:
 
 - [ ] Manual Obstacle Avoidance: Bypass
 - [ ] Auto RTH Altitude: 120 m
-- [ ] Max Altitude: 500 m
+- [ ] Max Altitude: 500 m (measured from the take-off point, so terrain
+      following over rising ground needs headroom)
 - [ ] Max Distance: 5000 m
 - [ ] Camera Aspect Ratio: 4:3
 - [ ] Camera Resolution: 12 MP
