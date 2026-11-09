@@ -1076,7 +1076,7 @@ requires-dist = [
     { name = "minio", specifier = "==7.2.0" },
     { name = "numpy", specifier = "==2.2.6" },
     { name = "opencv-python-headless", specifier = "==4.12.0.88" },
-    { name = "pg-nearest-city", specifier = "==3.0.0" },
+    { name = "pg-nearest-city", specifier = "==3.0.1" },
     { name = "pillow", specifier = "==12.1.0" },
     { name = "psycopg", extras = ["c", "pool"], specifier = "==3.2.1" },
     { name = "pydantic", extras = ["email"], specifier = "==2.8.2" },
@@ -2628,14 +2628,14 @@ wheels = [
 
 [[package]]
 name = "pg-nearest-city"
-version = "3.0.0"
+version = "3.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "psycopg" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a5/67/922342b2277507aa7575628afc235802a8d5890c2a5ba9866071effd757a/pg_nearest_city-3.0.0.tar.gz", hash = "sha256:0d716f513037391a57ef774eb813bce76fd6042befbe64a43dcc117c41107e99", size = 8176693, upload-time = "2026-11-05T16:36:22.439Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7f/7e/55f48d63d6b3acffaf7a14e178a769839429f8e80a05b5d2dccbceb2b339/pg_nearest_city-3.0.1.tar.gz", hash = "sha256:c9f7d1cddec349d6a036731b24df124c2fae5876904c30b84b7a965361d3fd7d", size = 8177325, upload-time = "2026-11-09T16:54:23.674Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f5/92/c4800a75a29bc0966c5d1b40836c2a0ea76c620485610cc98423eb85e479/pg_nearest_city-3.0.0-py3-none-any.whl", hash = "sha256:60817147cc1b1397f45284a30b2f09dabd57ebc69a56c1f8caf3e2fa2348b69b", size = 8021918, upload-time = "2026-11-05T16:36:20.321Z" },
+    { url = "https://files.pythonhosted.org/packages/2c/42/45c44e360c9f1a2dc509aff8e6cade2502bbe86b8021e646424c506fcb26/pg_nearest_city-3.0.1-py3-none-any.whl", hash = "sha256:0afb960eafd1d83f6908aac9e5bf7079638b022bad364b9d29f1004f8e18e059", size = 8022179, upload-time = "2026-11-09T16:54:25.367Z" },
 ]
 
 [[package]]
