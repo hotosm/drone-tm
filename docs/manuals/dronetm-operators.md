@@ -103,9 +103,10 @@ equipment ready for the next day.
 Lithium polymer (LiPo) batteries used in drones are highly flammable and must
 be transported in LiPo safety bags when travelling. On commercial flights,
 passengers are allowed a maximum of two 100-160 Wh batteries, which must be
-kept in carry-on luggage. Quantities of smaller batteries are not usually
-limited, but some airlines or airport security staff may take away what they
-perceive as excessive quantities of batteries. Before travelling with batteries
+kept in carry-on luggage. From 1 January 2027, IATA limits passengers to 18
+spare batteries and 2 power banks, unless the airline approves more spare
+batteries. Some airlines or airport security staff may still take away what
+they perceive as excessive quantities of batteries. Before travelling with batteries
 related to a drone mission, it is advisable to obtain the airline's transport
 policy in writing so there will be no question of permissibility.
 
