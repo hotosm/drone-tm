@@ -122,6 +122,8 @@ export function createMap(container: HTMLElement): MapController {
 
   let takeoffPoint: { lon: number; lat: number } | null = null;
   let takeoffMarker: maplibregl.Marker | null = null;
+  let planStart: [number, number] | null = null;
+  let planStartMarker: maplibregl.Marker | null = null;
   let mode: DrawMode = "idle";
   const changeHandlers = new Set<() => void>();
   const taskHandlers = new Set<(planId: string) => void>();
@@ -327,18 +329,33 @@ export function createMap(container: HTMLElement): MapController {
       .addTo(map);
   }
 
+  function takeoffMarkerAt(lngLat: [number, number], className: string, title: string) {
+    const element = document.createElement("div");
+    element.className = className;
+    element.title = title;
+    return new maplibregl.Marker({ element, anchor: "center" }).setLngLat(lngLat).addTo(map);
+  }
+
+  // Without a takeoff point, plan heights are measured from the first waypoint, so launch there.
+  function paintPlanStart() {
+    planStartMarker?.remove();
+    planStartMarker = null;
+    if (!planStart || takeoffPoint) return;
+    planStartMarker = takeoffMarkerAt(
+      planStart,
+      "takeoff-marker takeoff-marker-assumed",
+      "No takeoff point set: the plan assumes you take off here",
+    );
+  }
+
   function setTakeoff(value: { lng: number; lat: number } | null) {
     takeoffMarker?.remove();
     takeoffMarker = null;
     takeoffPoint = value ? { lon: value.lng, lat: value.lat } : null;
-    if (!value) return;
-
-    const element = document.createElement("div");
-    element.className = "takeoff-marker";
-    element.title = "Takeoff point";
-    takeoffMarker = new maplibregl.Marker({ element, anchor: "center" })
-      .setLngLat([value.lng, value.lat])
-      .addTo(map);
+    if (value) {
+      takeoffMarker = takeoffMarkerAt([value.lng, value.lat], "takeoff-marker", "Takeoff point");
+    }
+    paintPlanStart();
   }
 
   // Keep the fitted area clear of the mobile sheet.
@@ -423,6 +440,9 @@ export function createMap(container: HTMLElement): MapController {
       pathSource?.setData((path ?? emptyCollection()) as never);
       wpSource?.setData((waypoints ?? emptyCollection()) as never);
       document.documentElement.dataset.plan = waypoints ? "yes" : "no";
+      const first = waypoints?.features[0]?.geometry.coordinates;
+      planStart = first ? [first[0], first[1]] : null;
+      paintPlanStart();
 
       // Editing the area under a finished plan silently invalidates it, so the
       // AOI is locked for exactly as long as a plan is displayed.

@@ -594,6 +594,11 @@ wa-details::part(content) {
   box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
 }
 
+.takeoff-marker-assumed {
+  background: transparent;
+  border-color: var(--dtm-map-takeoff);
+}
+
 .task-marker {
   min-width: 2rem;
   padding: 0.2rem 0.5rem;
