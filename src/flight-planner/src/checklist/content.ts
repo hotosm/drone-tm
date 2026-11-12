@@ -237,6 +237,14 @@ export const STAGES: ChecklistStage[] = [
             label: "Flight plan shows the correct location",
             severity: "stop",
           },
+          {
+            id: "takeoff-point",
+            label: "Drone is at the takeoff point shown on the map",
+            severity: "fix",
+            why:
+              "Plan heights are measured from the ground there. Taking off higher or lower " +
+              "moves the whole flight up or down by the difference.",
+          },
           { id: "level", label: "Drone is on flat ground", severity: "fix" },
           { id: "facing", label: "Drone is facing away from you", severity: "fix" },
           { id: "observer", label: "Observer is ready", severity: "fix" },
