@@ -12,7 +12,6 @@ class DroneType(StrEnum):
     DJI_MINI_5_PRO = "DJI_MINI_5_PRO"
     POTENSIC_ATOM_1 = "POTENSIC_ATOM_1"
     POTENSIC_ATOM_2 = "POTENSIC_ATOM_2"
-    MAVLINK = "MAVLINK"
     QGROUNDCONTROL = "QGROUNDCONTROL"
     LITCHI = "LITCHI"
 
@@ -79,13 +78,6 @@ DRONE_SPECS = {
     # FIXME the current values are simply for testing
     # FIXME all values below need to be changed
     DroneType.QGROUNDCONTROL: {
-        "sensor_height_mm": 7.2,
-        "sensor_width_mm": 9.6,
-        "equiv_focal_length_mm": 24,
-        "image_width_px": 4032,
-    },
-    # TODO - need to find a way to calculate battery life for the Mavlink
-    DroneType.MAVLINK: {
         "sensor_height_mm": 7.2,
         "sensor_width_mm": 9.6,
         "equiv_focal_length_mm": 24,
@@ -173,12 +165,6 @@ DRONE_PARAMS = {
         "HORIZONTAL_FOV": 1.25,
         "GSD_TO_AGL_CONST": 27.95,
         "OUTPUT_FORMAT": "QGROUNDCONTROL",
-    },
-    DroneType.MAVLINK: {
-        "VERTICAL_FOV": 0.99,
-        "HORIZONTAL_FOV": 1.25,
-        "GSD_TO_AGL_CONST": 27.95,
-        "OUTPUT_FORMAT": "MAVLINK_PLAN",
     },
     DroneType.LITCHI: {
         "VERTICAL_FOV": 0.99,

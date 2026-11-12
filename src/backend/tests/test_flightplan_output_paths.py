@@ -10,14 +10,12 @@ from app.waypoints.flightplan_output import flightplan_download_response
 from drone_flightplan.drone_type import DroneType
 from drone_flightplan.output.dji import create_wpml
 from drone_flightplan.output.litchi import create_litchi_csv
-from drone_flightplan.output.mavlink import create_mavlink_plan
 from drone_flightplan.output.output_paths import resolve_output_path
 from drone_flightplan.output.qgroundcontrol import create_qgroundcontrol_plan
 
 WRITERS = [
     create_wpml,
     create_litchi_csv,
-    create_mavlink_plan,
     create_qgroundcontrol_plan,
 ]
 

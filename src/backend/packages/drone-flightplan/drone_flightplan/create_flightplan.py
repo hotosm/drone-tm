@@ -14,7 +14,6 @@ from drone_flightplan.drone_type import DRONE_PARAMS, DroneType, drone_type_arg
 from drone_flightplan.enums import FlightMode, GimbalAngle, flight_mode_arg
 from drone_flightplan.output.dji import create_wpml
 from drone_flightplan.output.litchi import create_litchi_csv
-from drone_flightplan.output.mavlink import create_mavlink_plan
 from drone_flightplan.output.potensic_v1 import create_potensic_sqlite
 from drone_flightplan.output.potensic_v2 import create_potensic_json
 from drone_flightplan.output.qgroundcontrol import create_qgroundcontrol_plan
@@ -135,8 +134,6 @@ def write_flightplan_file(
         outpath = create_potensic_sqlite(placemarks, outfile)
     elif output_format == "POTENSIC_JSON":
         outpath = create_potensic_json(placemarks, outfile)
-    elif output_format == "MAVLINK_PLAN":
-        outpath = create_mavlink_plan(placemarks, outfile)
     elif output_format == "QGROUNDCONTROL":
         outpath = create_qgroundcontrol_plan(placemarks, outfile)
     elif output_format == "LITCHI":

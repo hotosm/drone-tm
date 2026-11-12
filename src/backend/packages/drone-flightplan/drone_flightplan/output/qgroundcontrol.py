@@ -32,7 +32,7 @@ from drone_flightplan.output.output_paths import resolve_output_path
 log = logging.getLogger(__name__)
 
 
-# MAVLink Command IDs (MAV_CMD) - same as used in mavlink module
+# MAVLink Command IDs (MAV_CMD)
 MAV_CMD_NAV_WAYPOINT = 16  # Navigate to waypoint
 MAV_CMD_NAV_TAKEOFF = 22  # Takeoff from ground
 MAV_CMD_NAV_LAND = 21  # Land at location
