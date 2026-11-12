@@ -94,3 +94,6 @@ src/backend/frontend_html
 .codex
 plans
 checkpoints
+
+# Vite cache
+.vite/
