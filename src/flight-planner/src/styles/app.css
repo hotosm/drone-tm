@@ -742,6 +742,94 @@ wa-details::part(content) {
   font-weight: var(--wa-font-weight-semibold);
 }
 
+.checklist-title {
+  margin: var(--wa-space-m) 0 var(--wa-space-s);
+}
+
+.checklist-items,
+.checklist-reference {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--wa-space-s);
+}
+
+.checklist-items li,
+.checklist-reference li {
+  margin: 0;
+}
+
+.checklist-reference {
+  font-size: var(--wa-font-size-l);
+}
+
+.checklist-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--wa-space-2xs);
+}
+
+.checklist-all-ok {
+  width: 100%;
+  margin-top: var(--wa-space-l);
+}
+
+.checklist-why,
+.checklist-not-ok {
+  margin: var(--wa-space-2xs) 0 0;
+}
+
+.checklist-not-ok {
+  color: var(--wa-color-danger-on-quiet);
+  font-weight: var(--wa-font-weight-semibold);
+}
+
+#show-checklist {
+  position: relative;
+}
+
+.checklist-status {
+  position: absolute;
+  top: 0.15rem;
+  right: 0.15rem;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.checklist-status[data-status="stop"] {
+  background: var(--wa-color-danger-fill-loud);
+}
+
+.checklist-status[data-status="fix"] {
+  background: var(--wa-color-warning-fill-loud);
+}
+
+.checklist-status[data-status="todo"] {
+  background: var(--wa-color-brand-fill-loud);
+}
+
+/* Wide, filled answers can be told apart at a glance in sunlight, and hit with gloves. */
+.checklist-items wa-radio {
+  min-width: 7rem;
+  justify-content: center;
+}
+
+.checklist-items wa-radio[value="ok"]:state(checked) {
+  background-color: var(--wa-color-success-fill-loud);
+  border-color: var(--wa-color-success-border-loud);
+  color: var(--wa-color-success-on-loud);
+}
+
+.checklist-items wa-radio[value="not_ok"]:state(checked) {
+  background-color: var(--wa-color-danger-fill-loud);
+  border-color: var(--wa-color-danger-border-loud);
+  color: var(--wa-color-danger-on-loud);
+}
+
 .plans-dialog::part(body) {
   display: flex;
   flex-direction: column;

@@ -1,4 +1,5 @@
 import type { AppState, Step } from "../app";
+import { checklistCard, confirmDownload, mountChecklistCard } from "../checklist";
 import { bboxIncludingPoint } from "../core/dem";
 import { cropForBundle } from "../core/geotiff-write";
 import { batteryBudget, buildPlan } from "../core/flightplan";
@@ -172,6 +173,8 @@ export const step4: Step = {
 
       ${coachTips("generate")}
 
+      ${checklistCard(ctx.state)}
+
       <h3 class="downloads-title">Download</h3>
       <div class="downloads">${downloadRow(outputs[0], 0)}</div>
 
@@ -242,11 +245,13 @@ export const step4: Step = {
     root.querySelector("#regenerate")?.addEventListener("click", run);
 
     for (const button of root.querySelectorAll<HTMLElement>("[data-download]")) {
-      button.addEventListener("click", () => {
+      button.addEventListener("click", async () => {
         const file = outputs[Number(button.dataset.download)];
-        if (file) download(file);
+        if (file && (await confirmDownload(ctx))) download(file);
       });
     }
+
+    mountChecklistCard(root, ctx);
 
     root.querySelector("#bundle")?.addEventListener("click", () => {
       const { aoi, params, meta } = ctx.state;

@@ -37,6 +37,13 @@ describe("index.html satisfies main.ts", () => {
     expect(present).toContain(id);
   });
 
+  it.each(assertedIds(read("src/checklist/index.ts")))(
+    "has #%s, which the checklist asserts exists",
+    (id) => {
+      expect(present).toContain(id);
+    },
+  );
+
   it("renders the nav buttons it later wires up", () => {
     const navIds = new Set(
       [...mainTs.matchAll(/navHost\.querySelector\("#([\w-]+)"\)/g)].map((m) => m[1]),
@@ -62,7 +69,8 @@ describe("index.html satisfies main.ts", () => {
 
   it("uses no Font Awesome Pro icon styles", () => {
     // Only solid and brands are free; the rest 403 and render an empty <svg>.
-    const sources = [html, ...["tutorial/index", "steps/ui"].map((m) => read(`src/${m}.ts`))];
+    const modules = ["tutorial/index", "steps/ui", "checklist/index"];
+    const sources = [html, ...modules.map((m) => read(`src/${m}.ts`))];
     for (const source of sources) {
       expect(source).not.toMatch(/<wa-icon[^>]*variant="(regular|light|thin|duotone)"/);
     }

@@ -18,6 +18,7 @@ import {
   type Step,
   type StepContext,
 } from "./app";
+import { openChecklist, renderChecklistStatus } from "./checklist";
 import { step1 } from "./steps/step1-area";
 import { step2 } from "./steps/step2-params";
 import { step3 } from "./steps/step3-dem";
@@ -158,6 +159,7 @@ function renderStep(): void {
   unmountStep = step.mount(stepHost, context) || undefined;
   renderRail();
   renderNav();
+  renderChecklistStatus(state);
   stepHost.scrollTop = 0;
   sheet.remeasure();
 }
@@ -1170,6 +1172,9 @@ function wireMainSite(): void {
 wireMainSite();
 
 document.querySelector("#show-plans")?.addEventListener("click", () => void showStoredPlans());
+document.querySelector("#show-checklist")?.addEventListener("click", () => {
+  void openChecklist(context);
+});
 document.querySelector("#show-help")?.addEventListener("click", showWelcome);
 
 renderStep();
