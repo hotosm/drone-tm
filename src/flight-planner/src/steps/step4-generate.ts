@@ -1,7 +1,7 @@
 import type { AppState, Step } from "../app";
 import { bboxIncludingPoint } from "../core/dem";
 import { cropForBundle } from "../core/geotiff-write";
-import { batteryBudget, buildPlan } from "../core/flightplan";
+import { batteryBudget, buildPlan, type PlanParams } from "../core/flightplan";
 import { DRONE_CHOICES } from "../core/qfield";
 import {
   buildOutputs,
@@ -13,8 +13,9 @@ import {
   type OutputFile,
 } from "../core/outputs";
 import type { PlanDem } from "../core/storage";
+import type { DroneTypeKey } from "../core/types";
 import { coachLead, coachTips } from "../tutorial";
-import { errorPanel, escapeHtml, infoPanel } from "./ui";
+import { errorPanel, escapeHtml, infoPanel, option } from "./ui";
 
 let outputs: OutputFile[] = [];
 
@@ -46,6 +47,26 @@ function bundleTerrain(state: AppState): { bytes: ArrayBuffer | null; dem?: Plan
 
 function droneLabel(key: string): string {
   return DRONE_CHOICES.find((choice) => choice.value === key)?.label ?? key;
+}
+
+// Drone and takeoff often change per flight, so they can be changed right here.
+function flightSetup(params: PlanParams): string {
+  const takeoff = params.takeoffPoint
+    ? `${params.takeoffPoint.lat.toFixed(5)}, ${params.takeoffPoint.lon.toFixed(5)}`
+    : "Not set. Heights are measured from the first waypoint.";
+  return `
+    <wa-select id="drone-type" label="Drone" value="${escapeHtml(params.droneType)}">
+      ${DRONE_CHOICES.map((c) => option(c.value, c.label, c.value === params.droneType)).join("")}
+    </wa-select>
+    <div class="downloads">
+      <div class="download-row">
+        <div class="download-meta">
+          <strong>Takeoff point</strong>
+          <span class="muted">${takeoff}</span>
+        </div>
+        <wa-button id="change-takeoff" appearance="outlined" size="s">Change</wa-button>
+      </div>
+    </div>`;
 }
 
 function minutes(value: number): string {
@@ -88,6 +109,7 @@ export const step4: Step = {
     if (!result) {
       return `
         ${coachLead("generate")}
+        ${flightSetup(params)}
         <div class="step-actions">
           <wa-button id="generate" variant="brand" size="l" class="grow">
             <wa-icon slot="start" name="wand-magic-sparkles"></wa-icon> Generate flightplan
@@ -147,6 +169,7 @@ export const step4: Step = {
 
     return `
       ${coachLead("generate")}
+      ${flightSetup(params)}
 
       <div class="stat-row">
         <div class="stat"><span class="stat-label">Waypoints</span>
@@ -240,6 +263,17 @@ export const step4: Step = {
 
     root.querySelector("#generate")?.addEventListener("click", run);
     root.querySelector("#regenerate")?.addEventListener("click", run);
+    root.querySelector("#change-takeoff")?.addEventListener("click", () => ctx.goTo(2));
+
+    const drone = root.querySelector<HTMLElement & { value: string }>("#drone-type");
+    drone?.addEventListener("change", () => {
+      ctx.state.params.droneType = drone.value as DroneTypeKey;
+      void run();
+    });
+
+    // Opened from DroneTM: show the plan without a tap.
+    if (ctx.state.handoff && !ctx.state.result && !step4.blocker(ctx.state)) void run();
+    ctx.state.handoff = false;
 
     for (const button of root.querySelectorAll<HTMLElement>("[data-download]")) {
       button.addEventListener("click", () => {

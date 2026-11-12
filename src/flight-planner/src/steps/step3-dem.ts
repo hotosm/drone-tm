@@ -539,7 +539,17 @@ export const step3: Step = {
       ctx.refresh();
     };
 
-    void lookup().catch(() => {});
+    // Opened from DroneTM: fetch terrain without a tap, then go on to generate.
+    const continueHandoff = () => {
+      const { state } = ctx;
+      if (cancelled || !state.handoff) return;
+      if (!step3.blocker(state)) return ctx.goTo(4);
+      if (!state.dem.sampler && !state.storedUpload && navigator.onLine) void fetchTerrain();
+    };
+
+    void lookup()
+      .then(continueHandoff)
+      .catch(() => {});
 
     return () => {
       cancelled = true;

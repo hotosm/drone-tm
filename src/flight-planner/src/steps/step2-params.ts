@@ -6,12 +6,8 @@ import { ParamsError, mergeNoFlyZones, paramsBlocker, readParamsFile } from "../
 import { download } from "../core/outputs";
 import { coachLead, coachTips } from "../tutorial";
 import { HINTS } from "../tutorial/content";
-import { errorPanel, escapeHtml } from "./ui";
+import { errorPanel, escapeHtml, option } from "./ui";
 import { onFilePicked } from "./dropzone";
-
-function option(value: string, label: string, selected: boolean): string {
-  return `<wa-option value="${escapeHtml(value)}" ${selected ? "selected" : ""}>${escapeHtml(label)}</wa-option>`;
-}
 
 export const step2: Step = {
   key: "params",

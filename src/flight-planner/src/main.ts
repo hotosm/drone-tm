@@ -1109,10 +1109,14 @@ async function runUrlHandoff(): Promise<void> {
   let paramsFailed = false;
   if (paramsFetch) {
     try {
-      state.params = await paramsFetch;
+      // DroneTM does not know which drone the pilot flies, so keep theirs.
+      state.params = { ...(await paramsFetch), droneType: state.params.droneType };
       map.setTakeoff(state.params.takeoffPoint);
       map.showNoFlyZones(state.params.noFlyZones);
-      if (state.aoi) state.step = 3;
+      if (state.aoi) {
+        state.step = 3;
+        state.handoff = true;
+      }
     } catch (error) {
       paramsFailed = true;
       toast(error instanceof Error ? error.message : "Could not load the settings.", "warning");

@@ -38,6 +38,8 @@ export interface AppState {
   storedUpload: DemEntry | null;
   projectBbox: Bbox | null;
   result: PlanResult | null;
+  /** Opened from DroneTM: terrain and the plan are prepared without a tap. */
+  handoff: boolean;
 }
 
 export interface StepContext {
@@ -111,6 +113,7 @@ export function initialState(): AppState {
     storedUpload: null,
     projectBbox: null,
     result: null,
+    handoff: false,
   };
 }
 
