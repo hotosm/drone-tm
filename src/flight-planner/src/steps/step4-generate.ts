@@ -92,7 +92,6 @@ export const step4: Step = {
     }
 
     const budget = batteryBudget(params.droneType, result.estimatedFlightTimeMinutes);
-    const photos = result.waypoints.features.filter((f) => f.properties.take_photo).length;
 
     const altitudes = result.waypoints.features
       .map((f) => f.geometry.coordinates[2])
@@ -140,7 +139,7 @@ export const step4: Step = {
         <div class="stat"><span class="stat-label">Waypoints</span>
           <span class="stat-value">${result.waypoints.features.length}</span></div>
         <div class="stat"><span class="stat-label">Photos</span>
-          <span class="stat-value">${photos}</span></div>
+          <span class="stat-value">${params.flightMode === "waylines" ? "~" : ""}${result.photos}</span></div>
         <div class="stat"><span class="stat-label">Flight time</span>
           <span class="stat-value">${escapeHtml(minutes(result.estimatedFlightTimeMinutes))}</span></div>
       </div>

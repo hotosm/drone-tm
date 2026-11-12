@@ -86,6 +86,16 @@ describe("buildPlan", () => {
     expect(waylines.waypoints.features.length).toBeLessThan(waypoints.waypoints.features.length);
   });
 
+  it("counts the same photos in waylines mode as in waypoints mode", () => {
+    const waypoints = buildPlan(SMALL, params({ flightMode: "waypoints" }), dem);
+    const terrain = buildPlan(SMALL, params({ flightMode: "waylines" }), dem);
+    const flat = buildPlan(SMALL, params({ flightMode: "waylines", terrainFollow: false }), null);
+
+    expect(waypoints.photos).toBeGreaterThan(0);
+    expect(terrain.photos).toBe(waypoints.photos);
+    expect(flat.photos).toBe(waypoints.photos);
+  });
+
   it("re-indexes waypoints sequentially after simplification", () => {
     const result = buildPlan(SMALL, params(), dem);
 

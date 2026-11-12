@@ -70,6 +70,7 @@ export interface PlanResult {
   batteryWarning: boolean;
   noFlyReturnWarning: boolean;
   estimatedFlightTimeMinutes: number;
+  photos: number;
   terrainFollowing: boolean;
   sampled?: { ok: number; missing: number };
 }
@@ -103,6 +104,10 @@ export function buildPlan(
     terrainFollowing && params.flightMode === "waylines" ? "waypoints" : params.flightMode;
 
   const result = generate(ring, toGenerateConfig(params, generateMode));
+  // The camera timer fires along whole lines, so count the full photo grid, not kept waypoints.
+  const grid =
+    generateMode === "waypoints" ? result : generate(ring, toGenerateConfig(params, "waypoints"));
+  const photos = grid.geojson.features.filter((f) => f.properties.take_photo).length;
 
   if (!terrainFollowing || !dem) {
     const waypoints = applyFlatPlacemarks(result.geojson, result.parameters);
@@ -113,6 +118,7 @@ export function buildPlan(
       batteryWarning: result.batteryWarning,
       noFlyReturnWarning: result.noFlyReturnWarning,
       estimatedFlightTimeMinutes: result.estimatedFlightTimeMinutes,
+      photos,
       terrainFollowing: false,
     };
   }
@@ -150,6 +156,7 @@ export function buildPlan(
     batteryWarning: result.batteryWarning,
     noFlyReturnWarning: result.noFlyReturnWarning,
     estimatedFlightTimeMinutes: result.estimatedFlightTimeMinutes,
+    photos,
     terrainFollowing: true,
     sampled: { ok, missing },
   };
