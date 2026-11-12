@@ -218,10 +218,10 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
     (projectData?.author_id === userDetails?.id ||
       (selectedTaskStatus === "LOCKED" && selectedTaskLatestUserId === userDetails?.id));
 
-  // Pilots plan the tasks they locked. Project managers can plan any task.
+  // Planning needs a locked task: the pilot's own, or any for the project manager.
   const canPlanSelectedTask =
-    projectData?.author_id === userDetails?.id ||
-    (selectedTaskStatus === "LOCKED" && selectedTaskLatestUserId === userDetails?.id);
+    selectedTaskStatus === "LOCKED" &&
+    (projectData?.author_id === userDetails?.id || selectedTaskLatestUserId === userDetails?.id);
 
   // end zoom to layer
 
