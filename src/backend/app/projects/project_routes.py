@@ -36,7 +36,7 @@ from app.s3 import (
     list_parts,
     s3_client,
 )
-from app.tasks import task_schemas
+from app.tasks import task_logic, task_schemas
 from app.users.permissions import (
     IsProjectCreator,
     IsSuperUser,
@@ -210,9 +210,14 @@ async def flightplanner_params(
     project: Annotated[
         project_schemas.DbProject, Depends(project_deps.get_project_by_id)
     ],
+    db: Annotated[Connection, Depends(database.get_db)],
     user_data: Annotated[AuthUser, Depends(login_required)],
+    task_id: UUID | None = None,
 ):
-    """Return project settings accepted by the flight planner."""
+    """Return project settings accepted by the flight planner.
+
+    With a task_id, include the takeoff point saved for that task.
+    """
     gimbal_angles = project.gimble_angles_degrees or []
     gimbal_angle = str(gimbal_angles[0]) if gimbal_angles else None
 
@@ -236,6 +241,12 @@ async def flightplanner_params(
     # Ignore unsupported gimbal angles.
     if gimbal_angle in {"-80", "-90", "-45"}:
         params["gimbalAngle"] = gimbal_angle
+
+    if task_id:
+        takeoff = await task_logic.get_take_off_point_from_db(db, task_id)
+        if takeoff:
+            lon, lat = takeoff["coordinates"][:2]
+            params["takeoffPoint"] = {"lon": lon, "lat": lat}
 
     return params
 

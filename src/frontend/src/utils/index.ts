@@ -319,7 +319,7 @@ export function buildFlightPlannerUrl({
       `/download-boundaries?task_id=${taskId}&split_area=true&export_type=geojson`,
     ),
     project_aoi: projectApiUrl(projectId, "/download-boundaries?export_type=geojson"),
-    params: projectApiUrl(projectId, "/flightplanner-params"),
+    params: projectApiUrl(projectId, `/flightplanner-params?task_id=${taskId}`),
   });
   if (projectName) params.set("project_name", projectName);
   if (taskIndex && /^\d+$/.test(taskIndex)) params.set("task", taskIndex);
