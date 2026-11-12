@@ -264,26 +264,25 @@ export const STAGES: ChecklistStage[] = [
   },
 ];
 
-export const FLIGHT_REFERENCE: Array<{ title: string; lines: ReferenceLine[] }> = [
+export const IN_FLIGHT = { title: "In flight", hint: "Read this before takeoff." };
+
+/** In the order they happen. */
+export const IN_FLIGHT_STEPS: ReferenceLine[] = [
+  { text: 'After takeoff, wait for the "Home point updated" message' },
+  { text: "Set the photo mode to Timed Shot, 2 seconds", only: "dji" },
+  { text: "Start taking photos at the first waypoint, and stop at the last", only: "dji" },
+  { text: "Photos are taken automatically at each waypoint", only: "potensic" },
+  { text: "Keep the drone in sight at all times" },
+  { text: "Watch the battery level, altitude, error messages and zoom (1x)" },
+];
+
+export const EMERGENCIES: Array<{ situation: string; action: string }> = [
   {
-    title: "During the flight",
-    lines: [
-      { text: 'After takeoff, wait for the "Home point updated" message' },
-      { text: "Set the photo mode to Timed Shot, 2 seconds", only: "dji" },
-      { text: "Start taking photos at the first waypoint, and stop at the last", only: "dji" },
-      { text: "Photos are taken automatically at each waypoint", only: "potensic" },
-      { text: "Keep the drone in sight at all times" },
-      { text: "Watch the battery level, altitude, error messages and zoom (1x)" },
-    ],
+    situation: "Rain or strong wind",
+    action: "Press and hold Return to Home (RTH) until it beeps",
   },
-  {
-    title: "In an emergency",
-    lines: [
-      { text: "Rain or strong wind: press and hold Return to Home (RTH) until it beeps" },
-      { text: "To stop and hover: press Pause" },
-      { text: "If you lose track of direction: let go of both sticks" },
-      { text: "Bird coming close: fly straight up" },
-      { text: "Plane or helicopter nearby: descend and land" },
-    ],
-  },
+  { situation: "You need to stop and hover", action: "Press Pause" },
+  { situation: "You lose track of direction", action: "Let go of both sticks" },
+  { situation: "A bird comes close", action: "Fly straight up" },
+  { situation: "A plane or helicopter is nearby", action: "Descend and land" },
 ];

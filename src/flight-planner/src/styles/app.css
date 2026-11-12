@@ -746,8 +746,7 @@ wa-details::part(content) {
   margin: var(--wa-space-m) 0 var(--wa-space-s);
 }
 
-.checklist-items,
-.checklist-reference {
+.checklist-items {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -756,13 +755,40 @@ wa-details::part(content) {
   gap: var(--wa-space-s);
 }
 
-.checklist-items li,
-.checklist-reference li {
+.checklist-items li {
   margin: 0;
 }
 
-.checklist-reference {
+.checklist-steps {
+  margin: 0;
+  padding-inline-start: 1.5em;
+  display: flex;
+  flex-direction: column;
+  gap: var(--wa-space-s);
   font-size: var(--wa-font-size-l);
+}
+
+.checklist-emergencies {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.checklist-emergencies tbody th {
+  width: 40%;
+}
+
+.checklist-emergencies th,
+.checklist-emergencies td {
+  padding: var(--wa-space-s);
+  border-bottom: 1px solid var(--wa-color-surface-border);
+  font-size: inherit;
+  text-align: start;
+  vertical-align: top;
+}
+
+.checklist-emergencies thead th {
+  font-size: var(--wa-font-size-s);
+  color: var(--wa-color-text-quiet);
 }
 
 .checklist-actions {

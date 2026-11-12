@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FLIGHT_REFERENCE, STAGES } from "../src/checklist/content";
+import { IN_FLIGHT_STEPS, STAGES } from "../src/checklist/content";
 import {
   downloadNeedsConfirmation,
   readChecklist,
@@ -47,7 +47,7 @@ describe("checklist content", () => {
   });
 
   it("only tells DJI pilots to start the photos by hand", () => {
-    const lines = FLIGHT_REFERENCE.flatMap((section) => section.lines);
+    const lines = IN_FLIGHT_STEPS;
     const potensic = visibleItems(lines, POTENSIC).map((line) => line.text);
     expect(potensic.join()).not.toMatch(/Timed Shot/);
     expect(

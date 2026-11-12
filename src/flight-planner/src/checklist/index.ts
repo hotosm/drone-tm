@@ -19,7 +19,9 @@ import type { DroneTypeKey } from "../core/types";
 import { escapeHtml } from "../steps/ui";
 import { tutorialEnabled } from "../tutorial";
 import {
-  FLIGHT_REFERENCE,
+  EMERGENCIES,
+  IN_FLIGHT,
+  IN_FLIGHT_STEPS,
   NOT_OK_MESSAGE,
   STAGES,
   type ChecklistGroup,
@@ -156,8 +158,8 @@ function checklistOverview(state: AppState): string {
       ${rows}
       <div class="download-row">
         <div class="download-meta">
-          <strong>During the flight, and emergencies</strong>
-          <span class="muted">Read this before takeoff</span>
+          <strong>${IN_FLIGHT.title}</strong>
+          <span class="muted">${IN_FLIGHT.hint}</span>
         </div>
         <wa-button data-checklist-reference appearance="outlined" size="s">Open</wa-button>
       </div>
@@ -255,14 +257,21 @@ function groupPage(group: ChecklistGroup, state: AppState): string {
 }
 
 function referencePage(state: AppState): string {
-  return FLIGHT_REFERENCE.map((section) => {
-    const lines = visibleItems(section.lines, state.params.droneType);
-    return `
-      <h3 class="checklist-title">${escapeHtml(section.title)}</h3>
-      <ul class="checklist-reference">
-        ${lines.map((line) => `<li>${escapeHtml(line.text)}</li>`).join("")}
-      </ul>`;
-  }).join("");
+  const steps = visibleItems(IN_FLIGHT_STEPS, state.params.droneType);
+  const emergencies = EMERGENCIES.map(
+    ({ situation, action }) =>
+      `<tr><th scope="row">${escapeHtml(situation)}</th><td>${escapeHtml(action)}</td></tr>`,
+  );
+  return `
+    <h3 class="checklist-title">During the flight</h3>
+    <ol class="checklist-steps">
+      ${steps.map((line) => `<li>${escapeHtml(line.text)}</li>`).join("")}
+    </ol>
+    <h3 class="checklist-title">In an emergency</h3>
+    <table class="checklist-emergencies">
+      <thead><tr><th scope="col">If</th><th scope="col">Do this</th></tr></thead>
+      <tbody>${emergencies.join("")}</tbody>
+    </table>`;
 }
 
 // One link per page with gaps, so a skipped check is one tap away without a long list.
@@ -324,11 +333,12 @@ export function openChecklist(ctx: StepContext, key?: StageKey, reference = fals
     }
     const group = stage.groups[page];
     const last = pageCount(stage) - 1;
-    dialog.label = stage.title;
+    const heading = group ? stage : IN_FLIGHT;
+    dialog.label = heading.title;
     const unanswered =
       page === last ? `<div data-unanswered>${unansweredNote(stage, droneType)}</div>` : "";
     body.innerHTML = `
-      <p class="muted">${escapeHtml(stage.hint)} Page ${page + 1} of ${last + 1}.</p>
+      <p class="muted">${escapeHtml(heading.hint)} Page ${page + 1} of ${last + 1}.</p>
       ${group ? groupPage(group, ctx.state) : referencePage(ctx.state)}
       ${unanswered}`;
     back.hidden = false;
