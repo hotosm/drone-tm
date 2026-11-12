@@ -93,6 +93,7 @@ export interface IAsyncPopup {
   openPopupFor?: Record<string, any> | null;
   popupCoordinate?: number[];
   closePopupOnButtonClick?: boolean;
+  link?: { href: string; text: string };
 }
 
 export type DrawModeTypes = DrawMode | null | undefined;

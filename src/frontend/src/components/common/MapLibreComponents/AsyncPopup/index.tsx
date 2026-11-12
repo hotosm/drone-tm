@@ -35,6 +35,7 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
       showPopup = (_clickedFeature: Record<string, any>) => true,
       openPopupFor,
       popupCoordinate,
+      link,
     }: IAsyncPopup,
     ref,
   ) => {
@@ -158,6 +159,14 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
               </Button>
             </div>
           </div>
+        )}
+        {!isLoading && link && (
+          <a
+            href={link.href}
+            className="naxatw-block naxatw-pt-2 naxatw-text-center naxatw-text-sm naxatw-text-red naxatw-underline"
+          >
+            {link.text}
+          </a>
         )}
       </div>
     );
