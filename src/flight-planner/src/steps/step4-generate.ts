@@ -113,7 +113,7 @@ export const step4: Step = {
          </wa-callout>`
       : `<wa-callout variant="success" appearance="outlined" size="s">
            <wa-icon slot="icon" name="battery-full"></wa-icon>
-           Fits comfortably within one battery.
+           Fits within one battery.
          </wa-callout>`;
 
     const noFlyReturnCallout = result.noFlyReturnWarning
@@ -129,7 +129,7 @@ export const step4: Step = {
         ? `<wa-callout variant="warning" appearance="outlined" size="s">
              <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
              <strong>${result.sampled.missing} waypoints had no elevation data.</strong>
-             <p>They use the takeoff height instead. Usually water - worth a look on the map.</p>
+             <p>They use the takeoff height instead. This is usually water. Check them on the map.</p>
            </wa-callout>`
         : "";
 
@@ -179,11 +179,11 @@ export const step4: Step = {
           .join("")}
       </div>
 
-      <wa-details summary="Keep a copy off this browser" appearance="outlined">
+      <wa-details summary="Save a backup copy" appearance="outlined">
         <p class="muted">
-          Browser storage can be cleared by the browser itself when space runs
-          short. This bundles the area, the settings and the plan into one ZIP
-          you can keep.
+          The browser can delete its stored data when it runs out of space. This
+          saves the area, the settings and the plan into one ZIP file that you
+          can keep.
         </p>
         <div class="step-actions">
           <wa-button id="bundle" appearance="outlined" size="s">

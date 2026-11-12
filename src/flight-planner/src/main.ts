@@ -374,8 +374,8 @@ function demDetail(entry: DemEntry, plans: number): string {
 
 function renderDemList(entries: DemEntry[], usage: Map<string, string[]>): void {
   if (entries.length === 0) {
-    demBody.innerHTML = `<p class="muted">No terrain saved yet. Downloading it once covers
-      the area around it, including the other tasks of a project.</p>`;
+    demBody.innerHTML = `<p class="muted">No terrain saved yet. One download covers the
+      area around it, including the other tasks in a project.</p>`;
     return;
   }
 
@@ -526,8 +526,8 @@ function renderPlanList(): void {
     : planCache;
 
   if (planCache.length === 0) {
-    planBody.innerHTML = `<p class="muted">No saved plans yet. One appears here as soon as
-      you mark an area.</p>`;
+    planBody.innerHTML = `<p class="muted">No saved plans yet. A plan is saved here when you
+      mark an area.</p>`;
     return;
   }
 
@@ -849,10 +849,10 @@ planBody.addEventListener("click", (event) => {
           map.showPlan(null, null);
           renderStep();
         }
-        toast("Terrain freed. Download it again when you have a signal.", "success");
+        toast("Terrain deleted. You can download it again when you have internet.", "success");
         return refreshPlanList();
       })
-      .catch(() => toast("Could not free that terrain.", "danger"));
+      .catch(() => toast("Could not delete that terrain.", "danger"));
   }
 
   if (data.delete) {
@@ -914,7 +914,7 @@ async function seedProjectTerrain(bbox: Bbox): Promise<string> {
   }
   const relief = sampler.range();
   if (relief.voids === relief.count) {
-    throw new Error("The terrain for this project came back empty.");
+    throw new Error("The terrain download for this project was empty.");
   }
 
   await putDem(
@@ -938,13 +938,13 @@ async function seedProjectTerrain(bbox: Bbox): Promise<string> {
 
   return plan.clamped
     ? `Terrain saved for ${formatExtent(snapped.bbox)} of this project. Tasks outside that ` +
-        `need their own download, while you still have a signal.`
+        `need their own download, while you have internet.`
     : `Terrain saved for the whole project. ${kept}`;
 }
 
 async function applyTaskSeeding(tasksUrl: string, projectId: string | null): Promise<void> {
   if (!projectId) {
-    toast("That link is missing its project.", "warning");
+    toast("This link does not include a project.", "warning");
     return;
   }
 
@@ -972,7 +972,7 @@ async function applyTaskSeeding(tasksUrl: string, projectId: string | null): Pro
     if (unreadable > 0) {
       toast(
         `${unreadable} of the project's areas could not be read and were not saved. ` +
-          `Draw those by hand, or ask for the project to be checked.`,
+          `Draw them on the map, or ask the project manager to check them.`,
         "warning",
       );
     }

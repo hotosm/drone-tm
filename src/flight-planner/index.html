@@ -21,7 +21,7 @@
   <body>
     <div id="offline-banner" class="offline-banner" hidden>
       <wa-icon name="plug-circle-xmark"></wa-icon>
-      Offline - you can still plan and generate. Terrain downloads need a connection.
+      You are offline. You can still plan and generate, but terrain downloads need internet.
     </div>
 
     <header class="app-header">
@@ -95,9 +95,7 @@
 
     <wa-dialog id="welcome" label="Plan a mapping flight, offline" class="welcome-dialog">
       <div id="welcome-body"></div>
-      <wa-button slot="footer" id="welcome-skip" appearance="plain">
-        I know what I'm doing
-      </wa-button>
+      <wa-button slot="footer" id="welcome-skip" appearance="plain"> Skip the guide </wa-button>
       <wa-button slot="footer" id="welcome-start" variant="brand"> Start </wa-button>
     </wa-dialog>
 

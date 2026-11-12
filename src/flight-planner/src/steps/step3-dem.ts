@@ -49,15 +49,15 @@ function downloadNote(plan: DemPlan, hasProject: boolean): string {
   const extent = formatExtent(plan.snapped.bbox);
 
   if (hasProject && plan.coversContext) {
-    return `About ${size}, covering this whole project (${extent}). Every other area
-      in it can then be planned with no connection.`;
+    return `About ${size}, covering this whole project (${extent}). All other areas
+      in it can then be planned without internet.`;
   }
   if (hasProject) {
     return `About ${size}, covering ${extent} of this project. Areas further away
-      need their own download, while you still have a signal.`;
+      need their own download, while you have internet.`;
   }
-  return `About ${size}, covering ${extent} around this area - not just the part
-    you are flying. Nearby areas can then be planned with no connection.`;
+  return `About ${size}, covering ${extent} around this area, not just the part
+    you are flying. Nearby areas can then be planned without internet.`;
 }
 
 function coveragePanel(entry: DemEntry, required: Bbox): string {
@@ -69,9 +69,9 @@ function coveragePanel(entry: DemEntry, required: Bbox): string {
             <strong>Saved terrain covers ${escapeHtml(reach)}.</strong>
             <p>${
               spare > 3
-                ? `Other areas inside that box need no further download - open them ` +
-                  `here and this terrain is picked up automatically.`
-                : `Areas outside that box need their own download, while you have a signal.`
+                ? `Other areas inside it do not need another download. This terrain is ` +
+                  `used automatically when you open them here.`
+                : `Areas outside it need their own download, while you have internet.`
             }</p>
           </wa-callout>`;
 }
@@ -163,8 +163,9 @@ export const step3: Step = {
             ? successPanel(headline, "You can now work offline. This stays saved in this browser.")
             : errorPanel(
                 `${headline} It could not be saved.`,
-                "This browser is probably out of space, so it will be gone when you " +
-                  "leave. Free some terrain under Saved plans, then download again.",
+                "This browser is probably out of space, so the terrain will be lost when " +
+                  "you close the page. Delete some stored terrain in Saved plans, then " +
+                  "download again.",
               )
         }
         <div class="stat-row">
@@ -193,7 +194,7 @@ export const step3: Step = {
           relief < 10
             ? infoPanel(
                 "This site is nearly flat.",
-                "Terrain following will barely change the plan here, but it does no harm.",
+                "Following the terrain makes little difference here, but you can leave it on.",
               )
             : ""
         }
@@ -226,7 +227,7 @@ export const step3: Step = {
         dem.skipped
           ? infoPanel(
               "Flying at a fixed altitude.",
-              "Heights are measured from your takeoff point. Fine on flat ground.",
+              "Heights are measured from your takeoff point. This works well on flat ground.",
             )
           : ""
       }
@@ -236,8 +237,8 @@ export const step3: Step = {
           : `<wa-callout variant="warning" appearance="outlined" size="s">
                <wa-icon slot="icon" name="plug-circle-xmark"></wa-icon>
                <strong>You are offline, and no saved terrain covers this area.</strong>
-               <p>Find a signal and download it here, or fly at a fixed altitude
-                  instead.</p>
+               <p>Connect to the internet and download it here, or fly at a fixed
+                  altitude instead.</p>
              </wa-callout>`
       }
 
@@ -270,7 +271,7 @@ export const step3: Step = {
 
       ${coachTips("dem")}
 
-      <wa-details summary="No signal, or flat ground?" appearance="outlined">
+      <wa-details summary="No internet, or flat ground?" appearance="outlined">
         <p class="muted">
           You can skip this and fly at one fixed altitude above your takeoff
           point. On a hill that means flying too low on the way up and too high
@@ -319,7 +320,7 @@ export const step3: Step = {
           "Could not get the terrain.",
           error instanceof Error
             ? error.message
-            : "Check your connection, or skip this step and fly at a fixed altitude.",
+            : "Check your internet connection, or skip this step and fly at a fixed altitude.",
         );
       }
     };
@@ -340,7 +341,7 @@ export const step3: Step = {
           errorHost.innerHTML = errorPanel(
             `This browser has room for ${formatBytes(estimate.quota - estimate.usage)}, ` +
               `and this terrain needs about ${formatBytes(plan.bytes)}.`,
-            "Free some terrain under Saved plans, or fly at a fixed altitude instead.",
+            "Delete some stored terrain in Saved plans, or fly at a fixed altitude instead.",
           );
           return;
         }

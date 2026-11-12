@@ -26,13 +26,13 @@ function num(
   if (!Number.isFinite(value)) {
     throw new ParamsError(
       `"${label}" is not a number.`,
-      "Fix the file, or fill the form in by hand.",
+      "Fix the file, or enter the settings manually.",
     );
   }
   if (value < min || value > max) {
     throw new ParamsError(
       `"${label}" is ${value}, outside the usable range ${min}-${max}.`,
-      "Fix the file, or fill the form in by hand.",
+      "Fix the file, or enter the settings manually.",
     );
   }
   return value;
@@ -80,7 +80,7 @@ export function parseParams(raw: unknown): PlanParams {
   if (!raw || typeof raw !== "object") {
     throw new ParamsError(
       "That file does not contain flight parameters.",
-      "Upload a params.json downloaded from this app, or fill the form in by hand.",
+      "Upload a params.json downloaded from this app, or enter the settings manually.",
     );
   }
   const input = raw as Record<string, unknown>;
@@ -186,8 +186,8 @@ export async function fetchParams(url: string): Promise<PlanParams> {
     throw new ParamsError(
       `Could not load the parameters (${response.status}).`,
       response.status === 401 || response.status === 403
-        ? "Sign in to DroneTM, then open this link again - or fill the form in by hand."
-        : "The link may have expired. Fill the form in by hand instead.",
+        ? "Sign in to DroneTM, then open this link again. Or enter the settings manually."
+        : "The link may have expired. Enter the settings manually instead.",
     );
   }
   return parseParams(await response.json());

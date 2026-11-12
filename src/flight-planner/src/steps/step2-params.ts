@@ -314,7 +314,7 @@ export const step2: Step = {
             ? errorPanel(error.message, error.guidance)
             : errorPanel(
                 "Could not read those settings.",
-                error instanceof Error ? error.message : "Fill the form in by hand.",
+                error instanceof Error ? error.message : "Enter the settings manually.",
               );
       }
     });

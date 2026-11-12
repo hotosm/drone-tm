@@ -49,7 +49,7 @@ export function parseTasks(geojson: unknown): TaskParseResult {
   if (!Array.isArray(features) || features.length === 0) {
     throw new SeedError(
       "That link did not contain any task areas.",
-      "Open a single task instead, or draw the area by hand.",
+      "Open a single task instead, or draw the area on the map.",
     );
   }
 
@@ -87,7 +87,7 @@ export function parseTasks(geojson: unknown): TaskParseResult {
   if (tasks.length === 0) {
     throw new SeedError(
       "None of those task areas could be read.",
-      "Open a single task instead, or draw the area by hand.",
+      "Open a single task instead, or draw the area on the map.",
     );
   }
   return { tasks, unreadable };

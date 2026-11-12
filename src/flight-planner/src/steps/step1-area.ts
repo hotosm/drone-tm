@@ -28,7 +28,7 @@ export const step1: Step = {
            aoi.areaM2 / 10_000 > LARGE_AREA_HA
              ? `<wa-callout variant="warning" appearance="outlined" size="s">
                   <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
-                  That is a large area for one flight. You can carry on - step 4
+                  This is a large area for one flight. You can continue. Step 4
                   will tell you if it needs more than one battery.
                 </wa-callout>`
              : ""

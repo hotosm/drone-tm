@@ -189,7 +189,10 @@ export function validateRing(input: Array<[number, number]>): AoiResult {
 
   const areaM2 = ringAreaM2(ring);
   if (areaM2 === 0) {
-    throw new AoiError("That area has no usable surface.", "Draw a non-intersecting polygon.");
+    throw new AoiError(
+      "That area has no usable surface.",
+      "Draw an outline with edges that do not cross.",
+    );
   }
 
   return { ring, bbox, areaM2 };
@@ -222,7 +225,7 @@ export async function fetchAoi(url: string): Promise<AoiResult> {
     throw new AoiError(
       `Could not load the area (${response.status}).`,
       response.status === 401 || response.status === 403
-        ? "Sign in to DroneTM, then open this link again - or draw the area on the map."
+        ? "Sign in to DroneTM, then open this link again. Or draw the area on the map."
         : "The link may have expired. Draw the area on the map instead.",
     );
   }
