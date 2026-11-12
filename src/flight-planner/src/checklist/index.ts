@@ -263,15 +263,17 @@ function referencePage(state: AppState): string {
       `<tr><th scope="row">${escapeHtml(situation)}</th><td>${escapeHtml(action)}</td></tr>`,
   );
   return `
-    <h3 class="checklist-title">During the flight</h3>
-    <ol class="checklist-steps">
-      ${steps.map((line) => `<li>${escapeHtml(line.text)}</li>`).join("")}
-    </ol>
-    <h3 class="checklist-title">In an emergency</h3>
-    <table class="checklist-emergencies">
-      <thead><tr><th scope="col">If</th><th scope="col">Do this</th></tr></thead>
-      <tbody>${emergencies.join("")}</tbody>
-    </table>`;
+    <div class="in-flight">
+      <h3>During the flight</h3>
+      <ol class="checklist-steps">
+        ${steps.map((line) => `<li>${escapeHtml(line.text)}</li>`).join("")}
+      </ol>
+      <h3>In an emergency</h3>
+      <table class="checklist-emergencies">
+        <thead><tr><th scope="col">If</th><th scope="col">Do this</th></tr></thead>
+        <tbody>${emergencies.join("")}</tbody>
+      </table>
+    </div>`;
 }
 
 // One link per page with gaps, so a skipped check is one tap away without a long list.
@@ -336,7 +338,10 @@ export function openChecklist(ctx: StepContext, key?: StageKey, reference = fals
     const heading = group ? stage : IN_FLIGHT;
     dialog.label = heading.title;
     const unanswered =
-      page === last ? `<div data-unanswered>${unansweredNote(stage, droneType)}</div>` : "";
+      // On the last page of checks, not on the In flight page after it.
+      page === stage.groups.length - 1
+        ? `<div data-unanswered>${unansweredNote(stage, droneType)}</div>`
+        : "";
     body.innerHTML = `
       <p class="muted">${escapeHtml(heading.hint)} Page ${page + 1} of ${last + 1}.</p>
       ${group ? groupPage(group, ctx.state) : referencePage(ctx.state)}
@@ -368,9 +373,9 @@ export function openChecklist(ctx: StepContext, key?: StageKey, reference = fals
     const item = stageItems(stage, droneType).find((candidate) => candidate.id === id)!;
     saveChecklist(ctx, withAnswer(loadChecklist(), id, answer));
     body.querySelector(`[data-not-ok="${id}"]`)!.innerHTML = notOkMessage(item, answer);
-    if (page !== pageCount(stage) - 1) return;
-    next.textContent = lastPageLabel(stage);
-    body.querySelector("[data-unanswered]")!.innerHTML = unansweredNote(stage, droneType);
+    const note = body.querySelector("[data-unanswered]");
+    if (note) note.innerHTML = unansweredNote(stage, droneType);
+    if (page === pageCount(stage) - 1) next.textContent = lastPageLabel(stage);
   };
   body.onclick = (event) => {
     const target = event.target as HTMLElement;

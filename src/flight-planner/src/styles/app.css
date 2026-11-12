@@ -759,13 +759,46 @@ wa-details::part(content) {
   margin: 0;
 }
 
+.in-flight h3 {
+  margin: var(--wa-space-xl) 0 var(--wa-space-s);
+  font-size: var(--wa-font-size-l);
+}
+
+.in-flight h3:first-child {
+  margin-top: var(--wa-space-s);
+}
+
+/* Numbered badges keep the steps flush with the headings, unlike indented list markers. */
 .checklist-steps {
   margin: 0;
-  padding-inline-start: 1.5em;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
   display: flex;
   flex-direction: column;
+  gap: var(--wa-space-m);
+}
+
+.checklist-steps li {
+  margin: 0;
+  counter-increment: step;
+  display: flex;
   gap: var(--wa-space-s);
-  font-size: var(--wa-font-size-l);
+  align-items: flex-start;
+}
+
+.checklist-steps li::before {
+  content: counter(step);
+  flex: 0 0 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--wa-color-brand-fill-quiet);
+  color: var(--wa-color-brand-on-quiet);
+  font-size: var(--wa-font-size-s);
+  font-weight: var(--wa-font-weight-bold);
 }
 
 .checklist-emergencies {
@@ -773,17 +806,17 @@ wa-details::part(content) {
   border-collapse: collapse;
 }
 
-.checklist-emergencies tbody th {
-  width: 40%;
-}
-
 .checklist-emergencies th,
 .checklist-emergencies td {
-  padding: var(--wa-space-s);
+  padding: var(--wa-space-s) var(--wa-space-s) var(--wa-space-s) 0;
   border-bottom: 1px solid var(--wa-color-surface-border);
   font-size: inherit;
   text-align: start;
   vertical-align: top;
+}
+
+.checklist-emergencies tbody th {
+  width: 40%;
 }
 
 .checklist-emergencies thead th {
