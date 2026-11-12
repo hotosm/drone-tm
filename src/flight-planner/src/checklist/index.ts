@@ -123,6 +123,7 @@ function stageRow(
   stage: ChecklistStage,
   checklist: ChecklistState,
   droneType: DroneTypeKey,
+  variant: "brand" | "neutral" = "neutral",
 ): string {
   const { status, answered, total } = stageProgress(stage, checklist, droneType);
   const resetLabel = RESET_LABEL[stage.key];
@@ -141,12 +142,22 @@ function stageRow(
       </div>
       <div class="checklist-actions">
         ${reset}
-        <wa-button data-checklist-open="${stage.key}" appearance="outlined" size="s">
+        <wa-button data-checklist-open="${stage.key}" variant="${variant}" size="s"
+          appearance="${variant === "brand" ? "accent" : "outlined"}">
           ${answered === 0 ? "Start" : "Open"}
         </wa-button>
       </div>
     </div>`;
 }
+
+const IN_FLIGHT_ROW = `
+  <div class="download-row">
+    <div class="download-meta">
+      <strong>${IN_FLIGHT.title}</strong>
+      <span class="muted">${IN_FLIGHT.hint}</span>
+    </div>
+    <wa-button data-checklist-reference appearance="outlined" size="s">Open</wa-button>
+  </div>`;
 
 function checklistOverview(state: AppState): string {
   const checklist = loadChecklist();
@@ -154,25 +165,21 @@ function checklistOverview(state: AppState): string {
 
   return `
     ${problemCallouts(state)}
-    <div class="downloads">
-      ${rows}
-      <div class="download-row">
-        <div class="download-meta">
-          <strong>${IN_FLIGHT.title}</strong>
-          <span class="muted">${IN_FLIGHT.hint}</span>
-        </div>
-        <wa-button data-checklist-reference appearance="outlined" size="s">Open</wa-button>
-      </div>
-    </div>`;
+    <div class="downloads">${rows}${IN_FLIGHT_ROW}</div>`;
 }
 
-// Only the pre-departure checks matter before download. The rest are done at the site.
+// Plans are often downloaded just before the flight, so the site checks lead.
 function cardBody(state: AppState): string {
-  const depart = stageRow(stageByKey("depart"), loadChecklist(), state.params.droneType);
+  const checklist = loadChecklist();
+  const { droneType } = state.params;
   return `
     ${problemCallouts(state)}
-    <div class="downloads">${depart}</div>
-    <p class="muted">The site checklists are in the header, under the clipboard icon.</p>`;
+    <div class="downloads">
+      ${stageRow(stageByKey("site"), checklist, droneType, "brand")}
+      ${IN_FLIGHT_ROW}
+      ${stageRow(stageByKey("depart"), checklist, droneType)}
+    </div>
+    <p class="muted">The next flight checks are in the header, under the clipboard icon.</p>`;
 }
 
 export function checklistCard(state: AppState): string {
