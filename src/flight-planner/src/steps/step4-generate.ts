@@ -234,12 +234,10 @@ export const step4: Step = {
   },
 
   mount(root, ctx) {
-    const errorHost = root.querySelector<HTMLElement>("#generate-error")!;
-
     const run = async () => {
       const { aoi, params, dem } = ctx.state;
       if (!aoi) return;
-      errorHost.innerHTML = "";
+      root.querySelector("#generate-error")!.innerHTML = "";
 
       try {
         const sampler = params.terrainFollow ? dem.sampler : null;
@@ -255,7 +253,13 @@ export const step4: Step = {
 
         ctx.refresh();
       } catch (error) {
-        errorHost.innerHTML = errorPanel(
+        // A plan for the previous settings must not stay downloadable.
+        if (ctx.state.result) {
+          ctx.state.result = null;
+          ctx.map.showPlan(null, null);
+          ctx.refresh();
+        }
+        root.querySelector("#generate-error")!.innerHTML = errorPanel(
           "Could not generate the flightplan.",
           error instanceof Error
             ? error.message
