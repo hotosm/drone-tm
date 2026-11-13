@@ -277,7 +277,18 @@ const DroneOperatorDescriptionBox = () => {
             })}
           </p>
 
-          <div className="naxatw-relative">
+          <div className="naxatw-relative naxatw-flex naxatw-gap-2">
+            <a
+              className="naxatw-flex naxatw-items-center naxatw-rounded naxatw-bg-red naxatw-px-3 naxatw-text-[0.875rem] naxatw-text-white naxatw-no-underline"
+              href={buildFlightPlannerUrl({
+                projectId: projectId as string,
+                projectName,
+                taskId: taskId as string,
+                taskIndex,
+              })}
+            >
+              {m.drone_task_open_flight_planner()}
+            </a>
             <Button
               variant="ghost"
               className="naxatw-border naxatw-border-[#D73F3F] naxatw-text-[0.875rem] naxatw-text-[#D73F3F]"
@@ -368,20 +379,6 @@ const DroneOperatorDescriptionBox = () => {
                   {"📍 "}
                   {m.drone_task_area_geojson()}
                 </div>
-                <hr />
-                <a
-                  className="naxatw-block naxatw-cursor-pointer naxatw-px-3 naxatw-py-2 naxatw-text-inherit naxatw-no-underline hover:naxatw-bg-redlight"
-                  href={buildFlightPlannerUrl({
-                    projectId: projectId as string,
-                    projectName,
-                    taskId: taskId as string,
-                    taskIndex,
-                  })}
-                  onClick={() => setShowDownloadOptions(false)}
-                >
-                  {"🛩️ "}
-                  {m.drone_task_open_flight_planner()}
-                </a>
               </div>
             )}
           </div>

@@ -271,6 +271,32 @@ async def test_project_zones_reach_flight_clients(client, db, auth_user, project
 
 
 @pytest.mark.asyncio
+async def test_flightplanner_params_include_task_takeoff(
+    client, db, auth_user, project_info
+):
+    """A takeoff point saved in DroneTM must reach the flight planner."""
+    project = project_schemas.ProjectIn.model_validate(project_info.model_dump())
+    project_id = await project_schemas.DbProject.create(db, project, auth_user.id)
+    task_id = uuid.uuid4()
+    async with db.cursor() as cur:
+        await cur.execute(
+            """
+            INSERT INTO tasks (id, project_id, outline, project_task_index, take_off_point)
+            VALUES (%s, %s, ST_GeomFromGeoJSON(%s), 1,
+                    ST_SetSRID(ST_MakePoint(85.302, 27.71), 4326))
+            """,
+            (task_id, project_id, json.dumps(mapping(TASK))),
+        )
+
+    url = f"/api/projects/{project_id}/flightplanner-params"
+    with_task = await client.get(url, params={"task_id": str(task_id)})
+    without_task = await client.get(url)
+
+    assert with_task.json()["takeoffPoint"] == {"lon": 85.302, "lat": 27.71}
+    assert "takeoffPoint" not in without_task.json()
+
+
+@pytest.mark.asyncio
 async def test_task_flightplan_conflict_returns_409(db, auth_user, project_info):
     """A task whose flight can't avoid a zone gets no flight plan at all."""
     project = project_schemas.ProjectIn.model_validate(

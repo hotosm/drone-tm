@@ -20,6 +20,7 @@ import { useTypedDispatch, useTypedSelector } from "@Store/hooks";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import getBbox from "@turf/bbox";
 import hasErrorBoundary from "@Utils/hasErrorBoundary";
+import { buildFlightPlannerUrl } from "@Utils/index";
 import { commentMentionsUserId, renderCommentMentions } from "@Utils/mentions";
 import COGOrthophotoViewer from "@Components/common/MapLibreComponents/COGOrthophotoViewer";
 import { getLayerOptionsByStatus } from "@Constants/projectDescription";
@@ -216,6 +217,11 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
     selectedTaskStatus !== "UNLOCKED" &&
     (projectData?.author_id === userDetails?.id ||
       (selectedTaskStatus === "LOCKED" && selectedTaskLatestUserId === userDetails?.id));
+
+  // Planning needs a locked task: the pilot's own, or any for the project manager.
+  const canPlanSelectedTask =
+    selectedTaskStatus === "LOCKED" &&
+    (projectData?.author_id === userDetails?.id || selectedTaskLatestUserId === userDetails?.id);
 
   // end zoom to layer
 
@@ -606,6 +612,19 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
               : taskClickedOnTable
           }
           popupCoordinate={taskClickedOnTable?.centroidCoordinates}
+          link={
+            canPlanSelectedTask
+              ? {
+                  href: buildFlightPlannerUrl({
+                    projectId: projectUuid as string,
+                    projectName: projectData?.name,
+                    taskId: selectedTaskId,
+                    taskIndex: String(selectedTaskIndex),
+                  }),
+                  text: m.drone_task_open_flight_planner(),
+                }
+              : undefined
+          }
           onClose={() =>
             dispatch(
               setProjectState({

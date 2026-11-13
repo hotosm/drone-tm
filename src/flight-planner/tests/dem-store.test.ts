@@ -206,6 +206,26 @@ describe("sharing one DEM between tasks", () => {
     expect((await demUsage()).get(dem.key)).toHaveLength(3);
   });
 
+  it("stores only the terrain of a plan that is not kept", async () => {
+    const backend = useMemory();
+    const dem = entry();
+    const state = initialState();
+    state.keepPlan = false;
+    state.aoi = { ring: [], bbox: [...TASK], areaM2: 100 };
+    state.dem = {
+      sampler: null,
+      bytes: new ArrayBuffer(dem.byteLength),
+      entry: dem,
+      fromStore: false,
+      saved: true,
+      skipped: false,
+    };
+    await savePlan(state, true);
+
+    expect(await listPlans()).toEqual([]);
+    expect(await backend.get(demPath.tif(dem.key))).not.toBeNull();
+  });
+
   it("reads a plan's terrain back out of the shared store", async () => {
     const backend = useMemory();
     const dem = await store();

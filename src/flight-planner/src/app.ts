@@ -38,6 +38,10 @@ export interface AppState {
   storedUpload: DemEntry | null;
   projectBbox: Bbox | null;
   result: PlanResult | null;
+  /** Opened from DroneTM: terrain and the plan are prepared without a tap. */
+  handoff: boolean;
+  /** False for an area opened by link: it is planned online, and only its terrain is stored. */
+  keepPlan: boolean;
 }
 
 export interface StepContext {
@@ -111,12 +115,25 @@ export function initialState(): AppState {
     storedUpload: null,
     projectBbox: null,
     result: null,
+    handoff: false,
+    keepPlan: true,
   };
 }
 
 export async function savePlan(state: AppState, writeDem: boolean): Promise<void> {
   const backend = getBackend();
   const { meta, aoi, params, dem } = state;
+  try {
+    localStorage.setItem(DRONE_KEY, params.droneType);
+  } catch {
+    /* Only a convenience, so never fail a save over it. */
+  }
+
+  // Terrain is shared between plans, so it is worth storing even when the plan is not.
+  if (!state.keepPlan) {
+    if (writeDem && dem.bytes && dem.entry) await putDem(dem.entry, dem.bytes);
+    return;
+  }
 
   // Preserve a task waiting for its area, so an offline arrival keeps the
   // link. A plan carrying only a project is not waiting for anything: keeping
@@ -151,11 +168,6 @@ export async function savePlan(state: AppState, writeDem: boolean): Promise<void
   }
 
   await writeJson(planPath.params(meta.id), params);
-  try {
-    localStorage.setItem(DRONE_KEY, params.droneType);
-  } catch {
-    /* Only a convenience, so never fail a save over it. */
-  }
 
   // Plans reference DEMs in the shared store.
   if (writeDem && dem.bytes && dem.entry) {

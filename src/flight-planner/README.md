@@ -62,9 +62,10 @@ The planner accepts these optional query parameters:
 | `task`         | Project task number, which names and identifies the plan        |
 | `project_aoi`  | URL of the project outline used to size shared terrain coverage |
 
-Fetched data is saved locally for offline use. When `project_aoi` is
-not provided, terrain coverage is based on a 25 km buffer around the flight
-area.
+With `aoi`, the plan is made online and not saved, unless the project was
+already saved offline with `tasks`. Only its terrain is stored, for reuse by
+later plans nearby. When `project_aoi` is not provided, terrain coverage is
+based on a 25 km buffer around the flight area.
 
 With `tasks`, the planner saves every task area, then downloads one terrain
 crop covering the project - the pilot is still online at that point, and that

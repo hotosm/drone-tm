@@ -5,6 +5,10 @@ export function escapeHtml(value: string): string {
   );
 }
 
+export function option(value: string, label: string, selected: boolean): string {
+  return `<wa-option value="${escapeHtml(value)}" ${selected ? "selected" : ""}>${escapeHtml(label)}</wa-option>`;
+}
+
 export function errorPanel(message: string, guidance: string): string {
   return `
     <wa-callout variant="danger" appearance="outlined" size="s">

@@ -160,7 +160,12 @@ export const step3: Step = {
         ${coachLead("dem")}
         ${
           dem.saved
-            ? successPanel(headline, "You can now work offline. This stays saved in this browser.")
+            ? successPanel(
+                headline,
+                ctx.state.keepPlan
+                  ? "You can now work offline. This stays saved in this browser."
+                  : "This stays saved in this browser, for other plans in this area.",
+              )
             : errorPanel(
                 `${headline} It could not be saved.`,
                 "This browser is probably out of space, so the terrain will be lost when " +
@@ -393,7 +398,7 @@ export const step3: Step = {
 
         if (saved) {
           ctx.toast(
-            persisted
+            persisted && ctx.state.keepPlan
               ? "Terrain saved. You can work offline from here."
               : "Terrain saved in this browser.",
             "success",
@@ -539,7 +544,17 @@ export const step3: Step = {
       ctx.refresh();
     };
 
-    void lookup().catch(() => {});
+    // Opened from DroneTM: fetch terrain without a tap, then go on to generate.
+    const continueHandoff = () => {
+      const { state } = ctx;
+      if (cancelled || !state.handoff) return;
+      if (!step3.blocker(state)) return ctx.goTo(4);
+      if (!state.dem.sampler && !state.storedUpload && navigator.onLine) void fetchTerrain();
+    };
+
+    void lookup()
+      .then(continueHandoff)
+      .catch(() => {});
 
     return () => {
       cancelled = true;

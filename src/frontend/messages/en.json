@@ -799,7 +799,7 @@
   "drone_task_inspect_flightplan_geojson": "Inspect flightplan GeoJSON",
   "drone_task_area_kml": "Task area as KML",
   "drone_task_area_geojson": "Task area as GeoJSON",
-  "drone_task_open_flight_planner": "Use standalone flight planner",
+  "drone_task_open_flight_planner": "Open in Flight Planner",
   "drone_task_manual_override_title": "Manually override task status",
   "drone_task_manual_override_description": "Last-resort failsafe to recover a stuck task. Bypasses the normal workflow and may leave downstream processing in an inconsistent state - only use if no other action works.",
   "drone_task_manual_override_select_placeholder": "Select target state",

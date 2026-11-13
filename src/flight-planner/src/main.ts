@@ -649,6 +649,7 @@ async function loadPlanIntoState(id: string): Promise<boolean> {
   if (!loaded) return false;
 
   state.meta = loaded.meta;
+  state.keepPlan = true;
   state.aoi = loaded.aoiRing ? validateRing(loaded.aoiRing) : null;
   if (loaded.params) state.params = parseParams(loaded.params);
   if (loaded.meta.dem && !loaded.demBytes) delete state.meta.dem;
@@ -763,6 +764,7 @@ function resetWorkspace(keepProject: boolean): void {
     ...(keepProject && projectName ? { projectName } : {}),
   };
   state.aoi = null;
+  state.keepPlan = true;
   state.params = {
     ...DEFAULT_PARAMS,
     droneType: state.params.droneType,
@@ -1075,12 +1077,14 @@ async function runUrlHandoff(): Promise<void> {
   // Failures are handled where each is awaited, not reported as unhandled meanwhile.
   for (const pending of [projectFetch, aoiFetch, paramsFetch]) pending?.catch(() => {});
 
+  let savedOffline = false;
   if (projectId && taskId && !tasksUrl) {
     const held = (await listPlans()).find(
       (plan) => plan.projectId === projectId && plan.taskId === taskId,
     );
     if (held && (await loadPlanIntoState(held.id))) {
       state.meta.projectName = search.get("project_name") ?? state.meta.projectName;
+      savedOffline = true;
     }
   }
 
@@ -1102,6 +1106,8 @@ async function runUrlHandoff(): Promise<void> {
       map.setRing(aoi.ring);
       map.fitBbox(aoi.bbox);
       state.step = 2;
+      // Opening one task is for planning now. Only a project saved offline keeps its plans.
+      state.keepPlan = savedOffline;
     } catch (error) {
       aoiFailed = true;
       toast(error instanceof Error ? error.message : "Could not load the area.", "warning");
@@ -1111,10 +1117,14 @@ async function runUrlHandoff(): Promise<void> {
   let paramsFailed = false;
   if (paramsFetch) {
     try {
-      state.params = await paramsFetch;
+      // DroneTM does not know which drone the pilot flies, so keep theirs.
+      state.params = { ...(await paramsFetch), droneType: state.params.droneType };
       map.setTakeoff(state.params.takeoffPoint);
       map.showNoFlyZones(state.params.noFlyZones);
-      if (state.aoi) state.step = 3;
+      if (state.aoi) {
+        state.step = 3;
+        state.handoff = true;
+      }
     } catch (error) {
       paramsFailed = true;
       toast(error instanceof Error ? error.message : "Could not load the settings.", "warning");
@@ -1136,8 +1146,9 @@ async function runUrlHandoff(): Promise<void> {
 
   await context.save();
   // Keep a failed fetch in the URL: trimming it would strand an empty task
-  // with no way to retry but drawing the area by hand.
-  if (projectId && !aoiFailed && !paramsFailed) keepProjectInUrl(projectId);
+  // with no way to retry but drawing the area by hand. An unkept plan is
+  // also only reachable by its URL, so a reload fetches it again.
+  if (projectId && !aoiFailed && !paramsFailed && state.keepPlan) keepProjectInUrl(projectId);
   renderStep();
 }
 

@@ -2,7 +2,7 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable react/no-danger */
 import "@Components/common/MapLibreComponents/map.css";
-import { Button } from "@Components/RadixComponents/Button";
+import { Button, buttonVariants } from "@Components/RadixComponents/Button";
 import Skeleton from "@Components/RadixComponents/Skeleton";
 import type { MapMouseEvent } from "maplibre-gl";
 import { Popup } from "maplibre-gl";
@@ -35,6 +35,7 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
       showPopup = (_clickedFeature: Record<string, any>) => true,
       openPopupFor,
       popupCoordinate,
+      link,
     }: IAsyncPopup,
     ref,
   ) => {
@@ -158,6 +159,19 @@ const AsyncPopup = forwardRef<HTMLDivElement, IAsyncPopup>(
               </Button>
             </div>
           </div>
+        )}
+        {!isLoading && link && (
+          <a
+            href={link.href}
+            className={buttonVariants({
+              variant: "outline",
+              size: "sm",
+              className:
+                "naxatw-mt-2 naxatw-w-full naxatw-border-gray-300 naxatw-font-primary naxatw-text-gray-700 naxatw-no-underline",
+            })}
+          >
+            {link.text}
+          </a>
         )}
       </div>
     );
