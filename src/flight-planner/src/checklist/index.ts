@@ -281,26 +281,6 @@ function referencePage(state: AppState): string {
     </div>`;
 }
 
-// One link per page with gaps, so a skipped check is one tap away without a long list.
-function unansweredNote(stage: ChecklistStage, droneType: DroneTypeKey): string {
-  const { answers } = loadChecklist();
-  const links = stage.groups.flatMap((group, page) => {
-    const missing = visibleItems(group.items, droneType).filter((item) => !answers[item.id]);
-    if (missing.length === 0) return [];
-    return `
-      <li>
-        <a href="#" data-goto="${page}">${escapeHtml(group.title)}: ${missing.length}</a>
-      </li>`;
-  });
-  if (links.length === 0) return "";
-  return `
-    <wa-callout variant="warning" appearance="outlined" size="s">
-      <wa-icon slot="icon" name="circle-question"></wa-icon>
-      <strong>Not checked yet:</strong>
-      <ul>${links.join("")}</ul>
-    </wa-callout>`;
-}
-
 // The reference closes the stages flown right after, not the one done at base.
 function pageCount(stage: ChecklistStage): number {
   return stage.groups.length + (stage.key === "depart" ? 0 : 1);
@@ -342,15 +322,9 @@ export function openChecklist(ctx: StepContext, key?: StageKey, reference = fals
     const last = pageCount(stage) - 1;
     const heading = group ? stage : IN_FLIGHT;
     dialog.label = heading.title;
-    const unanswered =
-      // On the last page of checks, not on the During the flight page after it.
-      page === stage.groups.length - 1
-        ? `<div data-unanswered>${unansweredNote(stage, droneType)}</div>`
-        : "";
     body.innerHTML = `
       <p class="muted">${escapeHtml(heading.hint)} Page ${page + 1} of ${last + 1}.</p>
-      ${group ? groupPage(group, ctx.state) : referencePage(ctx.state)}
-      ${unanswered}`;
+      ${group ? groupPage(group, ctx.state) : referencePage(ctx.state)}`;
     back.hidden = false;
     back.disabled = page === 0 && !fromList;
     next.textContent = page === last ? lastPageLabel(stage) : "Next";
@@ -378,22 +352,13 @@ export function openChecklist(ctx: StepContext, key?: StageKey, reference = fals
     const item = stageItems(stage, droneType).find((candidate) => candidate.id === id)!;
     saveChecklist(ctx, withAnswer(loadChecklist(), id, answer));
     body.querySelector(`[data-not-ok="${id}"]`)!.innerHTML = notOkMessage(item, answer);
-    const note = body.querySelector("[data-unanswered]");
-    if (note) note.innerHTML = unansweredNote(stage, droneType);
     if (page === pageCount(stage) - 1) next.textContent = lastPageLabel(stage);
   };
   body.onclick = (event) => {
-    const target = event.target as HTMLElement;
-    if (target.closest("[data-all-ok]") && stage) {
-      const items = visibleItems(stage.groups[page].items, droneType);
-      saveChecklist(ctx, withUnansweredOk(loadChecklist(), items));
-      return goNext();
-    }
-    const link = target.closest<HTMLElement>("[data-goto]");
-    if (!link) return;
-    event.preventDefault();
-    page = Number(link.dataset.goto);
-    render();
+    if (!stage || !(event.target as HTMLElement).closest("[data-all-ok]")) return;
+    const items = visibleItems(stage.groups[page].items, droneType);
+    saveChecklist(ctx, withUnansweredOk(loadChecklist(), items));
+    goNext();
   };
   back.onclick = () => {
     if (page === 0) return showList();
