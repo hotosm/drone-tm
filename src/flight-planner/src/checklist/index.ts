@@ -218,6 +218,14 @@ export function mountChecklistCard(
     ?.addEventListener("click", () => open("site", true));
 }
 
+// Downloads are never blocked, so this is where the pre-flight checks are asked for.
+export function promptSiteChecks(ctx: StepContext): void {
+  const stage = stageByKey("site");
+  const { status } = stageProgress(stage, loadChecklist(), ctx.state.params.droneType);
+  if (status === "ready" || status === "caution") return;
+  ctx.toast(`Once the plan is on the controller, do the "${stage.title}" checks.`);
+}
+
 function notOkMessage(item: ChecklistItem, answer: Answer | undefined): string {
   if (answer !== "not_ok") return "";
   return `<p class="checklist-not-ok" role="alert">${NOT_OK_MESSAGE[item.severity]}</p>`;

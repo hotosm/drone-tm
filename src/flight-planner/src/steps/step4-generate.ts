@@ -1,5 +1,5 @@
 import type { AppState, Step } from "../app";
-import { checklistCard, mountChecklistCard } from "../checklist";
+import { checklistCard, mountChecklistCard, promptSiteChecks } from "../checklist";
 import { bboxIncludingPoint } from "../core/dem";
 import { cropForBundle } from "../core/geotiff-write";
 import { batteryBudget, buildPlan } from "../core/flightplan";
@@ -247,7 +247,9 @@ export const step4: Step = {
     for (const button of root.querySelectorAll<HTMLElement>("[data-download]")) {
       button.addEventListener("click", () => {
         const file = outputs[Number(button.dataset.download)];
-        if (file) download(file);
+        if (!file) return;
+        download(file);
+        promptSiteChecks(ctx);
       });
     }
 
