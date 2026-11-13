@@ -5,7 +5,6 @@ import {
   readChecklist,
   stageByKey,
   stageProgress,
-  unansweredItems,
   visibleItems,
   withAnswer,
   withoutStage,
@@ -83,11 +82,6 @@ describe("stageProgress", () => {
     expect(stageProgress(depart, state, DJI).status).toBe("stop");
   });
 
-  it("puts stop ahead of fix", () => {
-    const state = withAnswer(withAnswer(allOk(), "firmware", "not_ok"), "geofence", "not_ok");
-    expect(stageProgress(depart, state, DJI).status).toBe("stop");
-  });
-
   it("only cautions on an image quality item", () => {
     const state = withAnswer(allOk(), "forecast", "not_ok");
     expect(stageProgress(depart, state, DJI).status).toBe("caution");
@@ -98,22 +92,6 @@ describe("stageProgress", () => {
     expect(stageProgress(site, allOk(), POTENSIC).total).toBeLessThan(
       stageProgress(site, allOk(), DJI).total,
     );
-  });
-});
-
-describe("unansweredItems", () => {
-  it("lists only this drone's items without an answer, in checklist order", () => {
-    const state = withAnswer(allOk(), "gps", "ok");
-    const missing = unansweredItems(stageByKey("site"), state, POTENSIC).map((item) => item.id);
-    expect(missing).not.toContain("gps");
-    expect(missing).toContain("beginner-mode");
-    expect(missing).not.toContain("max-altitude");
-    expect(missing.indexOf("restricted")).toBeLessThan(missing.indexOf("observer"));
-  });
-
-  it("is empty once every item is answered, OK or not", () => {
-    const state = withAnswer(allOk(), "authorized", "not_ok");
-    expect(unansweredItems(depart, state, DJI)).toEqual([]);
   });
 });
 
@@ -169,21 +147,23 @@ describe("readChecklist", () => {
     });
   });
 
-  it("clears site checks left untouched for hours, keeping the day's checks", () => {
+  it("clears site checks after a long gap, keeping the day's checks", () => {
     const morning = Date.parse("2026-11-06T08:00:00");
     const state = withAnswer(withAnswer(allOk(), "gps", "ok", morning), "next-zoom", "ok", morning);
-    const afternoon = readChecklist(JSON.stringify(state), state.day, morning + 4 * HOUR_MS);
-    expect(afternoon.answers.gps).toBeUndefined();
-    expect(afternoon.answers["next-zoom"]).toBeUndefined();
-    expect(afternoon.checkedAt).toEqual(state.checkedAt);
-    expect(stageProgress(depart, afternoon, DJI).status).toBe("ready");
+    const later = readChecklist(JSON.stringify(state), state.day, morning + 2 * HOUR_MS);
+    expect(later.answers.gps).toBeUndefined();
+    expect(later.answers["next-zoom"]).toBeUndefined();
+    expect(later.checkedAt).toEqual({});
+    expect(stageProgress(depart, later, DJI).status).toBe("ready");
   });
 
-  it("keeps site checks during a session at one site", () => {
+  it("keeps site checks while repeat flights continue at one site", () => {
     const start = Date.parse("2026-11-06T08:00:00");
-    const state = withAnswer(allOk(), "gps", "ok", start);
-    const later = readChecklist(JSON.stringify(state), state.day, start + 2 * HOUR_MS);
+    const firstFlight = withAnswer(allOk(), "gps", "ok", start);
+    const thirdFlight = withAnswer(firstFlight, "next-zoom", "ok", start + 1.25 * HOUR_MS);
+    const later = readChecklist(JSON.stringify(thirdFlight), thirdFlight.day, start + 2 * HOUR_MS);
     expect(later.answers.gps).toBe("ok");
+    expect(later.answers["next-zoom"]).toBe("ok");
   });
 
   it("starts empty when nothing is stored", () => {

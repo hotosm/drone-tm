@@ -1,6 +1,6 @@
 import type { OutputFormat } from "../core/qfield";
 
-export type Severity = "stop" | "fix" | "advise";
+export type Severity = "stop" | "advise";
 export type StageKey = "depart" | "site" | "next";
 
 /** Limits an entry to one drone family, for settings that differ between apps. */
@@ -33,7 +33,6 @@ export interface ChecklistStage {
 
 export const NOT_OK_MESSAGE: Record<Severity, string> = {
   stop: "Do not fly until this is OK.",
-  fix: "Fix this before takeoff.",
   advise: "You can still fly, but image quality may be lower.",
 };
 
@@ -86,17 +85,17 @@ export const STAGES: ChecklistStage[] = [
             severity: "advise",
             why: "When the sun is high, there are fewer shadows in the photos.",
           },
-          { id: "takeoff-spots", label: "Takeoff locations chosen", severity: "fix" },
-          { id: "firmware", label: "Drone firmware and apps updated", severity: "fix" },
+          { id: "takeoff-spots", label: "Takeoff locations chosen", severity: "stop" },
+          { id: "firmware", label: "Drone firmware and apps updated", severity: "stop" },
           {
             id: "activated",
             label: "Drone activated in Potensic Eve",
-            severity: "fix",
+            severity: "stop",
             why: "Before activation, the drone cannot fly higher or further than 30 m.",
             only: "potensic",
           },
-          { id: "batteries", label: "All batteries charged, including spares", severity: "fix" },
-          { id: "sd-card", label: "SD card tested", severity: "fix" },
+          { id: "batteries", label: "All batteries charged, including spares", severity: "stop" },
+          { id: "sd-card", label: "SD card tested", severity: "stop" },
         ],
       },
     ],
@@ -132,12 +131,12 @@ export const STAGES: ChecklistStage[] = [
       {
         title: "Drone",
         items: [
-          { id: "gimbal-cover", label: "Gimbal cover removed", severity: "fix" },
-          { id: "arms", label: "Arms fully open", severity: "fix" },
+          { id: "gimbal-cover", label: "Gimbal cover removed", severity: "stop" },
+          { id: "arms", label: "Arms fully open", severity: "stop" },
           { id: "propellers", label: "Propellers clean and undamaged", severity: "stop" },
           { id: "damage", label: "No damage or loose parts", severity: "stop" },
           { id: "battery-swollen", label: "Battery not swollen or damaged", severity: "stop" },
-          { id: "site-sd", label: "SD card inserted", severity: "fix" },
+          { id: "site-sd", label: "SD card inserted", severity: "stop" },
         ],
       },
       {
@@ -147,14 +146,14 @@ export const STAGES: ChecklistStage[] = [
           {
             id: "phone",
             label: "Phone charged, attached to the controller, and Potensic Eve open",
-            severity: "fix",
+            severity: "stop",
             only: "potensic",
           },
           { id: "plan-loaded", label: "Flight plan loaded on the controller", severity: "stop" },
-          { id: "drone-battery", label: "Drone battery above 90%", severity: "fix" },
-          { id: "controller-battery", label: "Controller battery above 60%", severity: "fix" },
+          { id: "drone-battery", label: "Drone battery above 90%", severity: "stop" },
+          { id: "controller-battery", label: "Controller battery above 60%", severity: "stop" },
           { id: "gps", label: "Strong GPS signal", severity: "stop" },
-          { id: "camera-view", label: "Camera view is clear and in focus", severity: "fix" },
+          { id: "camera-view", label: "Camera view is clear and in focus", severity: "stop" },
           { id: "no-errors", label: "No error messages", severity: "stop" },
         ],
       },
@@ -164,7 +163,7 @@ export const STAGES: ChecklistStage[] = [
           {
             id: "zoom",
             label: "Camera zoom is 1x",
-            severity: "fix",
+            severity: "stop",
             why:
               "Zoomed photos cannot be joined into a map. DroneTM rejects them, and the " +
               "area must be flown again.",
@@ -172,41 +171,41 @@ export const STAGES: ChecklistStage[] = [
           {
             id: "jpeg",
             label: "Photo format is JPEG, not RAW (DNG)",
-            severity: "fix",
+            severity: "stop",
             why: "JPEG files are smaller and faster to upload. Some processing tools cannot read RAW.",
           },
-          { id: "aspect", label: "Photo aspect ratio is 4:3", severity: "fix" },
-          { id: "resolution", label: "Photo resolution is 12 MP", severity: "fix", only: "dji" },
+          { id: "aspect", label: "Photo aspect ratio is 4:3", severity: "stop" },
+          { id: "resolution", label: "Photo resolution is 12 MP", severity: "stop", only: "dji" },
           {
             id: "avoidance",
             label: "Obstacle avoidance is set to Bypass",
-            severity: "fix",
+            severity: "stop",
             only: "dji",
           },
           {
             id: "rth",
             label: "Return to Home (RTH) altitude is 120 m",
-            severity: "fix",
+            severity: "stop",
             only: "dji",
           },
           {
             id: "beginner-mode",
             label: "Beginner Mode is off",
-            severity: "fix",
+            severity: "stop",
             why: "Beginner Mode keeps the drone within 30 m, so the mission cannot fly.",
             only: "potensic",
           },
           {
             id: "return-altitude",
             label: "Return altitude is higher than nearby obstacles",
-            severity: "fix",
+            severity: "stop",
             why: "The Atom 2 cannot detect obstacles. It will hit anything taller on its way back.",
             only: "potensic",
           },
           {
             id: "virtual-fence",
             label: "Virtual fence is higher and wider than the flight plan",
-            severity: "fix",
+            severity: "stop",
             why:
               "Fence height is measured from the takeoff point. The maximum is 120 m, so a " +
               "plan that goes higher cannot be flown.",
@@ -215,7 +214,7 @@ export const STAGES: ChecklistStage[] = [
           {
             id: "max-altitude",
             label: "Maximum altitude is 500 m",
-            severity: "fix",
+            severity: "stop",
             why:
               "Altitude is measured from the takeoff point, not the ground. Following the " +
               "terrain uphill can need much more than the flight height.",
@@ -224,7 +223,7 @@ export const STAGES: ChecklistStage[] = [
           {
             id: "max-distance",
             label: "Maximum distance is 5000 m",
-            severity: "fix",
+            severity: "stop",
             only: "dji",
           },
         ],
@@ -240,14 +239,14 @@ export const STAGES: ChecklistStage[] = [
           {
             id: "takeoff-point",
             label: "Drone is at the takeoff point shown on the map",
-            severity: "fix",
+            severity: "stop",
             why:
               "Plan heights are measured from the ground there. Taking off higher or lower " +
               "moves the whole flight up or down by the difference.",
           },
-          { id: "level", label: "Drone is on flat ground", severity: "fix" },
-          { id: "facing", label: "Drone is facing away from you", severity: "fix" },
-          { id: "observer", label: "Observer is ready", severity: "fix" },
+          { id: "level", label: "Drone is on flat ground", severity: "stop" },
+          { id: "facing", label: "Drone is facing away from you", severity: "stop" },
+          { id: "observer", label: "Observer is ready", severity: "stop" },
         ],
       },
     ],
@@ -261,10 +260,10 @@ export const STAGES: ChecklistStage[] = [
         title: "Before the next takeoff",
         items: [
           { id: "next-conditions", label: "Weather and wind are still OK", severity: "stop" },
-          { id: "next-battery", label: "New drone battery, above 90%", severity: "fix" },
+          { id: "next-battery", label: "New drone battery, above 90%", severity: "stop" },
           { id: "next-propellers", label: "Propellers still undamaged", severity: "stop" },
           { id: "next-plan", label: "Correct flight plan selected", severity: "stop" },
-          { id: "next-zoom", label: "Camera zoom is still 1x", severity: "fix" },
+          { id: "next-zoom", label: "Camera zoom is still 1x", severity: "stop" },
           { id: "next-errors", label: "No error messages", severity: "stop" },
         ],
       },

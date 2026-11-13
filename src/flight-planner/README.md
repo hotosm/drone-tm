@@ -15,7 +15,7 @@ The header holds the whole checklist: before you leave, before the flight,
 during the flight, and a shorter list for repeat flights. Step 4 shows only the
 per-flight parts: before the flight and during the flight.
 Answers are saved in the browser for the day, across all plans. Site checks
-left untouched for 3 hours are cleared, as they likely describe an earlier site.
+are cleared after 1.5 hours without any site check, as they likely describe an earlier site.
 Downloads are never blocked.
 
 ## Development

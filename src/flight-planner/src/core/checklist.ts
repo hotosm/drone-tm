@@ -10,7 +10,7 @@ import type { DroneTypeKey } from "./types";
 
 export type Answer = "ok" | "not_ok";
 /** Worst first. "caution" means only image quality advice failed. */
-export type ChecklistStatus = "stop" | "fix" | "todo" | "caution" | "ready";
+export type ChecklistStatus = "stop" | "todo" | "caution" | "ready";
 
 /** One per browser, not per plan: a day's checks cover every task flown that day. */
 export interface ChecklistState {
@@ -21,23 +21,17 @@ export interface ChecklistState {
   checkedAt: Partial<Record<StageKey, number>>;
 }
 
-// Long enough for repeat flights at one site, short enough to miss the next site.
-const SITE_CHECKS_EXPIRE_MS = 3 * 60 * 60 * 1000;
+// A gap this long since any site check means the pilot has moved to the next site.
+const SITE_CHECKS_EXPIRE_MS = 1.5 * 60 * 60 * 1000;
 const SITE_STAGES: StageKey[] = ["site", "next"];
 
 function localDay(now = new Date()): string {
   return now.toLocaleDateString("en-CA");
 }
 
-function isStale(state: ChecklistState, key: StageKey, now: number): boolean {
-  const checkedAt = state.checkedAt[key];
-  return checkedAt !== undefined && now - checkedAt > SITE_CHECKS_EXPIRE_MS;
-}
-
 /**
  * Reads stored answers, starting afresh on a new day or when they cannot be
- * read. Site checks left untouched for hours are cleared, as they likely
- * describe an earlier site. Their time is kept, so the list can say why.
+ * read. Site checks are cleared after a long gap, as they likely describe an earlier site.
  */
 export function readChecklist(
   raw: string | null,
@@ -54,10 +48,9 @@ export function readChecklist(
   }
   const readable = typeof stored.answers === "object" && typeof stored.checkedAt === "object";
   if (stored.day !== day || !readable) return fresh;
-  return SITE_STAGES.filter((key) => isStale(stored, key, now)).reduce(
-    (state, key) => ({ ...withoutStage(state, stageByKey(key)), checkedAt: state.checkedAt }),
-    stored,
-  );
+  const lastSiteCheck = Math.max(0, ...SITE_STAGES.map((key) => stored.checkedAt[key] ?? 0));
+  if (now - lastSiteCheck <= SITE_CHECKS_EXPIRE_MS) return stored;
+  return SITE_STAGES.reduce((state, key) => withoutStage(state, stageByKey(key)), stored);
 }
 
 function stageOfItem(id: string): ChecklistStage {
@@ -123,14 +116,6 @@ export function failedItems(
   return stageItems(stage, droneType).filter((item) => state.answers[item.id] === "not_ok");
 }
 
-export function unansweredItems(
-  stage: ChecklistStage,
-  state: ChecklistState,
-  droneType: DroneTypeKey,
-): ChecklistItem[] {
-  return stageItems(stage, droneType).filter((item) => !state.answers[item.id]);
-}
-
 export function stageProgress(
   stage: ChecklistStage,
   state: ChecklistState,
@@ -142,7 +127,6 @@ export function stageProgress(
   const total = items.length;
 
   if (failed.some((item) => item.severity === "stop")) return { status: "stop", answered, total };
-  if (failed.some((item) => item.severity === "fix")) return { status: "fix", answered, total };
   if (answered < total) return { status: "todo", answered, total };
   return { status: failed.length > 0 ? "caution" : "ready", answered, total };
 }

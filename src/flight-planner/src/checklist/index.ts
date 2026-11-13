@@ -33,7 +33,6 @@ type Dialog = HTMLElement & { open: boolean; label: string };
 
 const STATUS_LABEL: Record<ChecklistStatus, string> = {
   stop: "Do not fly",
-  fix: "Needs fixing",
   todo: "Not finished",
   caution: "Done, with warnings",
   ready: "Done",
@@ -57,29 +56,22 @@ function saveChecklist(ctx: StepContext, next: ChecklistState): void {
   }
 }
 
-// Worst first, so the header shows the most urgent problem.
-const PROBLEMS: Array<{ severity: "stop" | "fix"; variant: string; heading: string }> = [
-  { severity: "stop", variant: "danger", heading: "Do not fly until these are OK:" },
-  { severity: "fix", variant: "warning", heading: "Fix these before takeoff:" },
-];
-
-function allFailedItems(state: AppState): ChecklistItem[] {
+function blockingItems(state: AppState): ChecklistItem[] {
   const checklist = loadChecklist();
-  return STAGES.flatMap((stage) => failedItems(stage, checklist, state.params.droneType));
+  return STAGES.flatMap((stage) => failedItems(stage, checklist, state.params.droneType)).filter(
+    (item) => item.severity === "stop",
+  );
 }
 
-function problemCallouts(state: AppState): string {
-  const failed = allFailedItems(state);
-  return PROBLEMS.map(({ severity, variant, heading }) => {
-    const items = failed.filter((item) => item.severity === severity);
-    if (items.length === 0) return "";
-    return `
-      <wa-callout variant="${variant}" appearance="outlined">
-        <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
-        <strong>${heading}</strong>
-        <ul>${items.map((item) => `<li>${escapeHtml(item.label)}</li>`).join("")}</ul>
-      </wa-callout>`;
-  }).join("");
+function problemCallout(state: AppState): string {
+  const items = blockingItems(state);
+  if (items.length === 0) return "";
+  return `
+    <wa-callout variant="danger" appearance="outlined">
+      <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
+      <strong>Do not fly until these are OK:</strong>
+      <ul>${items.map((item) => `<li>${escapeHtml(item.label)}</li>`).join("")}</ul>
+    </wa-callout>`;
 }
 
 /**
@@ -87,10 +79,8 @@ function problemCallouts(state: AppState): string {
  * checks are unfinished, so it is seen from every step.
  */
 export function renderChecklistStatus(state: AppState): void {
-  const failed = allFailedItems(state);
-  const worst = PROBLEMS.find(({ severity }) => failed.some((item) => item.severity === severity));
   const unfinished = !departComplete(loadChecklist(), state.params.droneType);
-  const status = worst?.severity ?? (unfinished ? "todo" : null);
+  const status = blockingItems(state).length > 0 ? "stop" : unfinished ? "todo" : null;
   const dot = document.querySelector<HTMLElement>("#checklist-status")!;
   dot.hidden = !status;
   if (!status) return;
@@ -109,9 +99,8 @@ type OpenStage = (key: StageKey, reference?: boolean) => void;
 const MINUTE_MS = 60 * 1000;
 
 // Shows a repeat-flight pilot whether "Done" is from this flight or the last one.
-function checkedAgo(checkedAt: number | undefined, answered: number): string {
+function checkedAgo(checkedAt: number | undefined): string {
   if (checkedAt === undefined) return "";
-  if (answered === 0) return ", cleared as the last checks were hours ago";
   const minutes = Math.round((Date.now() - checkedAt) / MINUTE_MS);
   if (minutes < 1) return ", just now";
   if (minutes < 60) return `, ${minutes} min ago`;
@@ -126,7 +115,7 @@ function stageRow(
 ): string {
   const { status, answered, total } = stageProgress(stage, checklist, droneType);
   const resetLabel = RESET_LABEL[stage.key];
-  const age = resetLabel ? checkedAgo(checklist.checkedAt[stage.key], answered) : "";
+  const age = resetLabel ? checkedAgo(checklist.checkedAt[stage.key]) : "";
   const reset =
     resetLabel && answered > 0
       ? `<wa-button data-checklist-reset="${stage.key}" appearance="plain" size="s">
@@ -168,7 +157,7 @@ function checklistOverview(state: AppState): string {
   ).join("");
 
   return `
-    ${problemCallouts(state)}
+    ${problemCallout(state)}
     <div class="downloads">${rows}</div>`;
 }
 
@@ -176,7 +165,7 @@ function checklistOverview(state: AppState): string {
 function cardBody(state: AppState): string {
   const site = stageRow(stageByKey("site"), loadChecklist(), state.params.droneType, "brand");
   return `
-    ${problemCallouts(state)}
+    ${problemCallout(state)}
     <div class="downloads">${site}${IN_FLIGHT_ROW}</div>
     <p class="muted">
       "Before you leave" and repeat flight checks are in the header, under the clipboard icon.

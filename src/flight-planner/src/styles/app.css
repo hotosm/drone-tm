@@ -863,10 +863,6 @@ wa-details::part(content) {
   background: var(--wa-color-danger-fill-loud);
 }
 
-.checklist-status[data-status="fix"] {
-  background: var(--wa-color-warning-fill-loud);
-}
-
 .checklist-status[data-status="todo"] {
   background: var(--wa-color-brand-fill-loud);
 }
