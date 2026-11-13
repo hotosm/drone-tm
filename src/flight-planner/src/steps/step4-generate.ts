@@ -55,6 +55,21 @@ function minutes(value: number): string {
   return secs >= 30 ? `${whole + 1} min` : `${whole} min`;
 }
 
+// The first output is the mission for this drone. The rest are for checking or editing it.
+function downloadRow(file: OutputFile, index: number): string {
+  return `
+    <div class="download-row">
+      <div class="download-meta">
+        <strong>${escapeHtml(file.label)}</strong>
+        <span class="muted">${escapeHtml(file.hint)}</span>
+      </div>
+      <wa-button data-download="${index}" appearance="outlined" size="s">
+        <wa-icon slot="start" name="download"></wa-icon>
+        ${escapeHtml(formatBytes(byteSize(file.data)))}
+      </wa-button>
+    </div>`;
+}
+
 export const step4: Step = {
   key: "generate",
   label: "Generate",
@@ -158,23 +173,16 @@ export const step4: Step = {
       ${coachTips("generate")}
 
       <h3 class="downloads-title">Download</h3>
-      <div class="downloads">
-        ${outputs
-          .map(
-            (file, index) => `
-          <div class="download-row">
-            <div class="download-meta">
-              <strong>${escapeHtml(file.label)}</strong>
-              <span class="muted">${escapeHtml(file.hint)}</span>
-            </div>
-            <wa-button data-download="${index}" appearance="outlined" size="s">
-              <wa-icon slot="start" name="download"></wa-icon>
-              ${escapeHtml(formatBytes(byteSize(file.data)))}
-            </wa-button>
-          </div>`,
-          )
-          .join("")}
-      </div>
+      <div class="downloads">${downloadRow(outputs[0], 0)}</div>
+
+      <wa-details summary="Other file types" appearance="outlined">
+        <div class="downloads">
+          ${outputs
+            .slice(1)
+            .map((file, index) => downloadRow(file, index + 1))
+            .join("")}
+        </div>
+      </wa-details>
 
       <wa-details summary="Save a backup copy" appearance="outlined">
         <p class="muted">
