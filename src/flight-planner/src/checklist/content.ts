@@ -118,14 +118,6 @@ export const STAGES: ChecklistStage[] = [
             severity: "stop",
           },
           { id: "sky", label: "You can see the sky over the whole flight area", severity: "stop" },
-          {
-            id: "stable-sky",
-            label: "No patchy clouds (clear sky or full cloud cover is fine)",
-            severity: "advise",
-            why:
-              "Patchy clouds make light and dark areas in the map. Waiting 15-30 minutes " +
-              "often helps.",
-          },
         ],
       },
       {
@@ -153,8 +145,6 @@ export const STAGES: ChecklistStage[] = [
           { id: "drone-battery", label: "Drone battery above 90%", severity: "stop" },
           { id: "controller-battery", label: "Controller battery above 60%", severity: "stop" },
           { id: "gps", label: "Strong GPS signal", severity: "stop" },
-          { id: "camera-view", label: "Camera view is clear and in focus", severity: "stop" },
-          { id: "no-errors", label: "No error messages", severity: "stop" },
         ],
       },
       {
@@ -264,7 +254,6 @@ export const STAGES: ChecklistStage[] = [
           { id: "next-propellers", label: "Propellers still undamaged", severity: "stop" },
           { id: "next-plan", label: "Correct flight plan selected", severity: "stop" },
           { id: "next-zoom", label: "Camera zoom is still 1x", severity: "stop" },
-          { id: "next-errors", label: "No error messages", severity: "stop" },
         ],
       },
     ],
