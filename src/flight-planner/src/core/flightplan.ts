@@ -115,8 +115,12 @@ export function buildPlan(
 
   const result = generate(ring, toGenerateConfig(params, generateMode));
   // The camera timer fires along whole lines, so count the full photo grid, not kept waypoints.
+  // Zones are left out: that grid is never flown, so its route must not fail the plan.
+  const gridParams = { ...params, noFlyZones: [] };
   const grid =
-    generateMode === "waypoints" ? result : generate(ring, toGenerateConfig(params, "waypoints"));
+    generateMode === "waypoints"
+      ? result
+      : generate(ring, toGenerateConfig(gridParams, "waypoints"));
   const photos = grid.geojson.features.filter((f) => f.properties.take_photo).length;
 
   if (!terrainFollowing || !dem) {

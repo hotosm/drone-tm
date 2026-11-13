@@ -181,6 +181,12 @@ describe("no-fly zones", () => {
     expect(line[0]).toEqual([centre.lon, centre.lat]);
   });
 
+  it("counts waylines photos on the whole grid, as the camera timer ignores zones", () => {
+    const waylines = params({ flightMode: "waylines" });
+    const withZone = buildPlan(task, { ...waylines, noFlyZones: [northZone] }, null);
+    expect(withZone.photos).toBe(buildPlan(task, waylines, null).photos);
+  });
+
   it("leaves a plan unchanged without zones", () => {
     const plain = buildPlan(task, params({}), null);
     const empty = buildPlan(task, params({ noFlyZones: [] }), null);
