@@ -92,16 +92,18 @@ async def update_take_off_point_in_db(
         )
 
 
-async def get_take_off_point_from_db(db: Connection, task_id: uuid.UUID):
+async def get_take_off_point_from_db(
+    db: Connection, project_id: uuid.UUID, task_id: uuid.UUID
+):
     """Get take_off_point from task table"""
     async with db.cursor(row_factory=dict_row) as cur:
         await cur.execute(
             """
             SELECT ST_AsGeoJSON(take_off_point) as take_off_point
             FROM tasks
-            WHERE id = %(task_id)s;
+            WHERE id = %(task_id)s AND project_id = %(project_id)s;
             """,
-            {"task_id": str(task_id)},
+            {"task_id": str(task_id), "project_id": str(project_id)},
         )
 
         data = await cur.fetchone()

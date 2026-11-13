@@ -101,7 +101,9 @@ async def get_task_flightplan(
         geojson_point = {"type": "Point", "coordinates": take_off_point}
         await update_take_off_point_in_db(db, task_id, geojson_point)
     else:
-        take_off_point_from_db = await get_take_off_point_from_db(db, task_id)
+        take_off_point_from_db = await get_take_off_point_from_db(
+            db, project_id, task_id
+        )
 
         if take_off_point_from_db:
             take_off_point = take_off_point_from_db["coordinates"]

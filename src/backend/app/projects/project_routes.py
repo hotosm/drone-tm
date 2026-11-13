@@ -243,7 +243,7 @@ async def flightplanner_params(
         params["gimbalAngle"] = gimbal_angle
 
     if task_id:
-        takeoff = await task_logic.get_take_off_point_from_db(db, task_id)
+        takeoff = await task_logic.get_take_off_point_from_db(db, project.id, task_id)
         if takeoff:
             lon, lat = takeoff["coordinates"][:2]
             params["takeoffPoint"] = {"lon": lon, "lat": lat}
