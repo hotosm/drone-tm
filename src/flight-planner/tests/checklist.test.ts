@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { IN_FLIGHT_STEPS, STAGES } from "../src/checklist/content";
 import {
-  downloadNeedsConfirmation,
+  departComplete,
   readChecklist,
   stageByKey,
   stageProgress,
@@ -126,16 +126,6 @@ describe("withoutStage", () => {
     expect(stageProgress(depart, cleared, DJI).status).toBe("ready");
   });
 
-  it("keeps an accepted download risk, which belongs to the day's plan", () => {
-    const accepted = {
-      day: "d",
-      answers: { "next-zoom": "ok" as const },
-      checkedAt: {},
-      riskAccepted: true,
-    };
-    expect(withoutStage(accepted, stageByKey("next")).riskAccepted).toBe(true);
-  });
-
   it("forgets when the stage was checked", () => {
     const state = withAnswer(allOk(), "next-zoom", "ok", 1000);
     expect(withoutStage(state, stageByKey("next")).checkedAt.next).toBeUndefined();
@@ -206,27 +196,17 @@ describe("readChecklist", () => {
   });
 });
 
-describe("downloadNeedsConfirmation", () => {
-  it("lets a completed checklist through", () => {
-    expect(downloadNeedsConfirmation(allOk(), DJI)).toBe(false);
+describe("departComplete", () => {
+  it("accepts a completed checklist", () => {
+    expect(departComplete(allOk(), DJI)).toBe(true);
   });
 
-  it("lets image quality warnings through", () => {
-    expect(downloadNeedsConfirmation(withAnswer(allOk(), "forecast", "not_ok"), DJI)).toBe(false);
+  it("accepts image quality warnings", () => {
+    expect(departComplete(withAnswer(allOk(), "forecast", "not_ok"), DJI)).toBe(true);
   });
 
-  it("asks when the checks are unfinished or failed", () => {
-    expect(downloadNeedsConfirmation({ day: "d", answers: {}, checkedAt: {} }, DJI)).toBe(true);
-    expect(downloadNeedsConfirmation(withAnswer(allOk(), "authorized", "not_ok"), DJI)).toBe(true);
-  });
-
-  it("asks once after the pilot accepts the risk", () => {
-    const accepted = { day: "d", answers: {}, checkedAt: {}, riskAccepted: true };
-    expect(downloadNeedsConfirmation(accepted, DJI)).toBe(false);
-  });
-
-  it("asks again when an answer changes after accepting", () => {
-    const accepted = { ...allOk(), riskAccepted: true };
-    expect(downloadNeedsConfirmation(withAnswer(accepted, "authorized", "not_ok"), DJI)).toBe(true);
+  it("rejects unfinished or failed checks", () => {
+    expect(departComplete({ day: "d", answers: {}, checkedAt: {} }, DJI)).toBe(false);
+    expect(departComplete(withAnswer(allOk(), "authorized", "not_ok"), DJI)).toBe(false);
   });
 });

@@ -19,7 +19,6 @@ export interface ChecklistState {
   answers: Record<string, Answer>;
   /** Epoch ms of each stage's latest answer, to expire checks from an earlier site. */
   checkedAt: Partial<Record<StageKey, number>>;
-  riskAccepted?: boolean;
 }
 
 // Long enough for repeat flights at one site, short enough to miss the next site.
@@ -67,7 +66,6 @@ function stageOfItem(id: string): ChecklistStage {
   )!;
 }
 
-/** Drops an accepted download risk, so changed answers are confirmed again. */
 export function withAnswer(
   state: ChecklistState,
   id: string,
@@ -150,11 +148,7 @@ export function stageProgress(
 }
 
 /** Every pre-departure item answered, with nothing worse than image quality advice failed. */
-function departComplete(state: ChecklistState, droneType: DroneTypeKey): boolean {
+export function departComplete(state: ChecklistState, droneType: DroneTypeKey): boolean {
   const { status } = stageProgress(stageByKey("depart"), state, droneType);
   return status === "ready" || status === "caution";
-}
-
-export function downloadNeedsConfirmation(state: ChecklistState, droneType: DroneTypeKey): boolean {
-  return !state.riskAccepted && !departComplete(state, droneType);
 }

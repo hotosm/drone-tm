@@ -103,7 +103,7 @@ export const STAGES: ChecklistStage[] = [
   },
   {
     key: "site",
-    title: "At the site",
+    title: "Before the flight",
     hint: "Do these at the site, with the drone in front of you.",
     groups: [
       {
@@ -272,7 +272,7 @@ export const STAGES: ChecklistStage[] = [
   },
 ];
 
-export const IN_FLIGHT = { title: "In flight", hint: "Read this before takeoff." };
+export const IN_FLIGHT = { title: "During the flight", hint: "Read this before takeoff." };
 
 /** In the order they happen. */
 export const IN_FLIGHT_STEPS: ReferenceLine[] = [

@@ -1,11 +1,10 @@
 import type { AppState, StepContext } from "../app";
 import {
-  downloadNeedsConfirmation,
+  departComplete,
   failedItems,
   stageByKey,
   stageItems,
   stageProgress,
-  unansweredItems,
   visibleItems,
   withAnswer,
   readChecklist,
@@ -85,12 +84,12 @@ function problemCallouts(state: AppState): string {
 
 /**
  * Marks the header button while any answer is Not OK, or the pre-departure
- * checks are unfinished and not bypassed, so it is seen from every step.
+ * checks are unfinished, so it is seen from every step.
  */
 export function renderChecklistStatus(state: AppState): void {
   const failed = allFailedItems(state);
   const worst = PROBLEMS.find(({ severity }) => failed.some((item) => item.severity === severity));
-  const unfinished = downloadNeedsConfirmation(loadChecklist(), state.params.droneType);
+  const unfinished = !departComplete(loadChecklist(), state.params.droneType);
   const status = worst?.severity ?? (unfinished ? "todo" : null);
   const dot = document.querySelector<HTMLElement>("#checklist-status")!;
   dot.hidden = !status;
@@ -161,25 +160,27 @@ const IN_FLIGHT_ROW = `
 
 function checklistOverview(state: AppState): string {
   const checklist = loadChecklist();
-  const rows = STAGES.map((stage) => stageRow(stage, checklist, state.params.droneType)).join("");
+  // In the order they happen, with the in-flight guide after the checks it follows.
+  const rows = STAGES.map(
+    (stage) =>
+      stageRow(stage, checklist, state.params.droneType) +
+      (stage.key === "site" ? IN_FLIGHT_ROW : ""),
+  ).join("");
 
   return `
     ${problemCallouts(state)}
-    <div class="downloads">${rows}${IN_FLIGHT_ROW}</div>`;
+    <div class="downloads">${rows}</div>`;
 }
 
-// Plans are often downloaded just before the flight, so the site checks lead.
+// Next to the plan, only what is done for each flight. Project checks are in the header.
 function cardBody(state: AppState): string {
-  const checklist = loadChecklist();
-  const { droneType } = state.params;
+  const site = stageRow(stageByKey("site"), loadChecklist(), state.params.droneType, "brand");
   return `
     ${problemCallouts(state)}
-    <div class="downloads">
-      ${stageRow(stageByKey("site"), checklist, droneType, "brand")}
-      ${IN_FLIGHT_ROW}
-      ${stageRow(stageByKey("depart"), checklist, droneType)}
-    </div>
-    <p class="muted">The next flight checks are in the header, under the clipboard icon.</p>`;
+    <div class="downloads">${site}${IN_FLIGHT_ROW}</div>
+    <p class="muted">
+      "Before you leave" and repeat flight checks are in the header, under the clipboard icon.
+    </p>`;
 }
 
 export function checklistCard(state: AppState): string {
@@ -271,7 +272,7 @@ function referencePage(state: AppState): string {
   );
   return `
     <div class="in-flight">
-      <h3>During the flight</h3>
+      <h3>Step by step</h3>
       <ol class="checklist-steps">
         ${steps.map((line) => `<li>${escapeHtml(line.text)}</li>`).join("")}
       </ol>
@@ -345,7 +346,7 @@ export function openChecklist(ctx: StepContext, key?: StageKey, reference = fals
     const heading = group ? stage : IN_FLIGHT;
     dialog.label = heading.title;
     const unanswered =
-      // On the last page of checks, not on the In flight page after it.
+      // On the last page of checks, not on the During the flight page after it.
       page === stage.groups.length - 1
         ? `<div data-unanswered>${unansweredNote(stage, droneType)}</div>`
         : "";
@@ -423,59 +424,4 @@ export function openChecklist(ctx: StepContext, key?: StageKey, reference = fals
   else showList();
   dialog.open = true;
   return closed;
-}
-
-const STOPPED_MESSAGE =
-  'Not downloaded. Finish the "Before you leave" checks, or download at your own risk.';
-
-/**
- * Resolves true when the download may go ahead. It never refuses for good.
- * After a review, the download carries on only if the checks are now complete.
- */
-export function confirmDownload(ctx: StepContext): Promise<boolean> {
-  const checklist = loadChecklist();
-  const { droneType } = ctx.state.params;
-  if (!downloadNeedsConfirmation(checklist, droneType)) return Promise.resolve(true);
-
-  const stage = stageByKey("depart");
-  const failed = failedItems(stage, checklist, droneType).filter(
-    (item) => item.severity !== "advise",
-  );
-  const instruction = failed.some((item) => item.severity === "stop")
-    ? "Do not fly until they are OK."
-    : "Fix them before takeoff.";
-  const missing = unansweredItems(stage, checklist, droneType).length;
-  const failedNote = failed.length
-    ? `<p><strong>You marked these as not OK. ${instruction}</strong></p>
-       <ul>${failed.map((item) => `<li>${escapeHtml(item.label)}</li>`).join("")}</ul>`
-    : "";
-  const missingNote = missing
-    ? `<p>${missing} of the "${escapeHtml(stage.title)}" checks are not done yet.</p>`
-    : "";
-  const dialog = document.querySelector<Dialog>("#checklist-risk")!;
-  dialog.querySelector("#checklist-risk-body")!.innerHTML = `
-    ${failedNote}
-    ${missingNote}
-    <p>You can still download the flight plan, but you fly at your own risk.</p>`;
-
-  return new Promise((resolve) => {
-    let choice: string | undefined;
-    dialog.onclick = (event) => {
-      choice = (event.target as HTMLElement).closest<HTMLElement>("[data-risk]")?.dataset.risk;
-      if (choice) dialog.open = false;
-    };
-    dialog.addEventListener(
-      "wa-after-hide",
-      async () => {
-        if (choice === "accept") saveChecklist(ctx, { ...checklist, riskAccepted: true });
-        if (choice !== "review") return resolve(choice === "accept");
-        await openChecklist(ctx, stage.key);
-        const complete = !downloadNeedsConfirmation(loadChecklist(), droneType);
-        if (!complete) ctx.toast(STOPPED_MESSAGE, "warning");
-        resolve(complete);
-      },
-      { once: true },
-    );
-    dialog.open = true;
-  });
 }
