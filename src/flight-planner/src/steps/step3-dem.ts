@@ -160,7 +160,12 @@ export const step3: Step = {
         ${coachLead("dem")}
         ${
           dem.saved
-            ? successPanel(headline, "You can now work offline. This stays saved in this browser.")
+            ? successPanel(
+                headline,
+                ctx.state.keepPlan
+                  ? "You can now work offline. This stays saved in this browser."
+                  : "This stays saved in this browser, for other plans in this area.",
+              )
             : errorPanel(
                 `${headline} It could not be saved.`,
                 "This browser is probably out of space, so the terrain will be lost when " +
@@ -393,7 +398,7 @@ export const step3: Step = {
 
         if (saved) {
           ctx.toast(
-            persisted
+            persisted && ctx.state.keepPlan
               ? "Terrain saved. You can work offline from here."
               : "Terrain saved in this browser.",
             "success",
