@@ -23,7 +23,7 @@ import { step1 } from "./steps/step1-area";
 import { step2 } from "./steps/step2-params";
 import { step3 } from "./steps/step3-dem";
 import { step4 } from "./steps/step4-generate";
-import { escapeHtml } from "./steps/ui";
+import { busyNote, escapeHtml } from "./steps/ui";
 import { fetchAoi, formatArea, validateRing } from "./core/aoi";
 import { DEFAULT_PARAMS } from "./core/flightplan";
 import { fetchParams, parseParams } from "./core/params";
@@ -419,6 +419,12 @@ function renderDemList(entries: DemEntry[], usage: Map<string, string[]>): void 
     .join("")}</ul>`;
 }
 
+// Storage can take seconds, so the confirm row shows progress until it is done.
+function showDeleting(target: HTMLElement, message: string): void {
+  const row = target.closest(".plan-confirm");
+  if (row) row.innerHTML = busyNote(message);
+}
+
 async function refreshDemList(): Promise<void> {
   renderDemList(await listDems(), await demUsage());
 }
@@ -443,6 +449,7 @@ demBody.addEventListener("click", (event) => {
   if (data.demDelete) {
     const key = data.demDelete;
     demConfirming = null;
+    showDeleting(target, "Deleting terrain");
     return void deleteStoredDem(key)
       .then(() => {
         if (state.dem.entry?.key === key) {
@@ -455,7 +462,10 @@ demBody.addEventListener("click", (event) => {
         toast("Terrain deleted.", "success");
         return refreshPlanList();
       })
-      .catch(() => toast("Could not delete that terrain.", "danger"));
+      .catch(() => {
+        toast("Could not delete that terrain.", "danger");
+        return refreshPlanList();
+      });
   }
 });
 
@@ -721,12 +731,16 @@ planBody.addEventListener("click", (event) => {
   if (data.groupDelete) {
     const key = data.groupDelete;
     groupConfirming = null;
+    showDeleting(target, "Deleting plans");
     return void deleteProjectPlans(key)
       .then((removed) => {
         toast(`Deleted ${removed} plan${removed === 1 ? "" : "s"}.`, "success");
         return refreshPlanList();
       })
-      .catch(() => toast("Those plans could not be deleted.", "danger"));
+      .catch(() => {
+        toast("Those plans could not be deleted.", "danger");
+        return refreshPlanList();
+      });
   }
 });
 
@@ -845,6 +859,7 @@ planBody.addEventListener("click", (event) => {
   if (data.free) {
     const id = data.free;
     planConfirming = null;
+    showDeleting(target, "Deleting terrain");
     return void detachPlanDem(id)
       .then(() => {
         if (state.meta.id === id) {
@@ -857,12 +872,16 @@ planBody.addEventListener("click", (event) => {
         toast("Terrain deleted. You can download it again when you have internet.", "success");
         return refreshPlanList();
       })
-      .catch(() => toast("Could not delete that terrain.", "danger"));
+      .catch(() => {
+        toast("Could not delete that terrain.", "danger");
+        return refreshPlanList();
+      });
   }
 
   if (data.delete) {
     const id = data.delete;
     planConfirming = null;
+    showDeleting(target, "Deleting plan");
     return void deletePlan(id)
       .then(() => {
         // Still loaded, it would be written back by the next save.
@@ -870,21 +889,29 @@ planBody.addEventListener("click", (event) => {
         toast("Plan deleted.", "success");
         return refreshPlanList();
       })
-      .catch(() => toast("Could not delete that plan.", "danger"));
+      .catch(() => {
+        toast("Could not delete that plan.", "danger");
+        return refreshPlanList();
+      });
   }
 });
 
 planFilterInput.addEventListener("input", renderPlanList);
 
 async function showStoredPlans(): Promise<void> {
-  await startupMaintenance();
   planConfirming = null;
   groupConfirming = null;
   planRenaming = null;
   demConfirming = null;
   planFilterInput.value = "";
-  await refreshPlanList();
+  planStorage.textContent = "";
+  planBody.innerHTML = busyNote("Loading saved plans");
   planDialog.open = true;
+
+  await startupMaintenance();
+  await refreshPlanList().catch(() => {
+    planBody.innerHTML = `<p class="muted">Saved plans could not be read.</p>`;
+  });
 }
 
 async function seedProjectTerrain(bbox: Bbox): Promise<string> {

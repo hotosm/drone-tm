@@ -903,6 +903,13 @@ wa-details::part(content) {
   margin: 0;
 }
 
+.busy-note {
+  display: flex;
+  align-items: center;
+  gap: var(--wa-space-xs);
+  margin: 0;
+}
+
 .plans-scroll {
   flex: 1 1 auto;
   min-height: 0;

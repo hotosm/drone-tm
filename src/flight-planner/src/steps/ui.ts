@@ -36,6 +36,10 @@ export function successPanel(message: string, detail?: string): string {
     </wa-callout>`;
 }
 
+export function busyNote(message: string): string {
+  return `<p class="busy-note muted"><wa-spinner></wa-spinner> ${escapeHtml(message)}</p>`;
+}
+
 export function stat(label: string, value: string, tone = ""): string {
   return `
     <div class="stat ${tone}">
