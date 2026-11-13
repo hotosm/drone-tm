@@ -1,0 +1,284 @@
+import type { OutputFormat } from "../core/qfield";
+
+export type Severity = "stop" | "advise";
+export type StageKey = "depart" | "site" | "next";
+
+/** Limits an entry to one drone family, for settings that differ between apps. */
+export interface DroneSpecific {
+  only?: OutputFormat;
+}
+
+export interface ChecklistItem extends DroneSpecific {
+  id: string;
+  label: string;
+  severity: Severity;
+  why?: string;
+}
+
+export interface ReferenceLine extends DroneSpecific {
+  text: string;
+}
+
+export interface ChecklistGroup {
+  title: string;
+  items: ChecklistItem[];
+}
+
+export interface ChecklistStage {
+  key: StageKey;
+  title: string;
+  hint: string;
+  groups: ChecklistGroup[];
+}
+
+export const NOT_OK_MESSAGE: Record<Severity, string> = {
+  stop: "Do not fly until this is OK.",
+  advise: "You can still fly, but image quality may be lower.",
+};
+
+export const STAGES: ChecklistStage[] = [
+  {
+    key: "depart",
+    title: "Before you leave",
+    hint: "Do these before you leave, while you have internet.",
+    groups: [
+      {
+        title: "Permissions",
+        items: [
+          {
+            id: "registered",
+            label: "Flight registered with the coordinator or local authorities",
+            severity: "stop",
+          },
+          {
+            id: "authorized",
+            label: "Flight permission received, and NOTAMs checked",
+            severity: "stop",
+            why: "NOTAMs are notices of temporary airspace restrictions, for example a helicopter operation.",
+          },
+          {
+            id: "geofence",
+            label: "Manufacturer no-fly zones (geofence) checked, and unlocked if needed",
+            severity: "stop",
+            why:
+              "Government permission does not unlock the manufacturer's no-fly zones. " +
+              "You must request this separately.",
+          },
+          {
+            id: "informed",
+            label: "Local authorities and community leaders informed",
+            severity: "stop",
+          },
+          {
+            id: "sensitive",
+            label: "Sensitive places excluded, or safeguards agreed",
+            severity: "stop",
+          },
+        ],
+      },
+      {
+        title: "Equipment and weather",
+        items: [
+          {
+            id: "forecast",
+            label: "Weather forecast checked (best time to fly: 10:00-14:00)",
+            severity: "advise",
+            why: "When the sun is high, there are fewer shadows in the photos.",
+          },
+          { id: "takeoff-spots", label: "Takeoff locations chosen", severity: "stop" },
+          { id: "firmware", label: "Drone firmware and apps updated", severity: "stop" },
+          {
+            id: "activated",
+            label: "Drone activated in Potensic Eve",
+            severity: "stop",
+            why: "Before activation, the drone cannot fly higher or further than 30 m.",
+            only: "potensic",
+          },
+          { id: "batteries", label: "All batteries charged, including spares", severity: "stop" },
+          { id: "sd-card", label: "SD card tested", severity: "stop" },
+        ],
+      },
+    ],
+  },
+  {
+    key: "site",
+    title: "Before the flight",
+    hint: "Do these at the site, with the drone in front of you.",
+    groups: [
+      {
+        title: "Airspace and weather",
+        items: [
+          { id: "restricted", label: "No restricted airspace nearby", severity: "stop" },
+          { id: "weather", label: "No rain, fog or storms", severity: "stop" },
+          { id: "wind", label: "Wind is below 20 km/h", severity: "stop" },
+          { id: "crowds", label: "No crowds in the flight area", severity: "stop" },
+          {
+            id: "obstacles",
+            label: "No power lines or other obstacles in the flight area",
+            severity: "stop",
+          },
+          { id: "sky", label: "You can see the sky over the whole flight area", severity: "stop" },
+        ],
+      },
+      {
+        title: "Drone",
+        items: [
+          { id: "gimbal-cover", label: "Gimbal cover removed", severity: "stop" },
+          { id: "arms", label: "Arms fully open", severity: "stop" },
+          { id: "propellers", label: "Propellers clean and undamaged", severity: "stop" },
+          { id: "damage", label: "No damage or loose parts", severity: "stop" },
+          { id: "battery-swollen", label: "Battery not swollen or damaged", severity: "stop" },
+          { id: "site-sd", label: "SD card inserted", severity: "stop" },
+        ],
+      },
+      {
+        title: "Controller",
+        items: [
+          { id: "connected", label: "Controller connected to the drone", severity: "stop" },
+          {
+            id: "phone",
+            label: "Phone charged, attached to the controller, and Potensic Eve open",
+            severity: "stop",
+            only: "potensic",
+          },
+          { id: "plan-loaded", label: "Flight plan loaded on the controller", severity: "stop" },
+          { id: "drone-battery", label: "Drone battery above 90%", severity: "stop" },
+          { id: "controller-battery", label: "Controller battery above 60%", severity: "stop" },
+          { id: "gps", label: "Strong GPS signal", severity: "stop" },
+        ],
+      },
+      {
+        title: "Flight settings",
+        items: [
+          {
+            id: "zoom",
+            label: "Camera zoom is 1x",
+            severity: "stop",
+            why:
+              "Zoomed photos cannot be joined into a map. DroneTM rejects them, and the " +
+              "area must be flown again.",
+          },
+          {
+            id: "jpeg",
+            label: "Photo format is JPEG, not RAW (DNG)",
+            severity: "stop",
+            why: "JPEG files are smaller and faster to upload. Some processing tools cannot read RAW.",
+          },
+          { id: "aspect", label: "Photo aspect ratio is 4:3", severity: "stop" },
+          { id: "resolution", label: "Photo resolution is 12 MP", severity: "stop", only: "dji" },
+          {
+            id: "avoidance",
+            label: "Obstacle avoidance is set to Bypass",
+            severity: "stop",
+            only: "dji",
+          },
+          {
+            id: "rth",
+            label: "Return to Home (RTH) altitude is 120 m",
+            severity: "stop",
+            only: "dji",
+          },
+          {
+            id: "beginner-mode",
+            label: "Beginner Mode is off",
+            severity: "stop",
+            why: "Beginner Mode keeps the drone within 30 m, so the mission cannot fly.",
+            only: "potensic",
+          },
+          {
+            id: "return-altitude",
+            label: "Return altitude is higher than nearby obstacles",
+            severity: "stop",
+            why: "The Atom 2 cannot detect obstacles. It will hit anything taller on its way back.",
+            only: "potensic",
+          },
+          {
+            id: "virtual-fence",
+            label: "Virtual fence is higher and wider than the flight plan",
+            severity: "stop",
+            why:
+              "Fence height is measured from the takeoff point. The maximum is 120 m, so a " +
+              "plan that goes higher cannot be flown.",
+            only: "potensic",
+          },
+          {
+            id: "max-altitude",
+            label: "Maximum altitude is 500 m",
+            severity: "stop",
+            why:
+              "Altitude is measured from the takeoff point, not the ground. Following the " +
+              "terrain uphill can need much more than the flight height.",
+            only: "dji",
+          },
+          {
+            id: "max-distance",
+            label: "Maximum distance is 5000 m",
+            severity: "stop",
+            only: "dji",
+          },
+        ],
+      },
+      {
+        title: "Takeoff",
+        items: [
+          {
+            id: "plan-location",
+            label: "Flight plan shows the correct location",
+            severity: "stop",
+          },
+          {
+            id: "takeoff-point",
+            label: "Drone is at the takeoff point shown on the map",
+            severity: "stop",
+            why:
+              "Plan heights are measured from the ground there. Taking off higher or lower " +
+              "moves the whole flight up or down by the difference.",
+          },
+          { id: "level", label: "Drone is on flat ground", severity: "stop" },
+          { id: "facing", label: "Drone is facing away from you", severity: "stop" },
+          { id: "observer", label: "Observer is ready", severity: "stop" },
+        ],
+      },
+    ],
+  },
+  {
+    key: "next",
+    title: "Next flight here",
+    hint: "A shorter list for each extra flight at the same site.",
+    groups: [
+      {
+        title: "Before the next takeoff",
+        items: [
+          { id: "next-conditions", label: "Weather and wind are still OK", severity: "stop" },
+          { id: "next-battery", label: "New drone battery, above 90%", severity: "stop" },
+          { id: "next-propellers", label: "Propellers still undamaged", severity: "stop" },
+          { id: "next-plan", label: "Correct flight plan selected", severity: "stop" },
+          { id: "next-zoom", label: "Camera zoom is still 1x", severity: "stop" },
+        ],
+      },
+    ],
+  },
+];
+
+export const IN_FLIGHT = { title: "During the flight", hint: "Read this before takeoff." };
+
+/** In the order they happen. */
+export const IN_FLIGHT_STEPS: ReferenceLine[] = [
+  { text: 'After takeoff, wait for the "Home point updated" message' },
+  { text: "Set the photo mode to Timed Shot, 2 seconds", only: "dji" },
+  { text: "Start taking photos at the first waypoint, and stop at the last", only: "dji" },
+  { text: "Photos are taken automatically at each waypoint", only: "potensic" },
+  { text: "Keep the drone in sight at all times" },
+  { text: "Watch the battery level, altitude, error messages and zoom (1x)" },
+];
+
+export const EMERGENCIES: Array<{ situation: string; action: string }> = [
+  {
+    situation: "Rain or strong wind",
+    action: "Press and hold Return to Home (RTH) until it beeps",
+  },
+  { situation: "You need to stop and hover", action: "Press Pause" },
+  { situation: "You lose track of direction", action: "Let go of both sticks" },
+  { situation: "A bird comes close", action: "Fly straight up" },
+  { situation: "A plane or helicopter is nearby", action: "Descend and land" },
+];

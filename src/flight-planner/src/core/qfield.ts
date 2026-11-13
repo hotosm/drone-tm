@@ -93,6 +93,8 @@ export const DRONE_CHOICES: Array<{ value: DroneTypeKey; label: string }> = [
   { value: "POTENSIC_ATOM_2", label: "Potensic Atom 2" },
 ];
 
-export function outputFormatFor(droneType: DroneTypeKey): "potensic" | "dji" {
+export type OutputFormat = "potensic" | "dji";
+
+export function outputFormatFor(droneType: DroneTypeKey): OutputFormat {
   return droneType === "POTENSIC_ATOM_2" ? "potensic" : "dji";
 }

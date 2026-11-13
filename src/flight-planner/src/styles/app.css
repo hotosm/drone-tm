@@ -742,6 +742,149 @@ wa-details::part(content) {
   font-weight: var(--wa-font-weight-semibold);
 }
 
+.checklist-title {
+  margin: var(--wa-space-m) 0 var(--wa-space-s);
+}
+
+.checklist-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--wa-space-s);
+}
+
+.checklist-items li {
+  margin: 0;
+}
+
+.in-flight h3 {
+  margin: var(--wa-space-xl) 0 var(--wa-space-s);
+  font-size: var(--wa-font-size-l);
+}
+
+.in-flight h3:first-child {
+  margin-top: var(--wa-space-s);
+}
+
+/* Numbered badges keep the steps flush with the headings, unlike indented list markers. */
+.checklist-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  display: flex;
+  flex-direction: column;
+  gap: var(--wa-space-m);
+}
+
+.checklist-steps li {
+  margin: 0;
+  counter-increment: step;
+  display: flex;
+  gap: var(--wa-space-s);
+  align-items: flex-start;
+}
+
+.checklist-steps li::before {
+  content: counter(step);
+  flex: 0 0 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--wa-color-brand-fill-quiet);
+  color: var(--wa-color-brand-on-quiet);
+  font-size: var(--wa-font-size-s);
+  font-weight: var(--wa-font-weight-bold);
+}
+
+.checklist-emergencies {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.checklist-emergencies th,
+.checklist-emergencies td {
+  padding: var(--wa-space-s) var(--wa-space-s) var(--wa-space-s) 0;
+  border-bottom: 1px solid var(--wa-color-surface-border);
+  font-size: inherit;
+  text-align: start;
+  vertical-align: top;
+}
+
+.checklist-emergencies tbody th {
+  width: 40%;
+}
+
+.checklist-emergencies thead th {
+  font-size: var(--wa-font-size-s);
+  color: var(--wa-color-text-quiet);
+}
+
+.checklist-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--wa-space-2xs);
+}
+
+.checklist-all-ok {
+  width: 100%;
+  margin-top: var(--wa-space-l);
+}
+
+.checklist-why,
+.checklist-not-ok {
+  margin: var(--wa-space-2xs) 0 0;
+}
+
+.checklist-not-ok {
+  color: var(--wa-color-danger-on-quiet);
+  font-weight: var(--wa-font-weight-semibold);
+}
+
+#show-checklist {
+  position: relative;
+}
+
+.checklist-status {
+  position: absolute;
+  top: 0.15rem;
+  right: 0.15rem;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.checklist-status[data-status="stop"] {
+  background: var(--wa-color-danger-fill-loud);
+}
+
+.checklist-status[data-status="todo"] {
+  background: var(--wa-color-brand-fill-loud);
+}
+
+/* Wide, filled answers can be told apart at a glance in sunlight, and hit with gloves. */
+.checklist-items wa-radio {
+  min-width: 7rem;
+  justify-content: center;
+}
+
+.checklist-items wa-radio[value="ok"]:state(checked) {
+  background-color: var(--wa-color-success-fill-loud);
+  border-color: var(--wa-color-success-border-loud);
+  color: var(--wa-color-success-on-loud);
+}
+
+.checklist-items wa-radio[value="not_ok"]:state(checked) {
+  background-color: var(--wa-color-danger-fill-loud);
+  border-color: var(--wa-color-danger-border-loud);
+  color: var(--wa-color-danger-on-loud);
+}
+
 .plans-dialog::part(body) {
   display: flex;
   flex-direction: column;

@@ -9,6 +9,15 @@ Terrain data is cached in the browser and can be shared by every task in a
 DroneTM project. Once downloaded, plans can be generated and regenerated
 offline.
 
+## Flight checklist
+
+The header holds the whole checklist: before you leave, before the flight,
+during the flight, and a shorter list for repeat flights. Step 4 shows only the
+per-flight parts: before the flight and during the flight.
+Answers are saved in the browser for the day, across all plans. Site checks
+are cleared after 1.5 hours without any site check, as they likely describe an earlier site.
+Downloads are never blocked.
+
 ## Development
 
 ```bash

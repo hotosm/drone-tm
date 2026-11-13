@@ -43,6 +43,10 @@
         <wa-switch id="tutorial-toggle" size="s" checked title="Show step-by-step guidance">
           <span class="toggle-label">Guide me</span>
         </wa-switch>
+        <wa-button id="show-checklist" appearance="plain" size="s" title="Flight checklist">
+          <wa-icon name="clipboard-check" label="Flight checklist"></wa-icon>
+          <span id="checklist-status" class="checklist-status" role="img" hidden></span>
+        </wa-button>
         <wa-button id="show-plans" appearance="plain" size="s" title="Saved plans">
           <wa-icon name="folder-open" label="Saved plans"></wa-icon>
         </wa-button>
@@ -97,6 +101,12 @@
       <div id="welcome-body"></div>
       <wa-button slot="footer" id="welcome-skip" appearance="plain"> Skip the guide </wa-button>
       <wa-button slot="footer" id="welcome-start" variant="brand"> Start </wa-button>
+    </wa-dialog>
+
+    <wa-dialog id="checklist" label="Flight checklist">
+      <div id="checklist-body"></div>
+      <wa-button slot="footer" id="checklist-back" appearance="outlined">Back</wa-button>
+      <wa-button slot="footer" id="checklist-next" variant="brand">Next</wa-button>
     </wa-dialog>
 
     <wa-dialog id="plans" label="Saved plans" class="plans-dialog">
