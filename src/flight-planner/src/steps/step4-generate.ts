@@ -53,7 +53,7 @@ function droneLabel(key: string): string {
 function flightSetup(params: PlanParams): string {
   const takeoff = params.takeoffPoint
     ? `${params.takeoffPoint.lat.toFixed(5)}, ${params.takeoffPoint.lon.toFixed(5)}`
-    : "Not set. Take off at the green ring, where the plan starts.";
+    : "Not set. Take off at the green ring, in the middle of the area.";
   return `
     <wa-select id="drone-type" label="Drone" value="${escapeHtml(params.droneType)}">
       ${DRONE_CHOICES.map((c) => option(c.value, c.label, c.value === params.droneType)).join("")}
