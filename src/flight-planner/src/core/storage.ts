@@ -423,11 +423,10 @@ export async function findCoveringDem(
     .filter((entry) => entry.source === source && bboxContains(entry.bbox, bbox, marginDeg))
     .sort((a, b) => a.width * a.height - b.width * b.height);
 
-  for (const entry of covering) {
-    // A meta file can outlive its raster if storage was evicted mid-write.
-    if (await getDemBytes(entry.key)) return entry;
-  }
-  return null;
+  // A meta file can outlive its raster if storage was evicted mid-write. Listing
+  // avoids reading a large raster just to check that it is there.
+  const names = new Set(await getBackend().list("dems"));
+  return covering.find((entry) => names.has(`${entry.key}.tif`)) ?? null;
 }
 
 export async function terrainCoverage(plans: PlanMeta[]): Promise<Set<string>> {

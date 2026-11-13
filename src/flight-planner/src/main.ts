@@ -1066,6 +1066,13 @@ async function runUrlHandoff(): Promise<void> {
   const projectId = search.get("project");
   const taskId = search.get("task");
 
+  // Fetched together, so the wait is the slowest request rather than their sum.
+  const projectFetch = projectAoiUrl ? fetchAoi(projectAoiUrl) : null;
+  const aoiFetch = aoiUrl ? fetchAoi(aoiUrl) : null;
+  const paramsFetch = paramsUrl ? fetchParams(paramsUrl) : null;
+  // Failures are handled where each is awaited, not reported as unhandled meanwhile.
+  for (const pending of [projectFetch, aoiFetch, paramsFetch]) pending?.catch(() => {});
+
   if (projectId && taskId && !tasksUrl) {
     const held = (await listPlans()).find(
       (plan) => plan.projectId === projectId && plan.taskId === taskId,
@@ -1075,9 +1082,9 @@ async function runUrlHandoff(): Promise<void> {
     }
   }
 
-  if (projectAoiUrl) {
+  if (projectFetch) {
     try {
-      const project = await fetchAoi(projectAoiUrl);
+      const project = await projectFetch;
       state.projectBbox = project.bbox;
       state.meta.projectBbox = project.bbox;
     } catch {
@@ -1086,9 +1093,9 @@ async function runUrlHandoff(): Promise<void> {
   }
 
   let aoiFailed = false;
-  if (aoiUrl) {
+  if (aoiFetch) {
     try {
-      const aoi = await fetchAoi(aoiUrl);
+      const aoi = await aoiFetch;
       state.aoi = aoi;
       map.setRing(aoi.ring);
       map.fitBbox(aoi.bbox);
@@ -1100,9 +1107,9 @@ async function runUrlHandoff(): Promise<void> {
   }
 
   let paramsFailed = false;
-  if (paramsUrl) {
+  if (paramsFetch) {
     try {
-      state.params = await fetchParams(paramsUrl);
+      state.params = await paramsFetch;
       map.setTakeoff(state.params.takeoffPoint);
       map.showNoFlyZones(state.params.noFlyZones);
       if (state.aoi) state.step = 3;
