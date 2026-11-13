@@ -4,6 +4,8 @@ import { bboxIncludingPoint, type Bbox, type DemSampler } from "./core/dem";
 import type { PlanParams, PlanResult } from "./core/flightplan";
 import { DEFAULT_PARAMS } from "./core/flightplan";
 import { planLabel } from "./core/outputs";
+import { DRONE_CHOICES } from "./core/qfield";
+import type { DroneTypeKey } from "./core/types";
 import {
   newPlanId,
   deletePlan,
@@ -75,6 +77,19 @@ export function resetTerrain(state: AppState): void {
   state.result = null;
 }
 
+const DRONE_KEY = "dtm.drone";
+
+// Most pilots fly one drone, so new plans start with the last one used.
+function lastDrone(): DroneTypeKey {
+  try {
+    const saved = localStorage.getItem(DRONE_KEY);
+    if (DRONE_CHOICES.some((choice) => choice.value === saved)) return saved as DroneTypeKey;
+  } catch {
+    /* Storage blocked: use the default. */
+  }
+  return DEFAULT_PARAMS.droneType;
+}
+
 export function initialState(): AppState {
   const now = new Date().toISOString();
   const search = new URLSearchParams(location.search);
@@ -91,7 +106,7 @@ export function initialState(): AppState {
       ...(search.get("task") ? { taskId: search.get("task")! } : {}),
     },
     aoi: null,
-    params: { ...DEFAULT_PARAMS },
+    params: { ...DEFAULT_PARAMS, droneType: lastDrone() },
     dem: { ...NO_TERRAIN },
     storedUpload: null,
     projectBbox: null,
@@ -136,6 +151,11 @@ export async function savePlan(state: AppState, writeDem: boolean): Promise<void
   }
 
   await writeJson(planPath.params(meta.id), params);
+  try {
+    localStorage.setItem(DRONE_KEY, params.droneType);
+  } catch {
+    /* Only a convenience, so never fail a save over it. */
+  }
 
   // Plans reference DEMs in the shared store.
   if (writeDem && dem.bytes && dem.entry) {

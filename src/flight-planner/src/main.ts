@@ -763,6 +763,7 @@ function resetWorkspace(keepProject: boolean): void {
   state.aoi = null;
   state.params = {
     ...DEFAULT_PARAMS,
+    droneType: state.params.droneType,
     noFlyZones: keepProject ? state.params.noFlyZones : [],
   };
   state.projectBbox = keepProject ? state.projectBbox : null;
