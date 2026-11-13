@@ -336,7 +336,7 @@ export function createMap(container: HTMLElement): MapController {
     return new maplibregl.Marker({ element, anchor: "center" }).setLngLat(lngLat).addTo(map);
   }
 
-  // Without a takeoff point, plan heights are measured from the first waypoint, so launch there.
+  // Without a takeoff point, the plan starts from the middle of the area, so launch there.
   function paintPlanStart() {
     planStartMarker?.remove();
     planStartMarker = null;
@@ -440,8 +440,8 @@ export function createMap(container: HTMLElement): MapController {
       pathSource?.setData((path ?? emptyCollection()) as never);
       wpSource?.setData((waypoints ?? emptyCollection()) as never);
       document.documentElement.dataset.plan = waypoints ? "yes" : "no";
-      const first = waypoints?.features[0]?.geometry.coordinates;
-      planStart = first ? [first[0], first[1]] : null;
+      const start = path?.features[0]?.geometry.coordinates[0];
+      planStart = start ? [start[0], start[1]] : null;
       paintPlanStart();
 
       // Editing the area under a finished plan silently invalidates it, so the

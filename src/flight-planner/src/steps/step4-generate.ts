@@ -61,8 +61,6 @@ export const step4: Step = {
 
   blocker(state) {
     if (!state.aoi) return "Mark a flight area first.";
-    if (state.params.noFlyZones.length > 0 && !state.params.takeoffPoint)
-      return "Set a takeoff point first: this project has no-fly zones.";
     if (!state.dem.sampler && !state.dem.skipped)
       return "Get the terrain first, or choose to skip it.";
     return null;

@@ -1,4 +1,5 @@
 import * as core from "@qfield/generate/core.js";
+import * as geometry from "@qfield/generate/geometry.js";
 import * as placemarks from "@qfield/generate/placemarks.js";
 import * as specs from "@qfield/generate/drone_specs.js";
 import * as dji from "@qfield/output/dji.js";
@@ -42,6 +43,13 @@ export const buildFlightpathGeojson = placemarks.buildFlightpathGeojson as (
   placemarks: WaypointCollection,
   takeoffPoint: { lon: number; lat: number } | null,
 ) => FlightpathCollection;
+
+type MercatorPoint = { x: number; y: number };
+export const toMercator = geometry.toMercator as (lon: number, lat: number) => MercatorPoint;
+export const toWgs84 = geometry.toWgs84 as (x: number, y: number) => { lon: number; lat: number };
+export const polygonCentroid = geometry.polygonCentroid as (
+  coords: MercatorPoint[],
+) => MercatorPoint;
 
 export const DroneType = specs.DroneType as Record<DroneTypeKey, DroneTypeKey>;
 export const FlightMode = specs.FlightMode as {

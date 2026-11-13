@@ -143,7 +143,7 @@ export const step2: Step = {
             ${
               p.takeoffPoint
                 ? `Set to ${p.takeoffPoint.lat.toFixed(5)}, ${p.takeoffPoint.lon.toFixed(5)}`
-                : "Not set - the plan will measure heights from the first waypoint."
+                : "Not set - the plan takes off from the middle of the area."
             }
           </p>
         </div>

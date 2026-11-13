@@ -7,6 +7,9 @@ import {
   FlightMode,
   generate,
   GimbalAngle,
+  polygonCentroid,
+  toMercator,
+  toWgs84,
 } from "./qfield";
 import type {
   DroneTypeKey,
@@ -93,11 +96,18 @@ function toGenerateConfig(params: PlanParams, flightMode: FlightModeKey): Genera
 }
 
 // Sample terrain before simplifying waylines so elevation changes are retained.
+export function areaCentre(ring: Array<[number, number]>): TakeoffPoint {
+  const { x, y } = polygonCentroid(ring.map(([lon, lat]) => toMercator(lon, lat)));
+  return toWgs84(x, y);
+}
+
 export function buildPlan(
   ring: Array<[number, number]>,
-  params: PlanParams,
+  input: PlanParams,
   dem: DemSampler | null,
 ): PlanResult {
+  // As in DroneTM, the middle of the area keeps the drone closest to the pilot.
+  const params = { ...input, takeoffPoint: input.takeoffPoint ?? areaCentre(ring) };
   const terrainFollowing = params.terrainFollow && dem !== null;
 
   const generateMode: FlightModeKey =

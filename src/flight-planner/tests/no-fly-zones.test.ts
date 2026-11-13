@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPlan, DEFAULT_PARAMS, type PlanParams } from "../src/core/flightplan";
+import { areaCentre, buildPlan, DEFAULT_PARAMS, type PlanParams } from "../src/core/flightplan";
 import type { DemSampler } from "../src/core/dem";
 import { mergeNoFlyZones, parseParams, ParamsError } from "../src/core/params";
 
@@ -174,9 +174,11 @@ describe("no-fly zones", () => {
     });
   });
 
-  it("requires a takeoff point when a project has zones", () => {
+  it("routes from the middle of the area when no takeoff point is set", () => {
     const missing = params({ noFlyZones: [northZone], takeoffPoint: null });
-    expect(() => buildPlan(task, missing, null)).toThrow(/takeoff point/);
+    const centre = areaCentre(task);
+    const line = buildPlan(task, missing, null).flightpath.features[0].geometry.coordinates;
+    expect(line[0]).toEqual([centre.lon, centre.lat]);
   });
 
   it("leaves a plan unchanged without zones", () => {

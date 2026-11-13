@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import { DemSampler } from "../src/core/dem";
-import { DEFAULT_PARAMS, buildPlan, type PlanParams } from "../src/core/flightplan";
+import { DEFAULT_PARAMS, areaCentre, buildPlan, type PlanParams } from "../src/core/flightplan";
 import { buildOutputs } from "../src/core/outputs";
 import type { PlanMeta } from "../src/core/storage";
 
@@ -113,12 +113,25 @@ describe("buildPlan", () => {
     expect(line.length).toBe(result.waypoints.features.length + 1);
   });
 
-  it("omits a takeoff vertex when none is set", () => {
+  it("takes off from the middle of the area when none is set", () => {
     const result = buildPlan(SMALL, params(), dem);
+    const line = result.flightpath.features[0].geometry.coordinates;
+    const centre = areaCentre(SMALL);
 
-    expect(result.flightpath.features[0].geometry.coordinates.length).toBe(
-      result.waypoints.features.length,
-    );
+    expect(line[0]).toEqual([centre.lon, centre.lat]);
+    expect(line.length).toBe(result.waypoints.features.length + 1);
+  });
+
+  it("finds the middle of an area", () => {
+    const square: Array<[number, number]> = [
+      [85, 27],
+      [85.01, 27],
+      [85.01, 27.01],
+      [85, 27.01],
+      [85, 27],
+    ];
+    expect(areaCentre(square).lon).toBeCloseTo(85.005, 6);
+    expect(areaCentre(square).lat).toBeCloseTo(27.005, 4);
   });
 
   it("warns about the battery on an area too big for one flight", () => {
