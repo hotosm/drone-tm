@@ -1,3 +1,28 @@
+## 2026.13.0 (2026-11-15)
+
+### Feat
+
+- **flight-planner**: show the drone's mission download first and other file types on request
+- **flight-planner**: take off from the middle of the area when no takeoff point is set
+- **flight-planner**: start new plans with the pilot's last drone
+- **flight-planner**: mark the plan start as the takeoff when none is set
+
+### Fix
+
+- **backend**: only use a takeoff point from a task in the same project
+- **flight-planner**: count photos without routing around no-fly zones
+- **flight-planner**: clear the old plan when regenerating fails
+- **flight-planner**: show progress while saved plans load and delete
+- **flight-planner**: count photos from the full grid in waylines mode
+
+### Refactor
+
+- **drone-flightplan**: remove unused mavlink module, as we don't want to embark on this
+
+### Perf
+
+- **flight-planner**: fetch linked data together and check stored terrain without reading it
+
 ## 2026.12.1 (2026-11-09)
 
 ## 2026.12.0 (2026-11-06)
