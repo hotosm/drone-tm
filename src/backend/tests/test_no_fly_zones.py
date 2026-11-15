@@ -295,7 +295,8 @@ async def test_flightplanner_params_include_task_takeoff(
     assert with_task.json()["takeoffPoint"] == {"lon": 85.302, "lat": 27.71}
     assert "takeoffPoint" not in without_task.json()
 
-    other_id = await project_schemas.DbProject.create(db, project, auth_user.id)
+    other = project.model_copy(update={"name": f"{project.name}_OTHER"})
+    other_id = await project_schemas.DbProject.create(db, other, auth_user.id)
     other_url = f"/api/projects/{other_id}/flightplanner-params"
     mismatched = await client.get(other_url, params={"task_id": str(task_id)})
     assert mismatched.status_code == 404
