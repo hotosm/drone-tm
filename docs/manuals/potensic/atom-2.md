@@ -14,6 +14,22 @@
 - Load Potensic Eve & the waypoint mission should be selectable
   to fly.
 
+## Flying on iOS (Potensic Eve)
+
+Eve on iOS reads a different waypoint file from the one DroneTM exports.
+An unofficial, free converter turns a DroneTM Atom 2 flight plan into a
+`waypoints.json` that Eve accepts: [DroneTM to Eve Converter](https://github.com/narendtt/DroneTM-to-Eve)
+
+Summary of the process:
+1. Create the flight plan in DroneTM and download the JSON.
+2. Create a dummy waypoint mission in Eve so it makes a `waypoints.json`.
+3. Use Apple Devices to copy the `TrajectoryFlight` folder to your computer.
+4. Convert the plan with the tool and replace the dummy `waypoints.json`.
+5. Copy the folder back to Potensic Eve in Apple Devices.
+
+The converter is not affiliated with Potensic or HOT. Check the mission
+in Eve before flying.
+
 ## Before Flying
 
 Set these in Potensic Eve, alongside the
