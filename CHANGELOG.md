@@ -1,3 +1,9 @@
+## 2026.13.1 (2026-11-16)
+
+### Fix
+
+- **frontend**: logic error when flight plan button wasn't available to all users
+
 ## 2026.13.0 (2026-11-15)
 
 ### Feat
