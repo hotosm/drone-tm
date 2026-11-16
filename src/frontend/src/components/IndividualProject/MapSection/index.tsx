@@ -218,11 +218,6 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
     (projectData?.author_id === userDetails?.id ||
       (selectedTaskStatus === "LOCKED" && selectedTaskLatestUserId === userDetails?.id));
 
-  // Planning needs a locked task: the pilot's own, or any for the project manager.
-  const canPlanSelectedTask =
-    selectedTaskStatus === "LOCKED" &&
-    (projectData?.author_id === userDetails?.id || selectedTaskLatestUserId === userDetails?.id);
-
   // end zoom to layer
 
   const getPopupUI = useCallback(
@@ -613,7 +608,7 @@ const MapSection = ({ projectData }: { projectData: Record<string, any> }) => {
           }
           popupCoordinate={taskClickedOnTable?.centroidCoordinates}
           link={
-            canPlanSelectedTask
+            selectedTaskStatus === "LOCKED"
               ? {
                   href: buildFlightPlannerUrl({
                     projectId: projectUuid as string,
