@@ -57,6 +57,14 @@ Once the drone is initialised, continue to the guide for your chosen app:
 - Try a different phone if possible too, to help confirm where the
   issue may be.
 
+### Q: Can I swap batteries between DJI Mini models?
+
+- Mini 3 Pro batteries fit the Mini 4 Pro and Mini 5 Pro, but take
+  the drone over the 250 g weight limit (~262 g).
+- Mini 4 Pro batteries fit the Mini 5 Pro, but also take it over 250 g.
+- Mini 5 Pro batteries only work in the Mini 5 Pro. A Mini 3 or 4
+  will not take off with them.
+
 ### Q: The dates on my final imagery files are wrong
 
 - If the drone has not connected to Wifi for a while, the
