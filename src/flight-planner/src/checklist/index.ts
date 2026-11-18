@@ -28,6 +28,7 @@ import {
   type ChecklistStage,
   type StageKey,
 } from "./content";
+import { forecastPanel, forecastRow, mountForecast } from "./forecast";
 
 type Dialog = HTMLElement & { open: boolean; label: string };
 
@@ -166,7 +167,7 @@ function cardBody(state: AppState): string {
   const site = stageRow(stageByKey("site"), loadChecklist(), state.params.droneType, "brand");
   return `
     ${problemCallout(state)}
-    <div class="downloads">${site}${IN_FLIGHT_ROW}</div>
+    <div class="downloads">${forecastRow()}${site}${IN_FLIGHT_ROW}</div>
     <p class="muted">
       "Before you leave" and repeat flight checks are in the header, under the clipboard icon.
     </p>`;
@@ -192,6 +193,7 @@ export function mountChecklistCard(
   ctx: StepContext,
   open: OpenStage = (key, reference) => void openChecklist(ctx, key, reference),
 ): void {
+  void mountForecast(root, ctx.state);
   for (const button of root.querySelectorAll<HTMLElement>("[data-checklist-open]")) {
     button.addEventListener("click", () => open(button.dataset.checklistOpen as StageKey));
   }
@@ -255,6 +257,7 @@ function groupPage(group: ChecklistGroup, state: AppState): string {
     : "";
   return `
     <h3 class="checklist-title">${escapeHtml(group.title)}</h3>
+    ${group.forecast ? forecastPanel() : ""}
     <ul class="checklist-items">
       ${items.map((item) => itemRow(item, answers[item.id])).join("")}
     </ul>
@@ -325,6 +328,7 @@ export function openChecklist(ctx: StepContext, key?: StageKey, reference = fals
     body.innerHTML = `
       <p class="muted">${escapeHtml(heading.hint)} Page ${page + 1} of ${last + 1}.</p>
       ${group ? groupPage(group, ctx.state) : referencePage(ctx.state)}`;
+    void mountForecast(body, ctx.state);
     back.hidden = false;
     back.disabled = page === 0 && !fromList;
     next.textContent = page === last ? lastPageLabel(stage) : "Next";

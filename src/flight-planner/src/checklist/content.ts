@@ -1,4 +1,5 @@
 import type { OutputFormat } from "../core/qfield";
+import { BEST_LIGHT_END_HOUR, BEST_LIGHT_START_HOUR, WIND_LIMIT_KMH } from "../core/weather";
 
 export type Severity = "stop" | "advise";
 export type StageKey = "depart" | "site" | "next";
@@ -22,6 +23,8 @@ export interface ReferenceLine extends DroneSpecific {
 export interface ChecklistGroup {
   title: string;
   items: ChecklistItem[];
+  /** Shows the light and the area's weather forecast above the items. */
+  forecast?: boolean;
 }
 
 export interface ChecklistStage {
@@ -78,10 +81,11 @@ export const STAGES: ChecklistStage[] = [
       },
       {
         title: "Equipment and weather",
+        forecast: true,
         items: [
           {
             id: "forecast",
-            label: "Weather forecast checked (best time to fly: 10:00-14:00)",
+            label: `Weather forecast checked (best time to fly: ${BEST_LIGHT_START_HOUR}:00-${BEST_LIGHT_END_HOUR}:00)`,
             severity: "advise",
             why: "When the sun is high, there are fewer shadows in the photos.",
           },
@@ -107,10 +111,11 @@ export const STAGES: ChecklistStage[] = [
     groups: [
       {
         title: "Airspace and weather",
+        forecast: true,
         items: [
           { id: "restricted", label: "No restricted airspace nearby", severity: "stop" },
           { id: "weather", label: "No rain, fog or storms", severity: "stop" },
-          { id: "wind", label: "Wind is below 20 km/h", severity: "stop" },
+          { id: "wind", label: `Wind is below ${WIND_LIMIT_KMH} km/h`, severity: "stop" },
           { id: "crowds", label: "No crowds in the flight area", severity: "stop" },
           {
             id: "obstacles",
@@ -248,6 +253,7 @@ export const STAGES: ChecklistStage[] = [
     groups: [
       {
         title: "Before the next takeoff",
+        forecast: true,
         items: [
           { id: "next-conditions", label: "Weather and wind are still OK", severity: "stop" },
           { id: "next-battery", label: "New drone battery, above 90%", severity: "stop" },
