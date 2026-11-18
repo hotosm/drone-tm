@@ -169,7 +169,7 @@ function cardBody(state: AppState): string {
     ${problemCallout(state)}
     <div class="downloads">${forecastRow()}${site}${IN_FLIGHT_ROW}</div>
     <p class="muted">
-      "Before you leave" and repeat flight checks are in the header, under the clipboard icon.
+      Other checklists are at the top right of the page, under the clipboard icon.
     </p>`;
 }
 

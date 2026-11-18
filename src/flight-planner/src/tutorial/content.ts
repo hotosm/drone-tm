@@ -55,8 +55,7 @@ export const COACH: Record<string, CoachCard> = {
     ],
     why:
       "These numbers set the flight altitude, the spacing between lines and the " +
-      "drone's speed. They use the same calculations as the DroneTM server, " +
-      "so a plan made here matches a plan made on a project page.",
+      "drone's speed.",
   },
 
   dem: {
@@ -82,14 +81,7 @@ export const COACH: Record<string, CoachCard> = {
     lead:
       "Check the summary before you download, especially the flight time and " +
       "any battery warning.",
-    points: [
-      "A battery warning means the plan is longer than one charge. Split the area, or raise the GSD.",
-      "The .kmz is the file your controller wants. The GeoJSON files are for checking the plan in QGIS.",
-      "You can change an earlier step and generate again. It is instant and does not need internet.",
-    ],
-    why:
-      "The waypoints, spacing and altitudes come from the same code as the " +
-      "DroneTM server, so you get the same plan as you would from the website.",
+    points: [],
   },
 };
 
