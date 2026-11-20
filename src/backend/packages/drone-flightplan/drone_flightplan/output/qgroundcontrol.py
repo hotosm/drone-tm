@@ -350,6 +350,41 @@ def create_return_to_launch_item() -> dict:
     )
 
 
+def build_plan(
+    mission_items: list[dict],
+    home_position: list[float],
+    firmware_type: int = FIRMWARE_TYPE_PX4,
+    vehicle_type: int = VEHICLE_TYPE_QUADROTOR,
+    cruise_speed: float = 15.0,
+    hover_speed: float = 5.0,
+) -> dict:
+    """Wrap mission items in the QGC .plan file structure.
+
+    Args:
+        mission_items: SimpleItem dictionaries, in execution order
+        home_position: [latitude, longitude, altitude] that RTL returns to
+    """
+    return {
+        "fileType": "Plan",
+        "version": 1,
+        "groundStation": "QGroundControl",
+        "mission": {
+            "version": 2,
+            "firmwareType": firmware_type,
+            "vehicleType": vehicle_type,
+            "cruiseSpeed": cruise_speed,
+            "hoverSpeed": hover_speed,
+            "globalPlanAltitudeMode": ALTITUDE_MODE_RELATIVE,
+            "plannedHomePosition": home_position,
+            "items": mission_items,
+        },
+        # Empty geofence (can be populated later if needed)
+        "geoFence": {"version": 2, "circles": [], "polygons": []},
+        # Empty rally points (can be populated later if needed)
+        "rallyPoints": {"version": 2, "points": []},
+    }
+
+
 def create_qgroundcontrol_plan(
     placemark_geojson: str | FeatureCollection | dict,
     output_file_path: str | None = None,
@@ -522,29 +557,14 @@ def create_qgroundcontrol_plan(
     rtl_item = create_return_to_launch_item()
     mission_items.append(rtl_item)
 
-    # Build the complete plan structure
-    plan = {
-        "fileType": "Plan",
-        "version": 1,
-        "groundStation": "QGroundControl",
-        # Mission object with all waypoints and commands
-        "mission": {
-            "version": 2,
-            "firmwareType": firmware_type,
-            "vehicleType": vehicle_type,
-            "cruiseSpeed": cruise_speed,
-            "hoverSpeed": hover_speed,
-            "globalPlanAltitudeMode": ALTITUDE_MODE_RELATIVE,
-            # Planned home position (where RTL will return to)
-            "plannedHomePosition": [home_latitude, home_longitude, home_altitude],
-            # All mission items
-            "items": mission_items,
-        },
-        # Empty geofence (can be populated later if needed)
-        "geoFence": {"version": 2, "circles": [], "polygons": []},
-        # Empty rally points (can be populated later if needed)
-        "rallyPoints": {"version": 2, "points": []},
-    }
+    plan = build_plan(
+        mission_items,
+        [home_latitude, home_longitude, home_altitude],
+        firmware_type=firmware_type,
+        vehicle_type=vehicle_type,
+        cruise_speed=cruise_speed,
+        hover_speed=hover_speed,
+    )
 
     output_file_path = resolve_output_path(output_file_path, suffix=".plan")
 
