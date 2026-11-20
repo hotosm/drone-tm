@@ -3,7 +3,16 @@
 A simulated ArduCopter quad (~7MB image) for testing Drone-TM flight plans in
 QGroundControl without a drone.
 
-## Test a Tri-Cam plan
+## Automated test
+
+```bash
+just test sitl
+```
+
+Uploads a generated Tri-Cam plan to SITL and checks ArduPilot stores every
+item, with the header unchanged. Everything runs in containers.
+
+## Manual test in QGroundControl
 
 1. **Generate a plan**, either by downloading a TRICAM flight plan from a
    local Drone-TM, or from `src/backend/packages/drone-flightplan` with:
