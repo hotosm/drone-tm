@@ -1,18 +1,27 @@
 # ArduPilot SITL
 
-A simulated ArduCopter quad (~7MB image) for testing Drone-TM flight plans in
-QGroundControl without a drone.
+A simulated ArduCopter quad (~7MB image) for testing Drone-TM flight plans
+without a drone, and how to check Tri-Cam plans without a Tri-Cam.
 
-## Automated test
+## Automated tests
 
 ```bash
 just test sitl
 ```
 
-Uploads a generated Tri-Cam plan to SITL and checks ArduPilot stores every
-item, with the header unchanged. Everything runs in containers.
+Runs in containers (about 30s) and checks a generated Tri-Cam plan:
+
+- passes the Tri-Cam validator, `tricam_plan_check.py` from the
+  [Tri-Cam releases repo](https://github.com/mrkensan/x500-tri-cam-releases)
+  (pinned in `tests/test_mission.py`). It checks the same rules as the
+  Plan Loader that blocks arming on the flight controller.
+- uploads to ArduCopter, flies in AUTO and runs every item (none skipped),
+  then lands.
 
 ## Manual test in QGroundControl
+
+Watch a plan fly end to end. SITL has no Plan Loader, so it arms without a
+Tri-Cam.
 
 1. **Generate a plan**, either by downloading a TRICAM flight plan from a
    local Drone-TM, or from `src/backend/packages/drone-flightplan` with:
@@ -46,6 +55,30 @@ Notes:
 - To keep flight logs, add `-v "$PWD/logs:/sitl/logs"`. Open the `.BIN` files
   in Mission Planner or https://plot.ardupilot.org.
 - On Apple Silicon, add `--platform linux/amd64`.
+
+## Flight controller without a Tri-Cam
+
+Checks the real upload path and the real Plan Loader on hardware (e.g. a
+Pixhawk 6X on USB, props off). With a Tri-Cam, its KB2040 installs the Plan
+Loader itself. Without one, take it from the KB2040 firmware:
+
+1. **Extract the Plan Loader** from a clone of the releases repo, and check
+   the build, size and CRC match `kb2040/RELEASE_NOTES.md`:
+
+   ```bash
+   python3 extract_plan_loader.py \
+     x500-tri-cam-releases/kb2040/releases/latest/tri_cam_kb2040.uf2 \
+     tricam_plan_loader.lua
+   ```
+
+2. **Install it:** copy it to `APM/scripts/` on the SD card (or with QGC's
+   MAVLink FTP), set `SCR_ENABLE = 1` and reboot.
+3. **Upload a plan** in QGC. **Messages** should show
+   `Tri-Cam not responding`, with no `PLAN ERROR` or `PLAN INVALID`.
+
+Arming stays blocked, because ArduPilot doesn't let you skip the Plan
+Loader's check (auxiliary authorisation). To watch the plan fly, use SITL
+above. Delete the script afterwards so you can arm without a Tri-Cam.
 
 ## Build the image
 

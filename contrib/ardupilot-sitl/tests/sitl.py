@@ -2,6 +2,8 @@
 
 import math
 import os
+import re
+import time
 
 from pymavlink import mavutil
 
@@ -13,6 +15,9 @@ VEHICLE_SYSTEM = 1
 AUTOPILOT_COMPONENT = 1
 DEGREES_TO_MAVLINK_INT = 1e7  # lat/lon in MISSION_ITEM_INT
 REPLY_TIMEOUT_S = 5
+COPTER_MODE_AUTO = 3
+ARM_RETRY_S = 5  # arming fails until the EKF has a GPS fix
+MISSION_TEXT = re.compile(r"Mission: (\d+) ")
 
 
 def drain(gcs):
@@ -50,31 +55,53 @@ def upload(gcs, mission: dict):
         _send_item(gcs, msg.seq, items[msg.seq])
 
 
-def download(gcs) -> list:
-    """The stored mission as MISSION_ITEM_INT messages, without home."""
-    drain(gcs)
-    gcs.mav.mission_request_list_send(
-        VEHICLE_SYSTEM, AUTOPILOT_COMPONENT, mavlink.MAV_MISSION_TYPE_MISSION
-    )
-    count = gcs.recv_match(type="MISSION_COUNT", blocking=True, timeout=REPLY_TIMEOUT_S)
-    assert count, "SITL did not answer the mission download"
-    items = []
-    for seq in range(count.count):
-        gcs.mav.mission_request_int_send(
-            VEHICLE_SYSTEM, AUTOPILOT_COMPONENT, seq, mavlink.MAV_MISSION_TYPE_MISSION
-        )
-        item = gcs.recv_match(
-            type="MISSION_ITEM_INT", blocking=True, timeout=REPLY_TIMEOUT_S
-        )
-        assert item and item.seq == seq, f"Missing mission item {seq}"
-        items.append(item)
-    gcs.mav.mission_ack_send(
+def set_param(gcs, name: str, value: float):
+    gcs.mav.param_set_send(
         VEHICLE_SYSTEM,
         AUTOPILOT_COMPONENT,
-        mavlink.MAV_MISSION_ACCEPTED,
-        mavlink.MAV_MISSION_TYPE_MISSION,
+        name.encode(),
+        value,
+        mavlink.MAV_PARAM_TYPE_REAL32,
     )
-    return items[1:]
+    reply = gcs.recv_match(
+        type="PARAM_VALUE",
+        condition=f"PARAM_VALUE.param_id=='{name}'",
+        blocking=True,
+        timeout=REPLY_TIMEOUT_S,
+    )
+    assert reply and reply.param_value == value, f"Could not set {name}"
+
+
+def fly_mission(gcs, timeout_s: float) -> list[int]:
+    """Arm in AUTO, fly the uploaded mission until it disarms after landing.
+
+    Returns the mission item numbers ArduPilot started, in order.
+    """
+    set_param(gcs, "AUTO_OPTIONS", 3)  # arm and take off in AUTO, no RC sticks
+    gcs.mav.set_mode_send(
+        VEHICLE_SYSTEM, mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED, COPTER_MODE_AUTO
+    )
+    started = []
+    armed = False
+    next_arm_attempt = 0.0
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        if not armed and time.monotonic() > next_arm_attempt:
+            gcs.arducopter_arm()
+            next_arm_attempt = time.monotonic() + ARM_RETRY_S
+        msg = gcs.recv_match(type=["STATUSTEXT", "HEARTBEAT"], blocking=True, timeout=1)
+        if msg is None:
+            continue
+        if msg.get_type() == "STATUSTEXT":
+            match = MISSION_TEXT.match(msg.text)
+            if match:
+                started.append(int(match.group(1)))
+        elif msg.get_srcComponent() == AUTOPILOT_COMPONENT:
+            is_armed = bool(msg.base_mode & mavlink.MAV_MODE_FLAG_SAFETY_ARMED)
+            if armed and not is_armed:
+                return started
+            armed = is_armed
+    raise AssertionError(f"Mission did not finish within {timeout_s}s")
 
 
 def _send_item(gcs, seq: int, item: dict):

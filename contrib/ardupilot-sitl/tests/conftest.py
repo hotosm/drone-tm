@@ -87,8 +87,13 @@ def placemarks():
 
 
 @pytest.fixture
-def mission(placemarks, tmp_path) -> dict:
+def plan_path(placemarks, tmp_path) -> str:
+    """A fresh Tri-Cam .plan file."""
+    return create_tricam_plan(placemarks, output_file_path=str(tmp_path / "test.plan"))
+
+
+@pytest.fixture
+def mission(plan_path) -> dict:
     """The `mission` block of a fresh Tri-Cam plan."""
-    path = create_tricam_plan(placemarks, output_file_path=str(tmp_path / "test.plan"))
-    with open(path) as f:
+    with open(plan_path) as f:
         return json.load(f)["mission"]
