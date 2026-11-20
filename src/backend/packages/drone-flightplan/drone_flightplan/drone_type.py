@@ -14,6 +14,7 @@ class DroneType(StrEnum):
     POTENSIC_ATOM_2 = "POTENSIC_ATOM_2"
     QGROUNDCONTROL = "QGROUNDCONTROL"
     LITCHI = "LITCHI"
+    TRICAM = "TRICAM"
 
 
 # Battery life is calculated using a constant average speed of 11.5 m/s, using
@@ -88,6 +89,15 @@ DRONE_SPECS = {
         "sensor_width_mm": 9.6,
         "equiv_focal_length_mm": 24,
         "image_width_px": 4032,
+    },
+    DroneType.TRICAM: {
+        # Nadir IMX477, 1/2.3-inch CMOS, 1.55um pixels. Obliques don't affect spacing.
+        # TODO add max_battery_life_minutes once the airframe is known
+        "sensor_height_mm": 4.712,  # 3040 px * 1.55um
+        "sensor_width_mm": 6.287,  # 4056 px * 1.55um
+        # TODO verify the fitted lens is 5.2mm in the final drone
+        "equiv_focal_length_mm": 28.64,
+        "image_width_px": 4056,
     },
 }
 # NOTE see calculate_parameters._calculate_constants
@@ -171,6 +181,12 @@ DRONE_PARAMS = {
         "HORIZONTAL_FOV": 1.25,
         "GSD_TO_AGL_CONST": 27.95,
         "OUTPUT_FORMAT": "LITCHI",
+    },
+    DroneType.TRICAM: {
+        "VERTICAL_FOV": 0.85,
+        "HORIZONTAL_FOV": 1.09,
+        "GSD_TO_AGL_CONST": 33.55,
+        "OUTPUT_FORMAT": "TRICAM",
     },
 }
 

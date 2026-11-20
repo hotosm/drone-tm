@@ -74,3 +74,13 @@ services:
     extends:
       file: compose.yaml
       service: qgis-packager
+
+  # ArduPilot SITL, for `just test sitl`
+  sitl:
+    image: ghcr.io/hotosm/drone-tm/ardupilot-sitl:4.7.3
+    # SITL sends no MAVLink without a terminal in some environments
+    tty: true
+    # Speedup keeps the full-mission flight test to about a minute
+    command: ["--home", "27.7172,85.3240,1400,0", "--speedup", "20"]
+    networks:
+      - dtm-network
