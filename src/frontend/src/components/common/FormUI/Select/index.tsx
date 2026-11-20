@@ -48,7 +48,9 @@ export default function Select({
   const [selected, setSelected] = useState(selectedOption);
   const [position, setPosition] = useState(direction);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLUListElement | null>(null);
   const [searchText, setSearchText] = useState("");
+  const [hasMoreBelow, setHasMoreBelow] = useState(false);
 
   useEffect(() => {
     setSelected(selectedOption);
@@ -102,6 +104,16 @@ export default function Select({
 
   const showClearIcon = !!searchText.length;
 
+  // the list scrolls with no visible scrollbar, so fade its bottom edge while options remain below
+  const updateHasMoreBelow = () => {
+    const list = listRef.current;
+    setHasMoreBelow(!!list && list.scrollTop + list.clientHeight < list.scrollHeight - 1);
+  };
+
+  useEffect(() => {
+    if (isOpen) updateHasMoreBelow();
+  }, [isOpen, options, searchText]);
+
   return (
     <div className="naxatw-relative">
       <div
@@ -153,6 +165,8 @@ export default function Select({
 
       {isOpen && (
         <ul
+          ref={listRef}
+          onScroll={updateHasMoreBelow}
           className={`scrollbar naxatw-absolute naxatw-z-20 naxatw-flex naxatw-max-h-[150px] naxatw-w-full naxatw-animate-flip-down naxatw-flex-col naxatw-overflow-auto naxatw-rounded-md naxatw-border naxatw-bg-white naxatw-shadow-lg naxatw-duration-300 ${getPosition(
             position,
           )} `}
@@ -172,6 +186,12 @@ export default function Select({
               {m.common_no_options_available()}
             </li>
           )}
+          <li
+            aria-hidden="true"
+            className={`naxatw-pointer-events-none naxatw-sticky naxatw-bottom-0 -naxatw-mt-10 naxatw-h-10 naxatw-shrink-0 naxatw-list-none naxatw-bg-gradient-to-t naxatw-from-white naxatw-to-transparent naxatw-transition-opacity naxatw-duration-200 motion-reduce:naxatw-transition-none ${
+              hasMoreBelow ? "naxatw-opacity-100" : "naxatw-opacity-0"
+            }`}
+          />
         </ul>
       )}
     </div>
