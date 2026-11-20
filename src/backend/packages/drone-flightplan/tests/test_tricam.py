@@ -1,6 +1,10 @@
 import json
 from uuid import UUID
 
+# Tri-Cam plan validator, copied unchanged from plan_development/ in
+# https://github.com/mrkensan/x500-tri-cam-releases (commit 008c939).
+# Copy it again when a new Plan Loader build changes the plan rules.
+import tricam_plan_check
 from drone_flightplan.output.tricam import (
     PHOTO_INTERVAL_S,
     add_check_bits,
@@ -106,3 +110,20 @@ def test_calibration_word_selects_pre_survey_aec():
     assert word & 0xFF == encode_series_word(PHOTO_INTERVAL_S) & 0xFF  # interval
     assert (word >> 13) & 0b11 == 3  # pre-survey AEC
     assert (word >> 16) & 0xF == 5  # frames
+
+
+def test_plan_passes_tricam_validator(tmp_path):
+    placemarks = {
+        "type": "FeatureCollection",
+        "features": [
+            _placemark(85.300, 27.700, 90),
+            _placemark(85.303, 27.700, 90),
+            _placemark(85.303, 27.701, -90),
+            _placemark(85.300, 27.701, -90),
+        ],
+    }
+
+    outfile = create_tricam_plan(placemarks, EXAMPLE_UUID, str(tmp_path / "t.plan"))
+
+    report = tricam_plan_check.check(outfile)
+    assert (report["errors"], report["warnings"]) == (0, 0), report["findings"]

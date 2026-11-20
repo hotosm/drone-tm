@@ -9,14 +9,11 @@ without a drone, and how to check Tri-Cam plans without a Tri-Cam.
 just test sitl
 ```
 
-Runs in containers (about 30s) and checks a generated Tri-Cam plan:
+Runs in containers. A generated Tri-Cam plan uploads to ArduCopter, flies
+in AUTO and runs every item (none skipped), then lands.
 
-- passes the Tri-Cam validator, `tricam_plan_check.py` from the
-  [Tri-Cam releases repo](https://github.com/mrkensan/x500-tri-cam-releases)
-  (pinned in `tests/test_mission.py`). It checks the same rules as the
-  Plan Loader that blocks arming on the flight controller.
-- uploads to ArduCopter, flies in AUTO and runs every item (none skipped),
-  then lands.
+The plan rules themselves are checked by the Tri-Cam validator in the
+drone-flightplan unit tests.
 
 ## Manual test in QGroundControl
 
