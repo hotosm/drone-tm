@@ -193,6 +193,9 @@ def calculate_parameters(
         # NOTE This seems to be the max speed for the Potensic Atom 1
         # upon testing. This value could be updated if reported otherwise
         ground_speed = min(ground_speed, 8.0)
+    elif drone_type == DroneType.TRICAM:
+        # TODO placeholder until the airframe's max survey speed is known
+        ground_speed = min(ground_speed, 15.0)
     else:
         # FIXME is this default appropriate for all drones?
         ground_speed = min(ground_speed, 11.5)

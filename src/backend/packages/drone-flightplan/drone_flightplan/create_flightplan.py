@@ -17,6 +17,7 @@ from drone_flightplan.output.litchi import create_litchi_csv
 from drone_flightplan.output.potensic_v1 import create_potensic_sqlite
 from drone_flightplan.output.potensic_v2 import create_potensic_json
 from drone_flightplan.output.qgroundcontrol import create_qgroundcontrol_plan
+from drone_flightplan.output.tricam import create_tricam_plan
 from drone_flightplan.terrain_following_waylines import waypoints2waylines
 from drone_flightplan.waypoints import create_waypoint
 
@@ -120,11 +121,14 @@ def write_flightplan_file(
     drone_type: DroneType,
     outfile: str | None = None,
     flight_mode: FlightMode = FlightMode.WAYLINES,
+    image_interval: float = 2,
 ) -> str:
     """Serialize placemarks to the drone-specific output format on disk.
 
     When `outfile` is omitted the writer picks a temporary path, which the
     caller then owns and must clean up once the file has been consumed.
+    `image_interval` must match the one used to build the placemarks, as
+    Tri-Cam plans set the payload's photo cadence from it.
     """
     output_format = DRONE_PARAMS[drone_type].get("OUTPUT_FORMAT")
 
@@ -138,6 +142,10 @@ def write_flightplan_file(
         outpath = create_qgroundcontrol_plan(placemarks, outfile)
     elif output_format == "LITCHI":
         outpath = create_litchi_csv(placemarks, outfile, flight_mode=flight_mode)
+    elif output_format == "TRICAM":
+        outpath = create_tricam_plan(
+            placemarks, output_file_path=outfile, photo_interval_time=image_interval
+        )
     else:
         raise ValueError(f"Unsupported output format: {output_format}")
 
@@ -190,7 +198,9 @@ def create_flightplan(
         gimbal_angle=gimbal_angle,
         no_fly_zones=no_fly_zones,
     )
-    return write_flightplan_file(placemarks, drone_type, outfile, flight_mode)
+    return write_flightplan_file(
+        placemarks, drone_type, outfile, flight_mode, image_interval
+    )
 
 
 def validate_coordinates(value):
