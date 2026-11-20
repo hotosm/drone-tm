@@ -720,7 +720,7 @@ def create_waypoint(
     forward_spacing = parameters["forward_spacing"]
 
     # https://github.com/hotosm/drone-tm/issues/751
-    # In waylines mode photos are triggered on a fixed 2s timer, so
+    # In waylines mode photos are triggered on a fixed timer, so
     # the actual E-W photo gap is ground_speed * image_interval. When
     # ground_speed is clamped (e.g. 11.5 m/s on DJI drones), the real gap
     # shrinks below forward_spacing and effective E-W overlap creeps above
@@ -735,7 +735,7 @@ def create_waypoint(
     # Waypoint mode is not affected. The apparent E-W / N-S gap difference
     # is purely an result of the the 4:3 sensor.
     if mode == FlightMode.WAYLINES:
-        image_interval = 2  # seconds; matches default in calculate_parameters
+        image_interval = parameters["image_interval"]
         ground_speed = parameters["ground_speed"]
         forward_photo_height = parameters["forward_photo_height"]
         side_photo_width = parameters["side_photo_width"]

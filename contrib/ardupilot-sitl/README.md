@@ -37,7 +37,8 @@ item, with the header unchanged. Everything runs in containers.
 
 4. **Fly.** Set `AUTO_OPTIONS = 3` in **Parameters** (SITL has no RC
    sticks), open and **Upload** the plan, then set mode **Auto** and **Arm**.
-   Check each line is bracketed by #2500/#2501, then #532, RTL and landing.
+   Check it spins once at the first line start, each line is bracketed by
+   #2500/#2501, then #532, RTL and landing.
 
 Notes:
 

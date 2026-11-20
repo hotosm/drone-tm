@@ -5,6 +5,7 @@ Tri-Cam is a three-camera MAVLink payload driven by an ArduPilot mission,
 using repurposed camera commands:
 
 - #217 DO_SEND_SCRIPT_MESSAGE items: config header, before takeoff
+- #531 (type 1): exposure calibration while spinning before the first line
 - #2500 / #2501: start and pause survey triggering
 - #532 (type 4): end the survey
 
@@ -22,6 +23,7 @@ from geojson import FeatureCollection
 from drone_flightplan.output.output_paths import resolve_output_path
 from drone_flightplan.output.qgroundcontrol import (
     FIRMWARE_TYPE_ARDUPILOT,
+    MAV_FRAME_GLOBAL_RELATIVE_ALT,
     MAV_FRAME_MISSION,
     build_plan,
     create_return_to_launch_item,
@@ -38,6 +40,25 @@ CMD_START_SURVEY = 2500  # MAV_CMD_VIDEO_START_CAPTURE
 CMD_PAUSE_SURVEY = 2501  # MAV_CMD_VIDEO_STOP_CAPTURE
 CMD_END_SURVEY = 532  # MAV_CMD_SET_CAMERA_FOCUS
 END_SURVEY_TYPE = 4
+CMD_CAPTURE_CONFIG = 531  # MAV_CMD_SET_CAMERA_ZOOM
+CAPTURE_CONFIG_SERIES = 1
+CMD_CONDITION_DELAY = 112
+CMD_CONDITION_YAW = 115
+CMD_LOITER_TIME = 19
+
+# The Tri-Cam stretches this if its SD cards can't keep up, cutting overlap
+PHOTO_INTERVAL_S = 1.2
+# Delay after every Tri-Cam command, so MAVLink chatter can't drop one
+PACING_DELAY_S = 0.1
+
+PRE_SURVEY_AEC = 3
+EXPOSURE_MODE_SHIFT = 13
+AEC_FRAMES = 5  # at least 4, or the Tri-Cam discards the calibration
+AEC_FRAMES_SHIFT = 16
+FULL_TURN_DEG = 360
+SPIN_MARGIN_S = 2  # the spin starts after a pacing delay and has to speed up
+YAW_CLOCKWISE = 1
+YAW_RELATIVE = 1
 
 HEADER_MAGIC = 0x54
 HEADER_VERSION = 1
@@ -78,15 +99,29 @@ def add_check_bits(data: int, data_bits: int, width: int) -> int:
     return (register << data_bits) | data
 
 
+def _interval_steps(interval_s: float) -> int:
+    if not MIN_INTERVAL_S <= interval_s <= MAX_INTERVAL_S:
+        raise ValueError(f"Tri-Cam interval must be 0.5-4.0 s, got {interval_s}")
+    return round((interval_s - MIN_INTERVAL_S) / INTERVAL_STEP_S)
+
+
 def encode_series_word(interval_s: float) -> int:
     """Capture Config word for a fixed-cadence survey at the given interval.
 
     All other fields stay 0: exposure unchanged, uncompressed, default AEC frames.
     """
-    if not MIN_INTERVAL_S <= interval_s <= MAX_INTERVAL_S:
-        raise ValueError(f"Tri-Cam interval must be 0.5-4.0 s, got {interval_s}")
-    steps = round((interval_s - MIN_INTERVAL_S) / INTERVAL_STEP_S)
+    steps = _interval_steps(interval_s)
     return add_check_bits(steps, SERIES_DATA_BITS, SERIES_CHECK_WIDTH)
+
+
+def encode_calibration_word(interval_s: float) -> int:
+    """Capture Config word that makes the next Start run exposure calibration."""
+    data = (
+        _interval_steps(interval_s)
+        | PRE_SURVEY_AEC << EXPOSURE_MODE_SHIFT
+        | AEC_FRAMES << AEC_FRAMES_SHIFT
+    )
+    return add_check_bits(data, SERIES_DATA_BITS, SERIES_CHECK_WIDTH)
 
 
 def fingerprint(stanzas: list[Stanza]) -> int:
@@ -143,6 +178,49 @@ def _command_item(
     )
 
 
+def _paced_command(command: int, param1: float = 0, param2: float = 0) -> list[dict]:
+    return [
+        _command_item(command, param1, param2),
+        _command_item(CMD_CONDITION_DELAY, PACING_DELAY_S),
+    ]
+
+
+def _calibration_items(
+    latitude: float, longitude: float, altitude: float, interval_s: float
+) -> list[dict]:
+    """Spin in place while the Tri-Cam calibrates exposure for the day's light.
+
+    Start begins the calibration and Pause ends it. The spin lasts long enough
+    for AEC_FRAMES photos, and the caller then sends the survey's own Start.
+    """
+    spin_s = AEC_FRAMES * interval_s
+    return [
+        *_paced_command(
+            CMD_CAPTURE_CONFIG,
+            CAPTURE_CONFIG_SERIES,
+            encode_calibration_word(interval_s),
+        ),
+        *_paced_command(CMD_START_SURVEY),
+        _command_item(
+            CMD_CONDITION_YAW,
+            FULL_TURN_DEG,
+            FULL_TURN_DEG / spin_s,
+            YAW_CLOCKWISE,
+            YAW_RELATIVE,
+        ),
+        create_simple_item(
+            command=CMD_LOITER_TIME,
+            frame=MAV_FRAME_GLOBAL_RELATIVE_ALT,
+            latitude=latitude,
+            longitude=longitude,
+            altitude=altitude,
+            param1=spin_s + SPIN_MARGIN_S,
+            param4=0,  # ArduPilot rejects the default NaN here
+        ),
+        *_paced_command(CMD_PAUSE_SURVEY),
+    ]
+
+
 def _survey_command(headings: list[float], index: int) -> int | None:
     """Tri-Cam command to run on reaching placemark `index`, if any.
 
@@ -167,13 +245,13 @@ def create_tricam_plan(
     placemark_geojson: str | FeatureCollection | dict,
     mission_uuid: UUID | None = None,
     output_file_path: str | None = None,
-    photo_interval_time: float = 2.0,
+    photo_interval_time: float = PHOTO_INTERVAL_S,
 ) -> str:
     """Generate an ArduPilot QGC .plan file that drives a Tri-Cam survey.
 
-    End Survey replaces the last Pause, so the return transit has no photos.
-    Each Tri-Cam command follows a navigation item, so no pacing delays are
-    needed between them.
+    The drone spins at the first line start to calibrate exposure, and End
+    Survey replaces the last Pause, so the return transit has no photos.
+    Every Tri-Cam command is followed by a short pacing delay.
 
     Args:
         placemark_geojson: Waylines placemarks from `build_placemarks`
@@ -203,6 +281,10 @@ def create_tricam_plan(
     home_longitude, home_latitude = features[0]["geometry"]["coordinates"][:2]
     home_altitude = float(features[0]["properties"].get("altitude", 50))
     headings = [f["properties"].get("heading", TRANSIT_HEADING) for f in features]
+    commands = [_survey_command(headings, i) for i in range(len(features))]
+    if CMD_START_SURVEY not in commands:
+        raise ValueError("No survey lines found in placemarks")
+    first_line_start = commands.index(CMD_START_SURVEY)
 
     # ArduCopter climbs from wherever it is, so the first placemark also needs
     # a waypoint. Without one, Start would fire before reaching the first line.
@@ -218,15 +300,16 @@ def create_tricam_plan(
         altitude = float(feature["properties"].get("altitude", home_altitude))
         mission_items.append(create_waypoint_item(latitude, longitude, altitude))
 
-        command = _survey_command(headings, index)
-        if command is not None:
-            mission_items.append(_command_item(command))
+        if index == first_line_start:
+            mission_items.extend(
+                _calibration_items(latitude, longitude, altitude, photo_interval_time)
+            )
+        if commands[index] is not None:
+            mission_items.extend(_paced_command(commands[index]))
 
     pauses = [
         i for i, item in enumerate(mission_items) if item["command"] == CMD_PAUSE_SURVEY
     ]
-    if not pauses:
-        raise ValueError("No survey lines found in placemarks")
     mission_items[pauses[-1]] = _command_item(CMD_END_SURVEY, END_SURVEY_TYPE)
 
     mission_items.append(create_return_to_launch_item())
