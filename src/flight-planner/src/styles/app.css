@@ -1160,3 +1160,33 @@ wa-details::part(content) {
 .maplibregl-ctrl-group button.basemap-toggle[aria-pressed="true"] {
   color: var(--wa-color-brand-fill-loud);
 }
+
+.forecast-hours {
+  width: 100%;
+  margin: var(--wa-space-xs) 0;
+  border-collapse: collapse;
+  font-size: var(--wa-font-size-s);
+  text-align: start;
+}
+
+.forecast-hours tr[data-rating="marginal"] {
+  background: var(--wa-color-warning-fill-quiet);
+}
+
+.forecast-hours tr[data-rating="poor"] {
+  background: var(--wa-color-danger-fill-quiet);
+}
+
+.forecast {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wa-space-xs);
+}
+
+.forecast-dot {
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  margin-inline-end: var(--wa-space-2xs);
+  border-radius: 50%;
+}

@@ -18,6 +18,10 @@ Answers are saved in the browser for the day, across all plans. Site checks
 are cleared after 1.5 hours without any site check, as they likely describe an earlier site.
 Downloads are never blocked.
 
+The checklist shows a wind and rain forecast from [Open-Meteo](https://open-meteo.com/),
+saved for use offline. To fetch it, your browser sends the approximate centre of the
+survey area to Open-Meteo.
+
 ## Development
 
 ```bash
