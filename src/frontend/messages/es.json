@@ -790,6 +790,7 @@
   "drone_task_project_id_not_found": "No se encontró el ID del proyecto",
   "drone_task_image_deleted": "Imagen eliminada",
   "drone_task_upload_cancelled_recoverable": "Carga cancelada. Las imágenes ya subidas permanecen en preparación y se pueden recuperar.",
+  "drone_task_upload_skipped_existing": "Se omitieron {count} archivo(s) ya subidos a este proyecto",
   "drone_task_image_uploading_failed": "Error al subir imágenes",
   "drone_task_download_result": "Descargar resultado",
   "drone_task_download": "Descargar",

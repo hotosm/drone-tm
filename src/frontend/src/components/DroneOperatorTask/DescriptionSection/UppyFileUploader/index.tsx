@@ -4,11 +4,15 @@ import Dashboard from "@uppy/react/dashboard";
 import { UppyContext } from "@uppy/react";
 import { toast } from "react-toastify";
 import { authenticated, api } from "@Services/index";
+import computeUploadFingerprint from "@Utils/uploadFingerprint";
 import { m } from "@/paraglide/messages";
 
 import "@uppy/core/css/style.min.css";
 import "@uppy/dashboard/css/style.min.css";
 import "./uppy-theme.css";
+
+// Skipping duplicates is optional, so don't hold uploads behind a stalled request.
+const FINGERPRINT_FETCH_TIMEOUT_MS = 30_000;
 
 interface UppyFileUploaderProps {
   projectId: string;
@@ -229,6 +233,38 @@ const UppyFileUploader = ({
       onUploadStart?.();
     };
 
+    // Best effort: on any error everything uploads and the server dedups.
+    const skipAlreadyUploaded = async (fileIDs: string[]) => {
+      try {
+        const response = await authenticated(api).get(
+          `/projects/${projectId}/imagery/fingerprints/`,
+          { timeout: FINGERPRINT_FETCH_TIMEOUT_MS },
+        );
+        const seen = new Set<string>(response.data);
+        const skippedIDs: string[] = [];
+        // Sequential to keep memory flat on low-spec laptops.
+        // eslint-disable-next-line no-restricted-syntax
+        for (const fileID of fileIDs) {
+          // eslint-disable-next-line no-await-in-loop
+          const fingerprint = await computeUploadFingerprint(uppy.getFile(fileID).data as Blob);
+          if (seen.has(fingerprint)) {
+            skippedIDs.push(fileID);
+          }
+          seen.add(fingerprint);
+        }
+        if (skippedIDs.length === 0) return;
+        uppy.removeFiles(skippedIDs);
+        toast.info(m.drone_task_upload_skipped_existing({ count: skippedIDs.length }));
+        // "complete" will report no successes, so finish the batch here.
+        if (skippedIDs.length === fileIDs.length) {
+          onUploadComplete?.({ successful: [], failed: [] });
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error("Could not check for already-uploaded files:", error);
+      }
+    };
+
     const handleUploadError = (file: any, error: Error) => {
       toast.error(`Upload failed for ${file?.name}: ${error.message}`);
     };
@@ -269,12 +305,14 @@ const UppyFileUploader = ({
       }
     };
 
+    uppy.addPreProcessor(skipAlreadyUploaded);
     uppy.on("upload", handleUpload);
     uppy.on("upload-error", handleUploadError);
     uppy.on("complete", handleComplete);
     uppy.on("cancel-all", handleCancelAll);
 
     return () => {
+      uppy.removePreProcessor(skipAlreadyUploaded);
       uppy.off("upload", handleUpload);
       uppy.off("upload-error", handleUploadError);
       uppy.off("complete", handleComplete);

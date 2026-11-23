@@ -790,6 +790,7 @@
   "drone_task_project_id_not_found": "Project ID not found",
   "drone_task_image_deleted": "Image deleted",
   "drone_task_upload_cancelled_recoverable": "Upload cancelled. Already-uploaded images remain staged and can be recovered.",
+  "drone_task_upload_skipped_existing": "Skipped {count} file(s) already uploaded to this project",
   "drone_task_image_uploading_failed": "Image Uploading Failed",
   "drone_task_download_result": "Download Result",
   "drone_task_download": "Download",

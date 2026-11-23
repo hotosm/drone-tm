@@ -790,6 +790,7 @@
   "drone_task_project_id_not_found": "ID proyek tidak ditemukan",
   "drone_task_image_deleted": "Gambar dihapus",
   "drone_task_upload_cancelled_recoverable": "Unggahan dibatalkan. Gambar yang sudah diunggah tetap tersimpan sementara dan dapat dipulihkan.",
+  "drone_task_upload_skipped_existing": "{count} file dilewati karena sudah diunggah ke proyek ini",
   "drone_task_image_uploading_failed": "Pengunggahan citra gagal",
   "drone_task_download_result": "Unduh hasil",
   "drone_task_download": "Unduh",
