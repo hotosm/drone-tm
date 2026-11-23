@@ -41,6 +41,8 @@ _CAPTURE_EXIF_KEYS = [
     *(field for pair in _CAPTURE_TIME_FIELDS for field in pair if field),
 ]
 
+_FINGERPRINT_EDGE_BYTES = 64 * 1024
+
 
 @functools.lru_cache(maxsize=1)
 def _exiftool_path() -> str:
@@ -302,6 +304,19 @@ def calculate_file_hash(file_content: bytes) -> str:
     return hashlib.md5(file_content).hexdigest()
 
 
+def compute_upload_fingerprint(file_content: bytes) -> str:
+    """Cheap hash the browser computes to skip files already in the project.
+
+    The head covers EXIF (so re-geotagged files differ), the tail covers pixels.
+    Must match src/frontend/src/utils/uploadFingerprint.ts.
+    """
+    size = len(file_content)
+    head = file_content[:_FINGERPRINT_EDGE_BYTES]
+    tail = file_content[max(0, size - _FINGERPRINT_EDGE_BYTES) :]
+    payload = f"{size}:".encode() + head + tail
+    return hashlib.sha256(payload).hexdigest()[:32]
+
+
 async def create_project_image(
     db: Connection, image_data: ProjectImageCreate
 ) -> ProjectImageOut:
@@ -324,10 +339,10 @@ async def create_project_image(
 
     sql = f"""
         INSERT INTO project_images (
-            project_id, task_id, filename, s3_key, hash_md5,
+            project_id, task_id, filename, s3_key, hash_md5, fingerprint,
             location, exif, uploaded_by, status, batch_id, thumbnail_url, rejection_reason
         ) VALUES (
-            %(project_id)s, %(task_id)s, %(filename)s, %(s3_key)s, %(hash_md5)s,
+            %(project_id)s, %(task_id)s, %(filename)s, %(s3_key)s, %(hash_md5)s, %(fingerprint)s,
             {location_sql}, %(exif)s, %(uploaded_by)s, %(status)s, %(batch_id)s, %(thumbnail_url)s, %(rejection_reason)s
         )
         RETURNING id, project_id, task_id, filename, s3_key, hash_md5,
@@ -344,6 +359,7 @@ async def create_project_image(
                 "filename": image_data.filename,
                 "s3_key": image_data.s3_key,
                 "hash_md5": image_data.hash_md5,
+                "fingerprint": image_data.fingerprint,
                 "exif": Json(image_data.exif) if image_data.exif else None,
                 "uploaded_by": str(image_data.uploaded_by),
                 "status": image_data.status.value,
@@ -383,6 +399,23 @@ async def check_duplicate_image(
         result = await cur.fetchone()
 
     return result["id"] if result else None
+
+
+async def get_project_upload_fingerprints(
+    db: Connection, project_id: UUID
+) -> list[str]:
+    """Same scope as check_duplicate_image, so the browser only skips true duplicates."""
+    sql = """
+        SELECT DISTINCT fingerprint FROM project_images
+        WHERE project_id = %(project_id)s
+        AND fingerprint IS NOT NULL
+    """
+
+    async with db.cursor() as cur:
+        await cur.execute(sql, {"project_id": str(project_id)})
+        rows = await cur.fetchall()
+
+    return [row[0] for row in rows]
 
 
 async def reject_assigned_images(db: Connection, image_ids: list, reason: str) -> None:

@@ -13,6 +13,7 @@ from app.db import database
 from app.db.enums import HTTPStatus, State
 from app.images.flight_gap_identification import identify_flight_gaps
 from app.images.image_classification import ImageClassifier
+from app.images.image_logic import get_project_upload_fingerprints
 from app.projects import project_deps, project_schemas
 from app.users.permissions import IsProjectCreator, IsSuperUser, check_permissions
 from app.users.user_deps import login_required
@@ -337,6 +338,16 @@ async def get_project_images(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f"Failed to retrieve project images: {e}",
         )
+
+
+@router.get("/{project_id}/imagery/fingerprints/", tags=["Image Upload"])
+async def get_project_imagery_fingerprints(
+    project_id: UUID,
+    db: Annotated[Connection, Depends(database.get_db)],
+    user: Annotated[AuthUser, Depends(login_required)],
+) -> list[str]:
+    """Fingerprints of images already in the project, so the browser can skip them."""
+    return await get_project_upload_fingerprints(db, project_id)
 
 
 @router.post("/{project_id}/images/{image_id}/accept/", tags=["Image Classification"])

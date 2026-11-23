@@ -275,6 +275,7 @@ class DbProjectImage(Base):
     filename = cast(str, Column(Text, nullable=False))
     s3_key = cast(str, Column(Text, nullable=False))
     hash_md5 = cast(str, Column(CHAR(32), nullable=False))
+    fingerprint = cast(str, Column(CHAR(32), nullable=True))
     # batching is done for image classification / pre-processing, not ODM processing
     batch_id = cast(str, Column(UUID(as_uuid=True), nullable=True))
     location = cast(WKBElement, Column(Geometry("POINT", srid=4326), nullable=True))

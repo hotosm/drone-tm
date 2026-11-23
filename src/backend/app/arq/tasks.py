@@ -33,6 +33,7 @@ from app.images.image_classification import ImageClassifier
 from app.images.image_logic import (
     calculate_file_hash,
     check_duplicate_image,
+    compute_upload_fingerprint,
     create_project_image,
     extract_exif_data,
 )
@@ -202,6 +203,7 @@ async def _save_image_record(
     filename: str,
     file_key: str,
     file_hash: str,
+    fingerprint: str,
     uploaded_by: str,
     exif_dict: dict | None = None,
     location: dict | None = None,
@@ -218,6 +220,7 @@ async def _save_image_record(
         filename: Original filename
         file_key: S3 key
         file_hash: MD5 hash
+        fingerprint: Upload fingerprint (see compute_upload_fingerprint)
         uploaded_by: User ID
         exif_dict: EXIF data (optional)
         location: GPS location (optional)
@@ -233,6 +236,7 @@ async def _save_image_record(
         filename=filename,
         s3_key=file_key,
         hash_md5=file_hash,
+        fingerprint=fingerprint,
         location=location,
         exif=exif_dict,
         uploaded_by=uploaded_by,
@@ -303,6 +307,7 @@ async def process_uploaded_image(
 
             log.info(f"Calculating hash for: {filename}")
             file_hash = calculate_file_hash(file_content)
+            fingerprint = compute_upload_fingerprint(file_content)
             # NOTE: We deliberately compute MD5 from the file content rather than
             # using the S3 ETag. The ETag is upload-method-dependent: single-part
             # PUTs produce a plain MD5, but multipart uploads produce a compound
@@ -331,6 +336,7 @@ async def process_uploaded_image(
                     uploaded_by=uploaded_by,
                     status=ImageStatus.DUPLICATE,
                     hash_md5=file_hash,
+                    fingerprint=fingerprint,
                     batch_id=UUID(batch_id) if batch_id else None,
                     duplicate_of=duplicate_of_id,
                 )
@@ -437,6 +443,7 @@ async def process_uploaded_image(
                 filename=filename,
                 file_key=file_key,
                 file_hash=file_hash,
+                fingerprint=fingerprint,
                 uploaded_by=uploaded_by,
                 exif_dict=exif_dict,
                 location=location,
