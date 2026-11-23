@@ -15,7 +15,7 @@ import {
 } from "../core/outputs";
 import type { PlanDem } from "../core/storage";
 import type { DroneTypeKey } from "../core/types";
-import { coachLead, coachTips } from "../tutorial";
+import { coachLead } from "../tutorial";
 import { errorPanel, escapeHtml, infoPanel, option } from "./ui";
 
 let outputs: OutputFile[] = [];
@@ -122,7 +122,6 @@ export const step4: Step = {
           ${params.forwardOverlap}/${params.sideOverlap}% overlap,
           ${dem.sampler && params.terrainFollow ? "terrain following" : "fixed altitude"}.
         </p>
-        ${coachTips("generate")}
         <div id="generate-error"></div>
       `;
     }
@@ -193,8 +192,6 @@ export const step4: Step = {
       ${batteryCallout}
       ${noFlyReturnCallout}
       ${missingCallout}
-
-      ${coachTips("generate")}
 
       ${checklistCard(ctx.state)}
 
