@@ -1,4 +1,35 @@
-import type { IControl, Map as MlMap } from "maplibre-gl";
+import type { IControl, Map as MlMap, StyleSpecification } from "maplibre-gl";
+
+const OSM_TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const ESRI_IMAGERY_TILES =
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+
+export function basemapStyle(): StyleSpecification {
+  return {
+    version: 8,
+    sources: {
+      osm: {
+        type: "raster",
+        tiles: [OSM_TILES],
+        tileSize: 256,
+        maxzoom: 19,
+        attribution: "© OpenStreetMap contributors",
+      },
+      // Esri serves placeholder tiles past z19 in many areas
+      imagery: {
+        type: "raster",
+        tiles: [ESRI_IMAGERY_TILES],
+        tileSize: 256,
+        maxzoom: 19,
+        attribution: "Esri, Vantor, Earthstar Geographics, and the GIS User Community",
+      },
+    },
+    layers: [
+      { id: "osm", type: "raster", source: "osm" },
+      { id: "imagery", type: "raster", source: "imagery", layout: { visibility: "none" } },
+    ],
+  };
+}
 
 export class BasemapToggle implements IControl {
   private container = document.createElement("div");

@@ -13,6 +13,9 @@
   --dtm-map-path: var(--wa-color-blue-50);
   --dtm-map-static: var(--wa-color-gray-30);
   --dtm-map-white: #ffffff;
+  --dtm-map-missing: var(--wa-color-red-50);
+  --dtm-map-low: var(--wa-color-yellow-70);
+  --dtm-map-ok: var(--wa-color-success-fill-loud);
 }
 
 [data-sheet="peek"] {
@@ -1189,4 +1192,43 @@ wa-details::part(content) {
   height: 0.6em;
   margin-inline-end: var(--wa-space-2xs);
   border-radius: 50%;
+}
+
+/* Photo check page */
+
+.check-panel {
+  position: absolute;
+  top: var(--wa-space-s);
+  left: var(--wa-space-s);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: var(--wa-space-s);
+  width: min(22rem, calc(100% - 2 * var(--wa-space-s)));
+  padding: var(--wa-space-m);
+  background: var(--wa-color-surface-raised);
+  border-radius: var(--wa-border-radius-l);
+  box-shadow: var(--wa-shadow-l);
+}
+
+.check-panel p {
+  margin: 0;
+}
+
+.check-actions,
+.check-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--wa-space-xs) var(--wa-space-s);
+  align-items: center;
+}
+
+.swatch-missing {
+  background: var(--dtm-map-missing);
+}
+.swatch-low {
+  background: var(--dtm-map-low);
+}
+.swatch-ok {
+  background: var(--dtm-map-ok);
 }

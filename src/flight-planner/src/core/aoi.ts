@@ -38,7 +38,7 @@ export function formatArea(areaM2: number): string {
   return `${km2.toFixed(1)} km²`;
 }
 
-function singlePolygonRing(geojson: unknown): Array<[number, number]> | null {
+export function singlePolygonRing(geojson: unknown): Array<[number, number]> | null {
   const rings: Array<Array<[number, number]>> = [];
 
   const walk = (node: unknown): void => {

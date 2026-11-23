@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en" class="wa-theme-default wa-palette-hotosm wa-cloak">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#d43f3f" />
+    <meta
+      name="description"
+      content="Check a task's drone photos cover its area, offline, before uploading."
+    />
+    <link rel="icon" href="./favicon.ico" sizes="32x32" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <title>DroneTM Photo Check</title>
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <img class="brand-logo" src="./favicon.svg" alt="DroneTM" width="28" height="28" />
+        <strong class="brand-text">Photo Check</strong>
+      </div>
+      <div class="header-actions">
+        <wa-button href="./" appearance="plain" size="s">Plan a flight</wa-button>
+      </div>
+    </header>
+
+    <main class="app-body">
+      <section class="map-pane"><div id="map"></div></section>
+
+      <aside class="check-panel">
+        <p class="muted">
+          Add one task's area (the .geojson from its task page), its photos, and the flight plan
+          (.kmz) if you have it. Internet isn't needed.
+        </p>
+        <div class="check-actions">
+          <wa-button id="add-files" variant="brand" size="s">Add files</wa-button>
+          <wa-button id="add-folder" appearance="outlined" size="s">Add a folder</wa-button>
+          <wa-button id="next-task" appearance="plain" size="s">Next task</wa-button>
+        </div>
+        <!-- No accept="image/*": some browsers then strip GPS tags. -->
+        <input id="files-input" type="file" multiple hidden />
+        <input id="folder-input" type="file" webkitdirectory hidden />
+        <div id="check-status"></div>
+        <div class="check-legend muted">
+          <span><i class="swatch swatch-missing"></i> no photos</span>
+          <span><i class="swatch swatch-low"></i> low overlap</span>
+          <span><i class="swatch swatch-ok"></i> covered</span>
+        </div>
+      </aside>
+    </main>
+
+    <script type="module" src="/src/check/main.ts"></script>
+  </body>
+</html>

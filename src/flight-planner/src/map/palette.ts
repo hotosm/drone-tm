@@ -9,6 +9,9 @@ const FALLBACK = {
   static: "#615f66",
   task: "#344f7b",
   noFly: "#484848",
+  missing: "#d43f3f",
+  low: "#f2a31b",
+  ok: "#00883c",
 } as const;
 
 export type MapColor = keyof typeof FALLBACK;

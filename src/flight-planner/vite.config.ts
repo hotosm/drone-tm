@@ -63,6 +63,10 @@ export default defineConfig({
   build: {
     target: "esnext",
     rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL("index.html", import.meta.url)),
+        check: fileURLToPath(new URL("check.html", import.meta.url)),
+      },
       // Circular chunks can evaluate against uninitialised bindings at startup.
       onwarn(warning, defaultHandler) {
         if (warning.code === "CIRCULAR_CHUNK") throw new Error(warning.message);

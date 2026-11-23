@@ -27,6 +27,15 @@ export function infoPanel(message: string, detail?: string): string {
     </wa-callout>`;
 }
 
+export function warningPanel(message: string, detail?: string): string {
+  return `
+    <wa-callout variant="warning" appearance="outlined" size="s">
+      <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
+      <strong>${escapeHtml(message)}</strong>
+      ${detail ? `<p>${escapeHtml(detail)}</p>` : ""}
+    </wa-callout>`;
+}
+
 export function successPanel(message: string, detail?: string): string {
   return `
     <wa-callout variant="success" appearance="outlined" size="s">
