@@ -1,3 +1,19 @@
+## 2026.14.0 (2026-11-23)
+
+### Feat
+
+- **flight-planner**: add offline photo coverage check page
+- **frontend**: add weather & time warnings/details to the flight checklist (#930)
+- image deduplication client side - avoid upload on limited bandwidth (#937)
+
+### Fix
+
+- **frontend**: fade the bottom of a Select list while options remain below (#931)
+
+### Refactor
+
+- **drone-flightplan**: extract build_plan from create_qgroundcontrol_plan
+
 ## 2026.13.1 (2026-11-16)
 
 ### Fix
