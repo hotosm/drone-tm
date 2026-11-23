@@ -17,6 +17,7 @@ from drone_flightplan.output.litchi import create_litchi_csv
 from drone_flightplan.output.potensic_v1 import create_potensic_sqlite
 from drone_flightplan.output.potensic_v2 import create_potensic_json
 from drone_flightplan.output.qgroundcontrol import create_qgroundcontrol_plan
+from drone_flightplan.output.tricam import create_tricam_plan
 from drone_flightplan.terrain_following_waylines import waypoints2waylines
 from drone_flightplan.waypoints import create_waypoint
 
@@ -138,6 +139,8 @@ def write_flightplan_file(
         outpath = create_qgroundcontrol_plan(placemarks, outfile)
     elif output_format == "LITCHI":
         outpath = create_litchi_csv(placemarks, outfile, flight_mode=flight_mode)
+    elif output_format == "TRICAM":
+        outpath = create_tricam_plan(placemarks, output_file_path=outfile)
     else:
         raise ValueError(f"Unsupported output format: {output_format}")
 
