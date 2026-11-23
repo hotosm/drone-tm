@@ -32,6 +32,7 @@ export const droneModelOptions = [
   { label: "Potensic Atom 2", value: "POTENSIC_ATOM_2" },
   { label: "Litchi", value: "LITCHI" },
   { label: "QGroundControl", value: "QGROUNDCONTROL" },
+  { label: "Tri-Cam (QGroundControl)", value: "TRICAM" },
 ];
 
 // Flightplan file extension per drone model, mirroring the backend
@@ -44,6 +45,7 @@ const flightplanFileExtensions: Record<string, string> = {
   POTENSIC_ATOM_2: ".zip",
   LITCHI: ".csv",
   QGROUNDCONTROL: ".plan",
+  TRICAM: ".plan",
 };
 
 export const getFlightplanFileExtension = (droneModel: string) =>
