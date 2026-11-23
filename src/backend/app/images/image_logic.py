@@ -401,6 +401,23 @@ async def check_duplicate_image(
     return result["id"] if result else None
 
 
+async def get_project_upload_fingerprints(
+    db: Connection, project_id: UUID
+) -> list[str]:
+    """Same scope as check_duplicate_image, so the browser only skips true duplicates."""
+    sql = """
+        SELECT DISTINCT fingerprint FROM project_images
+        WHERE project_id = %(project_id)s
+        AND fingerprint IS NOT NULL
+    """
+
+    async with db.cursor() as cur:
+        await cur.execute(sql, {"project_id": str(project_id)})
+        rows = await cur.fetchall()
+
+    return [row[0] for row in rows]
+
+
 async def reject_assigned_images(db: Connection, image_ids: list, reason: str) -> None:
     """Mark the given images REJECTED with a reason.
 

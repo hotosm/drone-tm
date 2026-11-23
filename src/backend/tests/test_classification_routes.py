@@ -435,6 +435,31 @@ async def test_imagery_images_returns_all(client, db, auth_user, create_test_pro
     assert body["count"] == 2
 
 
+# ─── /imagery/fingerprints/ ──────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_imagery_fingerprints_returns_only_fingerprinted_images(
+    client, db, auth_user, create_test_project
+):
+    project_id = create_test_project
+    fingerprint = "f" * 32
+    fingerprinted_id = await _insert_image(
+        db, project_id=project_id, uploaded_by=auth_user.id, status="duplicate"
+    )
+    await _insert_image(db, project_id=project_id, uploaded_by=auth_user.id)
+    async with db.cursor() as cur:
+        await cur.execute(
+            "UPDATE project_images SET fingerprint = %s WHERE id = %s",
+            (fingerprint, fingerprinted_id),
+        )
+    await db.commit()
+
+    resp = await client.get(f"/api/projects/{project_id}/imagery/fingerprints/")
+    assert resp.status_code == 200
+    assert resp.json() == [fingerprint]
+
+
 @pytest.mark.asyncio
 async def test_imagery_images_incremental_polling(
     client, db, auth_user, create_test_project
