@@ -53,6 +53,7 @@ class ProjectImageCreate(ProjectImageBase):
     status: ImageStatus = ImageStatus.STAGED
     batch_id: UUID | None = None  # For grouping uploaded images together
     rejection_reason: str | None = None
+    fingerprint: str | None = Field(None, max_length=32)
 
 
 class ProjectImageUpdate(BaseModel):
