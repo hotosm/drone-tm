@@ -3,3 +3,6 @@
 !backend/**
 !qfield-plugin
 !qfield-plugin/**
+backend/.venv
+backend/dist
+backend/.*_cache

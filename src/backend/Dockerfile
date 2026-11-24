@@ -35,7 +35,6 @@ ARG PYTHON_IMG_TAG=3.11
 # - Silence uv complaining about not being able to use hard links,
 # - tell uv to byte-compile packages for faster application startups,
 # - prevent uv from accidentally downloading isolated Python builds,
-# - use a temp dir instead of cache during install,
 # - select system python version,
 # - declare `/opt/python` as the target for `uv sync` (i.e. instead of .venv).
 ENV PATH="/bin:$PATH" \
@@ -45,21 +44,16 @@ ENV PATH="/bin:$PATH" \
     UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     UV_PYTHON_DOWNLOADS=never \
-    UV_NO_CACHE=1 \
     UV_PYTHON="python$PYTHON_IMG_TAG" \
     UV_PROJECT_ENVIRONMENT=/opt/python
 STOPSIGNAL SIGINT
-
-# Copy files needed for building the project
-COPY backend/pyproject.toml backend/alembic.ini backend/uv.lock /project/
-COPY backend/packages /project/packages
 
 ARG MONITORING
 
 ARG INSTALL_TEST=false
 
-# Install dependencies using uv (caching to improve speed for repeated builds)
-RUN --mount=type=cache,target=/root/.cache/uv \
+# Third-party deps first, so this layer only rebuilds on lockfile changes
+RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
     --mount=type=bind,source=backend/pyproject.toml,target=pyproject.toml \
     --mount=type=bind,source=backend/uv.lock,target=uv.lock <<EOT
     set -e
@@ -72,7 +66,23 @@ RUN --mount=type=cache,target=/root/.cache/uv \
         EXTRA_GROUPS="$EXTRA_GROUPS --group test"
     fi
 
-    uv sync --locked --no-editable --no-dev $EXTRA_GROUPS
+    uv sync --frozen --no-editable --no-dev --no-install-workspace $EXTRA_GROUPS
+EOT
+
+COPY backend/pyproject.toml backend/uv.lock /project/
+COPY backend/packages /project/packages
+RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv <<EOT
+    set -e
+    EXTRA_GROUPS=""
+    if [ "$MONITORING" = "sentry" ]; then
+        EXTRA_GROUPS="--group monitoring"
+    fi
+
+    if [ "$INSTALL_TEST" = "true" ]; then
+        EXTRA_GROUPS="$EXTRA_GROUPS --group test"
+    fi
+
+    uv sync --locked --no-editable --no-dev --no-install-project $EXTRA_GROUPS
 EOT
 
 # Run stage (final stage)
