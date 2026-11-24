@@ -451,6 +451,7 @@ async def test_head_project_odm_assets_returns_available(app, monkeypatch):
     project_id = uuid.uuid4()
     s3_object = SimpleNamespace(
         object_name=f"projects/{project_id}/odm/odm_orthophoto/odm_orthophoto.tif",
+        size=project_routes.MIN_ARCHIVABLE_BYTES,
         is_dir=False,
         last_modified=datetime.now(timezone.utc),
     )
@@ -460,6 +461,9 @@ async def test_head_project_odm_assets_returns_available(app, monkeypatch):
             assert recursive is True
             assert prefix == f"projects/{project_id}/odm/"
             return (obj for obj in [s3_object] if obj.object_name.startswith(prefix))
+
+        def stat_object(self, bucket_name, object_name):
+            return SimpleNamespace(metadata={})
 
     monkeypatch.setattr(project_routes, "s3_client", lambda: FakeS3Client())
     app.dependency_overrides[project_deps.get_project_by_id] = lambda: SimpleNamespace(
@@ -507,6 +511,79 @@ async def test_head_project_odm_assets_returns_404_when_missing(app, monkeypatch
         app.dependency_overrides.pop(project_deps.get_project_by_id, None)
 
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_head_project_odm_assets_reports_archived_imagery(app, monkeypatch):
+    project_id = uuid.uuid4()
+    # Small files never archive, so the check must look past them.
+    small_readable = SimpleNamespace(
+        object_name=f"projects/{project_id}/odm/cameras.json", size=1024
+    )
+    large_archived = SimpleNamespace(
+        object_name=f"projects/{project_id}/odm/odm_georeferencing/model.laz",
+        size=project_routes.MIN_ARCHIVABLE_BYTES,
+    )
+
+    class FakeS3Client:
+        def list_objects(self, bucket_name, prefix, recursive=False):
+            return iter([small_readable, large_archived])
+
+        def stat_object(self, bucket_name, object_name):
+            assert object_name == large_archived.object_name
+            return SimpleNamespace(metadata={"x-amz-archive-status": "ARCHIVE_ACCESS"})
+
+    monkeypatch.setattr(project_routes, "s3_client", lambda: FakeS3Client())
+    app.dependency_overrides[project_deps.get_project_by_id] = lambda: SimpleNamespace(
+        id=project_id
+    )
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+        ) as test_client:
+            response = await test_client.get(f"/api/projects/odm/export/{project_id}/")
+    finally:
+        app.dependency_overrides.pop(project_deps.get_project_by_id, None)
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == project_routes.ARCHIVED_IMAGERY_DETAIL
+
+
+@pytest.mark.asyncio
+async def test_task_orthophoto_export_reports_archived_imagery(app, monkeypatch):
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+
+    class FakeS3Client:
+        def stat_object(self, bucket_name, object_name):
+            assert object_name == (
+                f"projects/{project_id}/{task_id}/odm/odm_orthophoto/odm_orthophoto.tif"
+            )
+            return SimpleNamespace(metadata={"x-amz-archive-status": "ARCHIVE_ACCESS"})
+
+        def get_object(self, bucket_name, object_name):
+            raise AssertionError("archived objects must not be streamed")
+
+    monkeypatch.setattr(project_routes, "s3_client", lambda: FakeS3Client())
+    app.dependency_overrides[project_deps.get_project_by_id] = lambda: SimpleNamespace(
+        id=project_id
+    )
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+        ) as test_client:
+            response = await test_client.get(
+                f"/api/projects/odm/export/{project_id}/{task_id}/orthophoto/"
+            )
+    finally:
+        app.dependency_overrides.pop(project_deps.get_project_by_id, None)
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == project_routes.ARCHIVED_IMAGERY_DETAIL
 
 
 @pytest.mark.asyncio
@@ -1053,7 +1130,7 @@ async def test_reconcile_assets_finishes_started_task_when_ortho_exists(
 
     def fake_get_object_metadata(bucket_name, object_name):
         seen_keys.append((bucket_name, object_name))
-        return {"ok": True}
+        return SimpleNamespace(metadata={})
 
     monkeypatch.setattr(project_logic, "get_object_metadata", fake_get_object_metadata)
 

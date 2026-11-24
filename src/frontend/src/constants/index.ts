@@ -108,3 +108,5 @@ export const taskStatusObj = {
   completed: ["IMAGE_PROCESSING_FINISHED"],
   unflyable: ["HAS_ISSUES"],
 };
+
+export const ARCHIVE_REQUEST_URL = "https://roadmap.hotosm.org/#tech-request";

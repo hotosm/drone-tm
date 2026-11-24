@@ -6,15 +6,22 @@ import TileLayer from "ol/layer/WebGLTile";
 import GeoTIFF from "ol/source/GeoTIFF";
 import Zoom from "ol/control/Zoom";
 import "ol/ol.css";
+import { ARCHIVE_REQUEST_URL } from "@Constants/index";
 import { m } from "@/paraglide/messages";
 
 interface TaskOrthoCogViewerProps {
   signedUrl: string;
   title?: string;
+  archived?: boolean;
   onClose: () => void;
 }
 
-const TaskOrthoCogViewer = ({ signedUrl, title, onClose }: TaskOrthoCogViewerProps) => {
+const TaskOrthoCogViewer = ({
+  signedUrl,
+  title,
+  archived = false,
+  onClose,
+}: TaskOrthoCogViewerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -34,6 +41,9 @@ const TaskOrthoCogViewer = ({ signedUrl, title, onClose }: TaskOrthoCogViewerPro
     window.addEventListener("keydown", handleKey);
 
     (async () => {
+      // S3 rejects reads of archived imagery until it's restored.
+      if (archived) return;
+
       // ODM fast-ortho COGs are RGBA (3 colour bands + alpha). Letting OL
       // auto-detect band layout works for these; setting convertToRGB:true
       // breaks composeTile_ because OL then expects a different band count
@@ -132,7 +142,7 @@ const TaskOrthoCogViewer = ({ signedUrl, title, onClose }: TaskOrthoCogViewerPro
       }
       mapRef.current = null;
     };
-  }, [signedUrl, onClose]);
+  }, [signedUrl, archived, onClose]);
 
   return createPortal(
     <div
@@ -159,7 +169,25 @@ const TaskOrthoCogViewer = ({ signedUrl, title, onClose }: TaskOrthoCogViewerPro
             close
           </button>
         </div>
-        <div ref={containerRef} className="naxatw-min-h-0 naxatw-flex-1" />
+        <div
+          ref={containerRef}
+          className={archived ? "naxatw-hidden" : "naxatw-min-h-0 naxatw-flex-1"}
+        />
+        {archived && (
+          <div className="naxatw-flex naxatw-flex-1 naxatw-items-center naxatw-justify-center naxatw-p-8">
+            <p className="naxatw-max-w-md naxatw-text-center naxatw-text-sm naxatw-text-gray-700">
+              {m.imagery_archived()}{" "}
+              <a
+                href={ARCHIVE_REQUEST_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="naxatw-text-blue-600 naxatw-underline"
+              >
+                {ARCHIVE_REQUEST_URL}
+              </a>
+            </p>
+          </div>
+        )}
         {loadError && (
           <div className="naxatw-border-t naxatw-border-red-200 naxatw-bg-red-50 naxatw-px-4 naxatw-py-2 naxatw-text-xs naxatw-text-red-800">
             {loadError}

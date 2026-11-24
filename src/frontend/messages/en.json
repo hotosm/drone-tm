@@ -1068,6 +1068,7 @@
   "viewer_orthophoto_unavailable_description": "The orthophoto will be available once final processing completes.",
   "viewer_orthophoto_load_failed": "Failed to load orthophoto",
   "viewer_orthophoto_retry_refresh": "Try refreshing the page. If the problem persists, check the project's COG in S3.",
+  "imagery_archived": "Your imagery has been archived, as it wasn't accessed for 90 days. Please request the HOT team to unarchive it at",
   "viewer_orthophoto_preview": "Orthophoto preview",
   "viewer_close_orthophoto_preview": "Close orthophoto preview",
   "individual_project_oam_review_title": "Review before publishing",

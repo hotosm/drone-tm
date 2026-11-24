@@ -31,6 +31,7 @@ from app.s3 import (
     add_obj_to_bucket,
     get_file_from_bucket,
     get_object_metadata,
+    is_archived,
     maybe_presign_s3_key,
     s3_client,
 )
@@ -979,17 +980,20 @@ async def get_assets_info_bulk(
 
     project_ortho_key = f"projects/{project_id}/odm/odm_orthophoto/odm_orthophoto.tif"
 
-    def _probe_project_ortho() -> str | None:
+    def _probe_ortho(key: str) -> tuple[str | None, bool]:
+        """Return (browser_url, archived), or (None, False) if missing."""
         try:
-            get_object_metadata(settings.S3_BUCKET_NAME, project_ortho_key)
-            return maybe_presign_s3_key(project_ortho_key, expires_hours=12)
+            stat = get_object_metadata(settings.S3_BUCKET_NAME, key)
         except S3Error as e:
             if e.code != "NoSuchKey":
-                log.warning(f"Project ortho lookup failed: {e}")
-            return None
+                log.warning(f"Ortho lookup failed for {key}: {e}")
+            return None, False
+        return maybe_presign_s3_key(key, expires_hours=12), is_archived(stat)
 
-    def _probe_task(task_id: uuid.UUID) -> tuple[uuid.UUID, bool, str | None]:
-        """Return (task_id, has_odm_output, task_level_ortho_url)."""
+    def _probe_task(
+        task_id: uuid.UUID,
+    ) -> tuple[uuid.UUID, bool, tuple[str | None, bool]]:
+        """Return (task_id, has_odm_output, task_level_ortho_probe)."""
         try:
             odm_prefix = f"projects/{project_id}/{task_id}/odm/"
             has_odm = (
@@ -1008,23 +1012,16 @@ async def get_assets_info_bulk(
         task_ortho_key = (
             f"projects/{project_id}/{task_id}/odm/odm_orthophoto/odm_orthophoto.tif"
         )
-        try:
-            get_object_metadata(settings.S3_BUCKET_NAME, task_ortho_key)
-            task_ortho_url = maybe_presign_s3_key(task_ortho_key, expires_hours=12)
-        except S3Error as e:
-            if e.code != "NoSuchKey":
-                log.warning(f"Task ortho lookup failed for {task_id}: {e}")
-            task_ortho_url = None
+        return task_id, has_odm, _probe_ortho(task_ortho_key)
 
-        return task_id, has_odm, task_ortho_url
-
-    project_ortho_url, probe_results = await asyncio.gather(
-        run_in_threadpool(_probe_project_ortho),
+    project_ortho, probe_results = await asyncio.gather(
+        run_in_threadpool(_probe_ortho, project_ortho_key),
         asyncio.gather(*(run_in_threadpool(_probe_task, tid) for tid in task_ids)),
     )
 
     results: list[project_schemas.AssetsInfo] = []
-    for tid, has_odm, task_ortho_url in probe_results:
+    for tid, has_odm, task_ortho in probe_results:
+        ortho_url, ortho_archived = task_ortho if task_ortho[0] else project_ortho
         tid_str = str(tid)
         assets_url = (
             f"{settings.API_PREFIX}/projects/odm/export/{project_id}/{tid}/"
@@ -1037,7 +1034,8 @@ async def get_assets_info_bulk(
                 task_id=tid_str,
                 image_count=image_counts.get(tid_str, 0),
                 assets_url=assets_url,
-                orthophoto_url=task_ortho_url or project_ortho_url,
+                orthophoto_url=ortho_url,
+                orthophoto_archived=ortho_archived,
                 state=states.get(tid_str),
             )
         )

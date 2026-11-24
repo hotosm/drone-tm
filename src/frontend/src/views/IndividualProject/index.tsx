@@ -17,7 +17,7 @@ import CloneProjectDialog from "@Components/IndividualProject/ModalContent/Clone
 import { Button } from "@Components/RadixComponents/Button";
 import Skeleton from "@Components/RadixComponents/Skeleton";
 import DescriptionSection from "@Components/RegulatorsApprovalPage/Description/DescriptionSection";
-import { projectOptions } from "@Constants/index";
+import { ARCHIVE_REQUEST_URL, projectOptions } from "@Constants/index";
 import { deleteProject } from "@Services/project";
 import {
   triggerMeshConversion,
@@ -357,6 +357,10 @@ const IndividualProject = () => {
       const response = await fetch(downloadUrl, { method: "HEAD" });
       if (response.status === 404) {
         toast.warning(m.individual_project_no_odm_export_found());
+        return;
+      }
+      if (response.status === 403) {
+        toast.error(`${m.imagery_archived()} ${ARCHIVE_REQUEST_URL}`);
         return;
       }
       if (!response.ok) {

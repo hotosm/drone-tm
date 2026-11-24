@@ -8,7 +8,7 @@ from fastapi.concurrency import run_in_threadpool
 from loguru import logger as log
 from minio import Minio
 from minio.commonconfig import CopySource
-from minio.datatypes import Part
+from minio.datatypes import Object, Part
 from minio.deleteobjects import DeleteObject
 from minio.error import S3Error
 
@@ -505,6 +505,14 @@ def get_object_metadata(bucket_name: str, object_name: str):
     """
     client = s3_client()
     return client.stat_object(bucket_name, object_name)
+
+
+def is_archived(stat: Object) -> bool:
+    """Whether S3 Intelligent-Tiering moved the object to an async archive tier.
+
+    HEAD still succeeds for archived objects, but GET fails until restored.
+    """
+    return bool(stat.metadata.get("x-amz-archive-status"))
 
 
 def get_orthophoto_url_for_project(project_id: str, expires_hours: int = 12):

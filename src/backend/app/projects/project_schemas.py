@@ -87,6 +87,7 @@ class AssetsInfo(BaseModel):
     image_count: int
     assets_url: str | None
     orthophoto_url: str | None = None
+    orthophoto_archived: bool = False
     state: str | None = None
 
 

@@ -1068,6 +1068,7 @@
   "viewer_orthophoto_unavailable_description": "La ortofoto estará disponible cuando finalice el procesamiento final.",
   "viewer_orthophoto_load_failed": "No se pudo cargar la ortofoto",
   "viewer_orthophoto_retry_refresh": "Intenta actualizar la página. Si el problema persiste, revisa el COG del proyecto en S3.",
+  "imagery_archived": "Tus imágenes se han archivado porque no se accedió a ellas durante 90 días. Solicita al equipo de HOT que las desarchive en",
   "viewer_orthophoto_preview": "Vista previa de la ortofoto",
   "viewer_close_orthophoto_preview": "Cerrar vista previa de la ortofoto",
   "individual_project_oam_review_title": "Revisa antes de publicar",

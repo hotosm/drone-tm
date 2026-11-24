@@ -1303,3 +1303,41 @@ async def test_process_drone_images_persists_failure_comment(monkeypatch):
 
     assert state_calls[1]["final_state"] == State.IMAGE_PROCESSING_FAILED
     assert "Failed request" in state_calls[1]["comment"]
+
+
+@pytest.mark.asyncio
+async def test_assets_info_flags_archived_task_orthophoto(monkeypatch):
+    project_id = uuid.uuid4()
+    task_id = uuid.uuid4()
+    task_ortho_key = (
+        f"projects/{project_id}/{task_id}/odm/odm_orthophoto/odm_orthophoto.tif"
+    )
+
+    def fake_get_object_metadata(bucket_name, object_name):
+        if object_name != task_ortho_key:
+            raise S3Error(
+                "NoSuchKey",
+                "Object does not exist",
+                object_name,
+                "request-id",
+                "host-id",
+                None,
+                bucket_name=bucket_name,
+                object_name=object_name,
+            )
+        return SimpleNamespace(metadata={"x-amz-archive-status": "DEEP_ARCHIVE_ACCESS"})
+
+    class FakeS3Client:
+        def list_objects(self, bucket_name, prefix, recursive=False):
+            return iter([SimpleNamespace(object_name=f"{prefix}odm_orthophoto/")])
+
+    monkeypatch.setattr(project_logic, "get_object_metadata", fake_get_object_metadata)
+    monkeypatch.setattr(project_logic, "s3_client", lambda: FakeS3Client())
+    monkeypatch.setattr(project_logic, "maybe_presign_s3_key", lambda key, **_: key)
+
+    [info] = await project_logic.get_assets_info_bulk(
+        _FakeConn(cursor_fetchall=[]), project_id, [task_id]
+    )
+
+    assert info.orthophoto_url == task_ortho_key
+    assert info.orthophoto_archived is True

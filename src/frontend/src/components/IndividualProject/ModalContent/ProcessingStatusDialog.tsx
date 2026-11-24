@@ -42,6 +42,7 @@ type ProcessingDialogTask = {
   failure_reason?: string | null;
   assets_url?: string | null;
   orthophoto_url?: string | null;
+  orthophoto_archived?: boolean;
   pending_transfer_count?: number;
 };
 
@@ -76,6 +77,7 @@ const ProcessingStatusDialog = () => {
   const [viewerTask, setViewerTask] = useState<{
     url: string;
     title: string;
+    archived: boolean;
   } | null>(null);
 
   // allTaskAssets: S3-based data (assets_url, image_count from disk, state)
@@ -454,6 +456,7 @@ const ProcessingStatusDialog = () => {
             failure_reason: task.failure_reason,
             assets_url: assetInfo?.assets_url,
             orthophoto_url: assetInfo?.orthophoto_url,
+            orthophoto_archived: assetInfo?.orthophoto_archived,
             pending_transfer_count: task.pending_transfer_count,
           };
         })
@@ -479,6 +482,7 @@ const ProcessingStatusDialog = () => {
         failure_reason: task.failure_reason,
         assets_url: task.assets_url,
         orthophoto_url: task.orthophoto_url,
+        orthophoto_archived: task.orthophoto_archived,
       }))
       .sort((a, b) => {
         const aIdx = a.task_id?.localeCompare?.(b.task_id) || 0;
@@ -733,6 +737,7 @@ const ProcessingStatusDialog = () => {
                                     setViewerTask({
                                       url: task.orthophoto_url!,
                                       title: `Task ${task.task_index} orthophoto`,
+                                      archived: Boolean(task.orthophoto_archived),
                                     });
                                   }}
                                 >
@@ -1153,6 +1158,7 @@ const ProcessingStatusDialog = () => {
           <TaskOrthoCogViewer
             signedUrl={viewerTask.url}
             title={viewerTask.title}
+            archived={viewerTask.archived}
             onClose={() => setViewerTask(null)}
           />
         </Suspense>

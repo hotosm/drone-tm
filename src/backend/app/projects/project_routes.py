@@ -33,6 +33,7 @@ from app.s3 import (
     delete_objects_by_prefix,
     generate_presigned_multipart_upload_url,
     initiate_multipart_upload,
+    is_archived,
     list_parts,
     s3_client,
 )
@@ -76,19 +77,40 @@ router = APIRouter(
 )
 
 
+ARCHIVED_IMAGERY_DETAIL = (
+    "Your imagery has been archived, as it wasn't accessed for 90 days. "
+    "Please request the HOT team to unarchive it at "
+    "https://roadmap.hotosm.org/#tech-request"
+)
+
+
+# S3 Intelligent-Tiering never archives objects smaller than this.
+MIN_ARCHIVABLE_BYTES = 128 * 1024
+
+
 def _odm_assets_prefix(project_id: uuid.UUID, task_id: uuid.UUID | None) -> str:
     task_segment = f"{task_id}/" if task_id else ""
     return f"projects/{project_id}/{task_segment}odm/"
 
 
-def _odm_assets_available(prefix: str) -> bool:
-    probe = next(
-        s3_client().list_objects(
-            settings.S3_BUCKET_NAME, prefix=prefix, recursive=True
-        ),
-        None,
+def _require_downloadable_odm_assets(prefix: str) -> None:
+    objects = s3_client().list_objects(
+        settings.S3_BUCKET_NAME, prefix=prefix, recursive=True
     )
-    return probe is not None
+    found_any = False
+    for obj in objects:
+        found_any = True
+        if obj.size < MIN_ARCHIVABLE_BYTES:
+            continue
+        # Zip downloads read every file together, so they share a last-access
+        # time and the first archivable file stands in for the rest.
+        stat = s3_client().stat_object(settings.S3_BUCKET_NAME, obj.object_name)
+        if is_archived(stat):
+            _raise_imagery_archived()
+        return
+
+    if not found_any:
+        _raise_no_odm_assets()
 
 
 def _odm_assets_filename(project_id: uuid.UUID, task_id: uuid.UUID | None) -> str:
@@ -99,6 +121,12 @@ def _raise_no_odm_assets() -> None:
     raise HTTPException(
         status_code=HTTPStatus.NOT_FOUND,
         detail="No ODM assets found for this project.",
+    )
+
+
+def _raise_imagery_archived() -> None:
+    raise HTTPException(
+        status_code=HTTPStatus.FORBIDDEN, detail=ARCHIVED_IMAGERY_DETAIL
     )
 
 
@@ -1405,37 +1433,12 @@ async def export_odm_orthophoto(
     contexts where only the orthophoto preview is needed.
     """
     task_segment = f"{task_id}/" if task_id else ""
-    ortho_key = (
-        f"projects/{project.id}/{task_segment}odm/odm_orthophoto/odm_orthophoto.tif"
-    )
-
-    try:
-        s3_client().stat_object(settings.S3_BUCKET_NAME, ortho_key)
-    except Exception:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail="No orthophoto found for this task.",
-        )
-
     label = task_id or project_id
-    filename = f"orthophoto_{label}.tif"
-
-    def generate():
-        response = s3_client().get_object(settings.S3_BUCKET_NAME, ortho_key)
-        try:
-            while True:
-                chunk = response.read(65536)
-                if not chunk:
-                    break
-                yield chunk
-        finally:
-            response.close()
-            response.release_conn()
-
-    return StreamingResponse(
-        generate(),
+    return _stream_s3_object_response(
+        f"projects/{project.id}/{task_segment}odm/odm_orthophoto/odm_orthophoto.tif",
+        not_found_detail="No orthophoto found for this task.",
+        download_filename=f"orthophoto_{label}.tif",
         media_type="image/tiff",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
 
@@ -1452,9 +1455,12 @@ def _stream_s3_object_response(
     later is just a one-line wrapper rather than another copy-pasted block.
     """
     try:
-        s3_client().stat_object(settings.S3_BUCKET_NAME, s3_key)
+        stat = s3_client().stat_object(settings.S3_BUCKET_NAME, s3_key)
     except Exception:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=not_found_detail)
+
+    if is_archived(stat):
+        _raise_imagery_archived()
 
     def generate():
         response = s3_client().get_object(settings.S3_BUCKET_NAME, s3_key)
@@ -1575,12 +1581,11 @@ async def export_odm_assets(
 
     prefix = _odm_assets_prefix(project.id, task_id)
 
-    # Probe for at least one object so we can 404 before streaming starts,
+    # Probe one object so we can 404 or 403 before streaming starts,
     # then list lazily during the stream to avoid loading all metadata upfront.
     # Use recursive=True so we find files at any depth (e.g. odm_orthophoto/odm_orthophoto.tif)
     # rather than relying on common-prefix returns which vary by S3 implementation.
-    if not _odm_assets_available(prefix):
-        _raise_no_odm_assets()
+    _require_downloadable_odm_assets(prefix)
 
     filename = _odm_assets_filename(project_id, task_id)
 
@@ -1635,8 +1640,7 @@ async def head_odm_assets(
 ):
     """Check whether ODM assets exist without streaming the zip."""
     prefix = _odm_assets_prefix(project.id, task_id)
-    if not _odm_assets_available(prefix):
-        _raise_no_odm_assets()
+    _require_downloadable_odm_assets(prefix)
 
     filename = _odm_assets_filename(project_id, task_id)
     return Response(
