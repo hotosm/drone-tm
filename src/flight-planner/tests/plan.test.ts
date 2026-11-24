@@ -3,6 +3,8 @@ import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import { DemSampler } from "../src/core/dem";
 import { DEFAULT_PARAMS, areaCentre, buildPlan, type PlanParams } from "../src/core/flightplan";
+import { createPotensicEveJson } from "../src/core/qfield";
+import { parseParams, potensicAppForDrone } from "../src/core/params";
 import { buildOutputs } from "../src/core/outputs";
 import type { PlanMeta } from "../src/core/storage";
 
@@ -186,5 +188,92 @@ describe("buildOutputs", () => {
     });
 
     expect(files[0].name).toMatch(/^task_42_/);
+  });
+
+  it("writes all Eve fields and preserves real waypoint values and photo actions", () => {
+    const eve = params({
+      droneType: "POTENSIC_ATOM_2",
+      potensicApp: "eve",
+      flightMode: "waypoints",
+      terrainFollow: false,
+    });
+    const result = buildPlan(SMALL, eve, null);
+    const files = buildOutputs(result, eve, meta);
+    expect(files[0].name).toBe("waypoints.json");
+    expect(files[0].mime).toBe("application/json");
+
+    const waypoints = JSON.parse(files[0].data as string) as Array<Record<string, unknown>>;
+    expect(Object.keys(waypoints[0]!)).toEqual([
+      "global_speed", "snapshootFile", "wp_speed", "wp_speed_type", "wp_yaw_custom",
+      "wp_gimbal_type", "wp_yaw_type", "wp_hover_time", "wp_action", "wp_zoom_type",
+      "wp_height", "wp_yaw_interest", "isHaveAltitude", "wp_zoom_ratio", "isFromSave",
+      "wp_gimbal_pitch_custom", "wp_lon", "wp_lat", "wp_altitude", "addPointWay",
+    ]);
+    expect(waypoints[0].global_speed).toBe(result.parameters.ground_speed);
+    expect(waypoints[0].snapshootFile).toBe("");
+
+    const photoIndex = result.waypoints.features.findIndex((feature) => feature.properties.take_photo);
+    expect(photoIndex).toBeGreaterThanOrEqual(0);
+    const source = result.waypoints.features[photoIndex]!;
+    const exported = waypoints[photoIndex]!;
+    const coordinates = source.geometry.coordinates;
+    expect(exported.wp_lon).toBe(Number(coordinates[0].toFixed(7)));
+    expect(exported.wp_lat).toBe(Number(coordinates[1].toFixed(7)));
+    expect(exported.wp_height).toBe(Math.round(Number(coordinates[2]) * 10) / 10);
+    expect(exported.wp_action).toBe(1);
+    expect(exported.wp_gimbal_pitch_custom).toBe(Number(source.properties.gimbal_angle));
+  });
+
+  it("keeps the Android Atom 2 ZIP output unchanged when Android is selected", () => {
+    const android = params({ droneType: "POTENSIC_ATOM_2", potensicApp: "android", terrainFollow: false });
+    const result = buildPlan(SMALL, android, null);
+    const files = buildOutputs(result, android, meta);
+    expect(files[0].name).toMatch(/_potensic\.zip$/);
+    const zip = new Uint8Array(files[0].data as ArrayBuffer);
+    expect([...zip.slice(0, 4)]).toEqual([0x50, 0x4b, 0x03, 0x04]);
+  });
+
+  it("blocks the Eve mission download above 200 waypoints", () => {
+    const eve = params({ droneType: "POTENSIC_ATOM_2", potensicApp: "eve", terrainFollow: false });
+    const result = buildPlan(SMALL, eve, null);
+    const first = result.waypoints.features[0]!;
+    const oversized = {
+      ...result,
+      waypoints: {
+        ...result.waypoints,
+        features: Array.from({ length: 201 }, () => first),
+      },
+    };
+    const files = buildOutputs(oversized, eve, meta);
+    expect(files[0].disabled).toBe(true);
+    expect(files[0].hint).toMatch(/download disabled/i);
+  });
+
+  it("rejects Eve speeds outside the inclusive 0.1 to 30 m/s range", () => {
+    const eve = params({ droneType: "POTENSIC_ATOM_2", potensicApp: "eve", terrainFollow: false });
+    const result = buildPlan(SMALL, eve, null);
+    expect(() => createPotensicEveJson(result.waypoints, 0)).toThrow(/0\.1 to 30 m\/s/);
+    expect(() => createPotensicEveJson(result.waypoints, 30.1)).toThrow(/0\.1 to 30 m\/s/);
+    expect(() => createPotensicEveJson(result.waypoints, 0.1)).not.toThrow();
+    expect(() => createPotensicEveJson(result.waypoints, 30)).not.toThrow();
+  });
+});
+
+describe("potensicAppForDrone", () => {
+  it("keeps the Eve choice only for the Atom 2", () => {
+    expect(potensicAppForDrone("POTENSIC_ATOM_2", "eve")).toBe("eve");
+    expect(potensicAppForDrone("POTENSIC_ATOM_2", "android")).toBe("android");
+    expect(potensicAppForDrone("DJI_MINI_4_PRO", "eve")).toBe("android");
+    expect(potensicAppForDrone("POTENSIC_ATOM_1", "eve")).toBe("android");
+  });
+
+  it("parseParams accepts Eve for the Atom 2 and rejects unknown apps", () => {
+    const eve = parseParams({ droneType: "POTENSIC_ATOM_2", potensicApp: "eve" });
+    expect(eve.potensicApp).toBe("eve");
+    const android = parseParams({ droneType: "DJI_MINI_4_PRO", potensicApp: "eve" });
+    expect(android.potensicApp).toBe("android");
+    expect(() => parseParams({ droneType: "POTENSIC_ATOM_2", potensicApp: "desktop" })).toThrow(
+      /Unknown Potensic app/,
+    );
   });
 });

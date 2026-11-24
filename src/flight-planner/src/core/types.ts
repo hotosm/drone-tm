@@ -7,6 +7,8 @@ export type DroneTypeKey =
   | "POTENSIC_ATOM_1"
   | "POTENSIC_ATOM_2";
 
+export type PotensicAppKey = "android" | "eve";
+
 export type FlightModeKey = "waylines" | "waypoints";
 
 export type GimbalAngleKey = "-80" | "-90" | "-45";
@@ -18,6 +20,7 @@ export interface WaypointProperties {
   gimbal_angle: string;
   speed?: number;
   altitude?: number;
+  hover_time?: number;
 }
 
 export interface WaypointFeature {

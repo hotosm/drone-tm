@@ -7,6 +7,7 @@ import { DRONE_CHOICES } from "../core/qfield";
 import {
   buildOutputs,
   buildPlanBundle,
+  POTENSIC_EVE_MAX_WAYPOINTS,
   byteSize,
   planLabel,
   download,
@@ -14,7 +15,8 @@ import {
   type OutputFile,
 } from "../core/outputs";
 import type { PlanDem } from "../core/storage";
-import type { DroneTypeKey } from "../core/types";
+import type { DroneTypeKey, PotensicAppKey } from "../core/types";
+import { potensicAppForDrone } from "../core/params";
 import { coachLead } from "../tutorial";
 import { errorPanel, escapeHtml, infoPanel, option } from "./ui";
 
@@ -55,10 +57,17 @@ function flightSetup(params: PlanParams): string {
   const takeoff = params.takeoffPoint
     ? `${params.takeoffPoint.lat.toFixed(5)}, ${params.takeoffPoint.lon.toFixed(5)}`
     : "Not set. Take off at the green ring, in the middle of the area.";
+  const potensicApp = params.droneType === "POTENSIC_ATOM_2"
+    ? `<wa-select id="potensic-app" label="Potensic app" value="${escapeHtml(params.potensicApp)}">
+        ${option("android", "Potensic (Android)", params.potensicApp === "android")}
+        ${option("eve", "Potensic Eve (iOS)", params.potensicApp === "eve")}
+      </wa-select>`
+    : "";
   return `
     <wa-select id="drone-type" label="Drone" value="${escapeHtml(params.droneType)}">
       ${DRONE_CHOICES.map((c) => option(c.value, c.label, c.value === params.droneType)).join("")}
     </wa-select>
+    ${potensicApp}
     <div class="downloads">
       <div class="download-row">
         <div class="download-meta">
@@ -79,13 +88,14 @@ function minutes(value: number): string {
 
 // The first output is the mission for this drone. The rest are for checking or editing it.
 function downloadRow(file: OutputFile, index: number): string {
+  const disabled = file.disabled ? "disabled" : "";
   return `
     <div class="download-row">
       <div class="download-meta">
         <strong>${escapeHtml(file.label)}</strong>
         <span class="muted">${escapeHtml(file.hint)}</span>
       </div>
-      <wa-button data-download="${index}" appearance="outlined" size="s">
+      <wa-button data-download="${index}" appearance="outlined" size="s" ${disabled}>
         <wa-icon slot="start" name="download"></wa-icon>
         ${escapeHtml(formatBytes(byteSize(file.data)))}
       </wa-button>
@@ -167,6 +177,19 @@ export const step4: Step = {
            </wa-callout>`
         : "";
 
+    const eveWaypointCount = result.waypoints.features.length;
+    const exceedsEveWaypointLimit =
+      params.droneType === "POTENSIC_ATOM_2" &&
+      params.potensicApp === "eve" &&
+      eveWaypointCount > POTENSIC_EVE_MAX_WAYPOINTS;
+    const eveWaypointWarning = exceedsEveWaypointLimit
+      ? `<wa-callout variant="warning" appearance="outlined">
+           <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
+           <strong>Potensic Eve download disabled: ${eveWaypointCount} waypoints exceeds the ${POTENSIC_EVE_MAX_WAYPOINTS}-waypoint limit.</strong>
+           <p>Split the area into smaller missions. The Eve mission file is disabled below; the GeoJSON review files remain available.</p>
+         </wa-callout>`
+      : "";
+
     return `
       ${coachLead("generate")}
       ${flightSetup(params)}
@@ -192,6 +215,7 @@ export const step4: Step = {
       ${batteryCallout}
       ${noFlyReturnCallout}
       ${missingCallout}
+      ${eveWaypointWarning}
 
       ${checklistCard(ctx.state)}
 
@@ -271,7 +295,15 @@ export const step4: Step = {
 
     const drone = root.querySelector<HTMLElement & { value: string }>("#drone-type");
     drone?.addEventListener("change", () => {
-      ctx.state.params.droneType = drone.value as DroneTypeKey;
+      const nextDroneType = drone.value as DroneTypeKey;
+      ctx.state.params.droneType = nextDroneType;
+      ctx.state.params.potensicApp = potensicAppForDrone(nextDroneType, ctx.state.params.potensicApp);
+      void run();
+    });
+    const potensicApp = root.querySelector<HTMLElement & { value: string }>("#potensic-app");
+    potensicApp?.addEventListener("change", () => {
+      if (potensicApp.value !== "android" && potensicApp.value !== "eve") return;
+      ctx.state.params.potensicApp = potensicApp.value as PotensicAppKey;
       void run();
     });
 
@@ -282,7 +314,7 @@ export const step4: Step = {
     for (const button of root.querySelectorAll<HTMLElement>("[data-download]")) {
       button.addEventListener("click", () => {
         const file = outputs[Number(button.dataset.download)];
-        if (!file) return;
+        if (!file || file.disabled) return;
         download(file);
         promptSiteChecks(ctx);
       });
