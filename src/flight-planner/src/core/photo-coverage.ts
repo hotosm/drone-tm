@@ -4,7 +4,7 @@
 // line ends or whole lines that stop short of the task mean an unflown part.
 // Turns, climb-out and hovering shots are left out of the lines.
 
-import { ringAreaM2 } from "./aoi";
+import { ringAreaM2, type TaskArea } from "./aoi";
 import type { PhotoInfo } from "./photos";
 import { bufferPolygon } from "./qfield";
 
@@ -44,6 +44,8 @@ const MAX_EXPECTED_PER_PHOTO = 10;
 const STEADY_TIMER_SHARE = 0.95;
 /** Stretches each photo's patch so drift and speed changes leave no slivers between photos. */
 const PATCH_SLACK = 1.25;
+/** Overlap buffers put some photos in neighbouring tasks, but fewer than this share. */
+const MIXED_TASK_SHARE = 0.5;
 
 export type CellStatus = "missing" | "ok";
 /** "unknown": no photo had the height and lens data to size it. */
@@ -617,6 +619,24 @@ function bufferOutline(ring: Xy[], distance: number): Xy[] {
 
 function shareMissing(cells: CoverageCell[]): number {
   return cells.filter((cell) => cell.status === "missing").length / Math.max(cells.length, 1);
+}
+
+export interface TaskMatch {
+  task: TaskArea | null;
+  /** Other tasks holding enough photos to suggest more than one task was added. */
+  mixedWith: TaskArea[];
+}
+
+/** The task most photos fall in, or none when no photo falls in any task. */
+export function matchTask(tasks: TaskArea[], photos: PhotoInfo[]): TaskMatch {
+  const counts = tasks.map(
+    (task) => photos.filter((photo) => insideRing(task.ring, [photo.lon, photo.lat])).length,
+  );
+  const most = Math.max(0, ...counts);
+  if (most === 0) return { task: null, mixedWith: [] };
+  const best = counts.indexOf(most);
+  const mixedWith = tasks.filter((_, i) => i !== best && counts[i] > most * MIXED_TASK_SHARE);
+  return { task: tasks[best], mixedWith };
 }
 
 /**

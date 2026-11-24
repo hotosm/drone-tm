@@ -84,6 +84,43 @@ export function singlePolygonRing(geojson: unknown): Array<[number, number]> | n
   return rings[0] ?? null;
 }
 
+export interface TaskArea {
+  /** project_task_id from the DroneTM project export. */
+  id: number | null;
+  ring: Array<[number, number]>;
+}
+
+export interface TaskAreas {
+  tasks: TaskArea[];
+  /** Ids of tasks with shapes the checker can't use, such as a no-fly hole. */
+  skipped: Array<number | null>;
+}
+
+/**
+ * One area per feature, so the project's task export works as well as one task.
+ * An unusable task is skipped rather than rejecting the whole export.
+ */
+export function taskAreas(geojson: unknown): TaskAreas {
+  const collection = geojson as Partial<GeoJSON.FeatureCollection>;
+  const features: unknown[] =
+    collection.type === "FeatureCollection" && Array.isArray(collection.features)
+      ? collection.features
+      : [geojson];
+  const result: TaskAreas = { tasks: [], skipped: [] };
+  for (const feature of features) {
+    const rawId = (feature as Partial<GeoJSON.Feature>).properties?.project_task_id;
+    const id = typeof rawId === "number" ? rawId : null;
+    try {
+      const ring = singlePolygonRing(feature);
+      if (ring) result.tasks.push({ id, ring: validateRing(ring).ring });
+    } catch (error) {
+      if (!(error instanceof AoiError)) throw error;
+      result.skipped.push(id);
+    }
+  }
+  return result;
+}
+
 function segmentsIntersect(
   a: [number, number],
   b: [number, number],

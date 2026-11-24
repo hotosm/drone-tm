@@ -1261,6 +1261,13 @@ wa-details::part(content) {
   align-items: center;
 }
 
+/* Coverage cells are squares, photos are dots. */
+.swatch-square {
+  border-radius: 2px;
+}
+.swatch-path {
+  background: var(--dtm-map-path);
+}
 .swatch-missing {
   background: var(--dtm-map-missing);
 }

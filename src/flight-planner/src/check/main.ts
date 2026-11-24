@@ -5,9 +5,9 @@ import "@hotosm/ui/dist/webawesome-all.js";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "../styles/app.css";
 
-import maplibregl, { type GeoJSONSource, type LngLatBoundsLike } from "maplibre-gl";
-import { singlePolygonRing, validateRing } from "../core/aoi";
-import { assessCoverage, type Coverage } from "../core/photo-coverage";
+import maplibregl, { type GeoJSONSource } from "maplibre-gl";
+import { taskAreas, type TaskArea } from "../core/aoi";
+import { assessCoverage, matchTask, type Coverage, type TaskMatch } from "../core/photo-coverage";
 import { readPhoto, type PhotoInfo } from "../core/photos";
 import { BasemapToggle, basemapStyle } from "../map/basemap";
 import { mapColor } from "../map/palette";
@@ -24,7 +24,8 @@ import {
 type LonLat = [number, number];
 
 interface CheckState {
-  area: LonLat[] | null;
+  tasks: TaskArea[];
+  skippedTasks: Array<number | null>;
   photos: PhotoInfo[];
   /** DJI repeats file names across folders. */
   files: Map<string, File>;
@@ -33,7 +34,14 @@ interface CheckState {
 }
 
 function emptyState(): CheckState {
-  return { area: null, photos: [], files: new Map(), noGpsCount: 0, unreadable: [] };
+  return {
+    tasks: [],
+    skippedTasks: [],
+    photos: [],
+    files: new Map(),
+    noGpsCount: 0,
+    unreadable: [],
+  };
 }
 
 let state = emptyState();
@@ -54,7 +62,7 @@ map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-ri
 map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
 map.on("load", () => {
-  for (const id of ["cells", "buffer", "area", "gaps", "photos"]) {
+  for (const id of ["cells", "buffer", "tasks", "area", "gaps", "photos"]) {
     map.addSource(id, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
   }
   map.addLayer({
@@ -71,6 +79,17 @@ map.on("load", () => {
     type: "line",
     source: "buffer",
     paint: { "line-color": mapColor("buffer"), "line-width": 2, "line-dasharray": [2, 2] },
+  });
+  map.addLayer({
+    id: "tasks",
+    type: "line",
+    source: "tasks",
+    paint: {
+      "line-color": mapColor("task"),
+      "line-width": 1.5,
+      "line-opacity": 0.8,
+      "line-dasharray": [3, 2],
+    },
   });
   map.addLayer({
     id: "area",
@@ -95,7 +114,7 @@ map.on("load", () => {
     source: "photos",
     paint: {
       "circle-radius": 4.5,
-      "circle-color": mapColor("photo"),
+      "circle-color": mapColor("path"),
       "circle-stroke-color": mapColor("white"),
       "circle-stroke-width": 1,
     },
@@ -161,14 +180,28 @@ function photoStats(coverage: Coverage): string {
     </div>`;
 }
 
-function statusPanel(coverage: Coverage | null): string {
+function taskName(id: number | null): string {
+  return id === null ? "an unnumbered task" : `task ${id}`;
+}
+
+function statusPanel(match: TaskMatch, coverage: Coverage | null): string {
   const unreadable = state.unreadable.length
     ? `${state.unreadable.length} unreadable (${state.unreadable.slice(0, 3).join(", ")})`
     : "";
-  if (!state.area) {
+  if (state.tasks.length === 0) {
     return infoPanel(
       "Add the task area to verify.",
-      `Download it as GeoJSON from the task page in DroneTM. ${unreadable}`,
+      `Download it as GeoJSON from the task page in DroneTM, or all tasks from the project Export. ${unreadable}`,
+    );
+  }
+  if (!match.task && state.photos.length > 0) {
+    return warningPanel("None of the photos fall inside the task areas.", unreadable);
+  }
+  if (match.task && match.mixedWith.length > 0) {
+    const tasks = [match.task, ...match.mixedWith].map((task) => taskName(task.id)).join(", ");
+    return warningPanel(
+      `These photos span ${tasks}.`,
+      "Clear and add one task's photos at a time to check coverage.",
     );
   }
 
@@ -197,9 +230,12 @@ function statusPanel(coverage: Coverage | null): string {
   return verdictPanel(coverage) + photoStats(coverage) + notes;
 }
 
-function render(): void {
-  const coverage =
-    state.area && state.photos.length > 0 ? assessCoverage(state.area, state.photos) : null;
+function render(): TaskMatch {
+  const match = matchTask(state.tasks, state.photos);
+  const area = match.task?.ring ?? null;
+  // Another task's photos break the flight-line tracing, which can hide real gaps.
+  const checkable = area && state.photos.length > 0 && match.mixedWith.length === 0;
+  const coverage = checkable ? assessCoverage(area, state.photos) : null;
   setData(
     "cells",
     (coverage?.cells ?? []).map((cell) =>
@@ -209,7 +245,11 @@ function render(): void {
       ),
     ),
   );
-  setData("area", state.area ? [feature({ type: "Polygon", coordinates: [state.area] })] : []);
+  setData(
+    "tasks",
+    state.tasks.map((task) => feature({ type: "Polygon", coordinates: [task.ring] })),
+  );
+  setData("area", area ? [feature({ type: "Polygon", coordinates: [area] })] : []);
   setData(
     "buffer",
     coverage?.buffer ? [feature({ type: "LineString", coordinates: coverage.buffer })] : [],
@@ -226,23 +266,34 @@ function render(): void {
       feature({ type: "Point", coordinates: [photo.lon, photo.lat] }, photo),
     ),
   );
-  statusHost.innerHTML = statusPanel(coverage);
+  statusHost.innerHTML = statusPanel(match, coverage);
   photosSummary.textContent = state.photos.length ? `${state.photos.length} placed` : "";
-  areaSummary.textContent = state.area ? "Added" : "Needed (.geojson from the task page)";
+  areaSummary.textContent = areaSummaryText(match);
+  return match;
 }
 
-function fitToData(): void {
+/** A project export stays loaded between tasks, and may have skipped tasks to report. */
+function isProjectExport(): boolean {
+  return state.tasks.length + state.skippedTasks.length > 1;
+}
+
+function areaSummaryText(match: TaskMatch): string {
+  if (state.tasks.length === 0) return "Needed (.geojson from the task or project page)";
+  if (!isProjectExport()) return "Added";
+  const skippedNames = state.skippedTasks.map(taskName).join(", ");
+  const skipped = skippedNames ? `. Skipped ${skippedNames}: shape not supported` : "";
+  const count = `${state.tasks.length} tasks${skipped}`;
+  return match.task ? `Checking ${taskName(match.task.id)} of ${count}` : count;
+}
+
+function fitToData({ task }: TaskMatch): void {
   const points = [
-    ...(state.area ?? []),
+    ...(task?.ring ?? state.tasks.flatMap((other) => other.ring)),
     ...state.photos.map((photo): LonLat => [photo.lon, photo.lat]),
   ];
   if (points.length === 0) return;
-  const lons = points.map(([lon]) => lon);
-  const lats = points.map(([, lat]) => lat);
-  const bounds: LngLatBoundsLike = [
-    [Math.min(...lons), Math.min(...lats)],
-    [Math.max(...lons), Math.max(...lats)],
-  ];
+  const bounds = new maplibregl.LngLatBounds(points[0], points[0]);
+  for (const point of points) bounds.extend(point);
   map.fitBounds(bounds, { padding: 60, maxZoom: 18, duration: 0 });
 }
 
@@ -261,9 +312,10 @@ async function addFile(target: CheckState, file: File): Promise<void> {
     return;
   }
   if (/\.(geo)?json$/.test(name)) {
-    const ring = singlePolygonRing(JSON.parse(await file.text()));
-    if (!ring) throw new Error("Not a single task polygon.");
-    target.area = validateRing(ring).ring;
+    const { tasks, skipped } = taskAreas(JSON.parse(await file.text()));
+    if (tasks.length === 0) throw new Error("No task polygons.");
+    target.tasks = tasks;
+    target.skippedTasks = skipped;
   }
 }
 
@@ -279,8 +331,7 @@ async function addFiles(files: File[]): Promise<void> {
     }
     if (state !== target) return;
   }
-  render();
-  fitToData();
+  fitToData(render());
 }
 
 map.on("click", "photos", (event) => {
@@ -312,7 +363,8 @@ for (const button of document.querySelectorAll<HTMLElement>("[data-input]")) {
 }
 document.querySelector("#next-task")!.addEventListener("click", () => {
   popup?.remove();
-  state = emptyState();
+  const { tasks, skippedTasks } = state;
+  state = isProjectExport() ? { ...emptyState(), tasks, skippedTasks } : emptyState();
   render();
 });
 

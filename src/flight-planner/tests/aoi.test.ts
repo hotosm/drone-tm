@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { AoiError, formatArea, readAoiFile, ringAreaM2, validateRing } from "../src/core/aoi";
+import {
+  AoiError,
+  formatArea,
+  readAoiFile,
+  ringAreaM2,
+  taskAreas,
+  validateRing,
+} from "../src/core/aoi";
 
 const SQUARE: Array<[number, number]> = [
   [85.28, 27.68],
@@ -177,5 +184,42 @@ describe("formatArea", () => {
     [150_000_000, "150.0 km²"],
   ])("formats %i m² as %s", (input, expected) => {
     expect(formatArea(input)).toBe(expected);
+  });
+});
+
+describe("taskAreas", () => {
+  const shifted = SQUARE.map(([lon, lat]): [number, number] => [lon + 0.04, lat]);
+  const task = (id: number, ring: Array<[number, number]>) => ({
+    type: "Feature",
+    geometry: { type: "Polygon", coordinates: [ring] },
+    properties: { project_task_id: id },
+  });
+
+  it("reads every task in a project export with its task id", () => {
+    const areas = taskAreas({
+      type: "FeatureCollection",
+      features: [task(1, SQUARE), task(2, shifted)],
+    });
+    expect(areas.tasks.map((area) => area.id)).toEqual([1, 2]);
+    expect(areas.tasks[1].ring).toEqual(shifted);
+  });
+
+  it("reads a single task without an id", () => {
+    expect(taskAreas({ type: "Polygon", coordinates: [SQUARE] })).toEqual({
+      tasks: [{ id: null, ring: SQUARE }],
+      skipped: [],
+    });
+  });
+
+  it("skips a task with a no-fly hole and keeps the rest", () => {
+    const hole = shifted.map(([lon, lat]): [number, number] => [lon * 0.9999, lat]);
+    const holed = {
+      type: "Feature",
+      geometry: { type: "Polygon", coordinates: [shifted, hole] },
+      properties: { project_task_id: 2 },
+    };
+    const areas = taskAreas({ type: "FeatureCollection", features: [task(1, SQUARE), holed] });
+    expect(areas.tasks.map((area) => area.id)).toEqual([1]);
+    expect(areas.skipped).toEqual([2]);
   });
 });

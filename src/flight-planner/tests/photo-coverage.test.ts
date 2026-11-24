@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { assessCoverage } from "../src/core/photo-coverage";
+import { assessCoverage, matchTask } from "../src/core/photo-coverage";
 import type { PhotoInfo } from "../src/core/photos";
 import { FlightMode, generate } from "../src/core/qfield";
 
@@ -723,5 +723,37 @@ describe("assessCoverage on a real flight", () => {
 
     expect(distances.length).toBeGreaterThan(0);
     expect(Math.max(...distances)).toBeLessThan(FOUND_WITHIN_M);
+  });
+});
+
+describe("matchTask", () => {
+  const ring = (x: number) => [
+    toLonLat(x, 0),
+    toLonLat(x + 200, 0),
+    toLonLat(x + 200, 200),
+    toLonLat(x, 200),
+    toLonLat(x, 0),
+  ];
+  const west = { id: 1, ring: ring(-200) };
+  const middle = { id: 2, ring: ring(0) };
+  const east = { id: 3, ring: ring(200) };
+
+  it("picks the task holding most photos, ignoring overlap-buffer photos", () => {
+    const match = matchTask([west, middle, east], survey());
+    expect(match.task).toBe(middle);
+    expect(match.mixedWith).toEqual([]);
+  });
+
+  it("flags photos from two tasks added together", () => {
+    const eastPhotos = survey().map((p) =>
+      photo(toXy(p)[0] + 200, toXy(p)[1], { takenAt: p.takenAt }),
+    );
+    const match = matchTask([west, middle, east], [...survey(), ...eastPhotos]);
+    expect(match.mixedWith).toHaveLength(1);
+  });
+
+  it("finds no task when no photo falls in one", () => {
+    expect(matchTask([east], [photo(-500, -500)]).task).toBeNull();
+    expect(matchTask([west, east], [photo(-500, -500)]).task).toBeNull();
   });
 });
