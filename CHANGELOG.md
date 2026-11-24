@@ -1,3 +1,10 @@
+## 2026.14.3 (2026-11-24)
+
+### Fix
+
+- 90 day glacier archive of s3 isn't clear to user, surface a message
+- **planner**: further improvements to the task image qa/qc page for edge cases on testing
+
 ## 2026.14.2 (2026-11-24)
 
 ### Refactor
