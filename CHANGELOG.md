@@ -1,3 +1,9 @@
+## 2026.14.2 (2026-11-24)
+
+### Refactor
+
+- **planner**: improve the task qa/qc page for local assessment of imagery coverage
+
 ## 2026.14.1 (2026-11-24)
 
 ### Fix
