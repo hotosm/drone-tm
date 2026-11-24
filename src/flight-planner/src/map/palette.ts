@@ -10,7 +10,7 @@ const FALLBACK = {
   task: "#344f7b",
   noFly: "#484848",
   missing: "#d43f3f",
-  low: "#f2a31b",
+  gap: "#f2a31b",
   ok: "#00883c",
 } as const;
 

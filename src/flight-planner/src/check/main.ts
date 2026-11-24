@@ -8,7 +8,6 @@ import "../styles/app.css";
 import maplibregl, { type GeoJSONSource, type LngLatBoundsLike } from "maplibre-gl";
 import { singlePolygonRing, validateRing } from "../core/aoi";
 import { assessCoverage, type Coverage } from "../core/photo-coverage";
-import { geojsonLine, readPlanFile } from "../core/plan-file";
 import { readPhoto, type PhotoInfo } from "../core/photos";
 import { BasemapToggle, basemapStyle } from "../map/basemap";
 import { mapColor } from "../map/palette";
@@ -25,23 +24,22 @@ type LonLat = [number, number];
 
 interface CheckState {
   area: LonLat[] | null;
-  plan: LonLat[];
   photos: PhotoInfo[];
-  /** Keyed by relative path: DJI restarts file names in each folder. */
+  /** DJI repeats file names across folders. */
   files: Map<string, File>;
   noGpsCount: number;
   unreadable: string[];
 }
 
 function emptyState(): CheckState {
-  return { area: null, plan: [], photos: [], files: new Map(), noGpsCount: 0, unreadable: [] };
+  return { area: null, photos: [], files: new Map(), noGpsCount: 0, unreadable: [] };
 }
 
 let state = emptyState();
 let popup: maplibregl.Popup | null = null;
 const statusHost = document.querySelector<HTMLElement>("#check-status")!;
-const filesInput = document.querySelector<HTMLInputElement>("#files-input")!;
-const folderInput = document.querySelector<HTMLInputElement>("#folder-input")!;
+const photosSummary = document.querySelector<HTMLElement>("#photos-summary")!;
+const areaSummary = document.querySelector<HTMLElement>("#area-summary")!;
 
 const map = new maplibregl.Map({
   container: "map",
@@ -55,7 +53,7 @@ map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-ri
 map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
 map.on("load", () => {
-  for (const id of ["cells", "area", "plan", "photos"]) {
+  for (const id of ["cells", "area", "gaps", "photos"]) {
     map.addSource(id, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
   }
   map.addLayer({
@@ -63,15 +61,7 @@ map.on("load", () => {
     type: "fill",
     source: "cells",
     paint: {
-      "fill-color": [
-        "match",
-        ["get", "status"],
-        "missing",
-        mapColor("missing"),
-        "low",
-        mapColor("low"),
-        mapColor("ok"),
-      ],
+      "fill-color": ["match", ["get", "status"], "missing", mapColor("missing"), mapColor("ok")],
       "fill-opacity": 0.45,
     },
   });
@@ -82,10 +72,10 @@ map.on("load", () => {
     paint: { "line-color": mapColor("task"), "line-width": 2 },
   });
   map.addLayer({
-    id: "plan",
+    id: "gaps",
     type: "line",
-    source: "plan",
-    paint: { "line-color": mapColor("path"), "line-width": 1, "line-dasharray": [2, 2] },
+    source: "gaps",
+    paint: { "line-color": mapColor("gap"), "line-width": 4 },
   });
   map.addLayer({
     id: "photos",
@@ -109,8 +99,9 @@ function feature(geometry: GeoJSON.Geometry, properties = {}): GeoJSON.Feature {
   return { type: "Feature", geometry, properties };
 }
 
+/** Rounds up so a small hole never reads as 0%. */
 function percent(share: number): string {
-  return `${Math.round(share * 100)}%`;
+  return `${Math.ceil(share * 100)}%`;
 }
 
 function statusPanel(coverage: Coverage | null): string {
@@ -119,7 +110,7 @@ function statusPanel(coverage: Coverage | null): string {
     : "";
   if (!state.area) {
     return infoPanel(
-      "Add the task area to get a verdict.",
+      "Add the task area to verify.",
       `Download it as GeoJSON from the task page in DroneTM. ${unreadable}`,
     );
   }
@@ -144,10 +135,16 @@ function statusPanel(coverage: Coverage | null): string {
     );
   }
 
-  const detail = `${percent(coverage.missingShare)} of the area has no photos, ${percent(coverage.lowShare)} has low overlap. ${read}`;
-  if (coverage.verdict === "good") return successPanel("No obvious coverage gaps.", detail);
+  const missedCount = coverage.gaps.reduce((sum, gap) => sum + gap.missedCount, 0);
+  const findings = [
+    coverage.missingShare > 0 && `${percent(coverage.missingShare)} of the area has no photos.`,
+    missedCount > 0 &&
+      `About ${missedCount} photos missed in ${coverage.gaps.length} places along the flight lines.`,
+  ].filter(Boolean);
+  const detail = [...findings, read].join(" ");
+  if (coverage.verdict === "good") return successPanel("No gaps found.", detail);
   if (coverage.verdict === "refly") return errorPanel("Refly this task.", detail);
-  return warningPanel("Check the red and amber gaps.", detail);
+  return warningPanel("Check the red areas and amber lines.", detail);
 }
 
 function render(): void {
@@ -161,8 +158,16 @@ function render(): void {
   );
   setData("area", state.area ? [feature({ type: "Polygon", coordinates: [state.area] })] : []);
   setData(
-    "plan",
-    state.plan.length ? [feature({ type: "LineString", coordinates: state.plan })] : [],
+    "gaps",
+    (coverage?.gaps ?? []).map(({ from, to }) =>
+      feature({
+        type: "LineString",
+        coordinates: [
+          [from.lon, from.lat],
+          [to.lon, to.lat],
+        ],
+      }),
+    ),
   );
   setData(
     "photos",
@@ -171,12 +176,13 @@ function render(): void {
     ),
   );
   statusHost.innerHTML = statusPanel(coverage);
+  photosSummary.textContent = state.photos.length ? `${state.photos.length} placed` : "";
+  areaSummary.textContent = state.area ? "Added" : "Needed (.geojson from the task page)";
 }
 
 function fitToData(): void {
   const points = [
     ...(state.area ?? []),
-    ...state.plan,
     ...state.photos.map((photo): LonLat => [photo.lon, photo.lat]),
   ];
   if (points.length === 0) return;
@@ -192,7 +198,7 @@ function fitToData(): void {
 async function addFile(target: CheckState, file: File): Promise<void> {
   const name = file.name.toLowerCase();
   if (/\.jpe?g$/.test(name)) {
-    const key = file.webkitRelativePath || file.name;
+    const key = `${file.name}|${file.size}|${file.lastModified}`;
     if (target.files.has(key)) return;
     const photo = await readPhoto(file);
     if (!photo) {
@@ -203,15 +209,10 @@ async function addFile(target: CheckState, file: File): Promise<void> {
     target.files.set(key, file);
     return;
   }
-  if (/\.(kmz|wpml)$/.test(name)) {
-    target.plan = await readPlanFile(file);
-    return;
-  }
   if (/\.(geo)?json$/.test(name)) {
-    const geojson: unknown = JSON.parse(await file.text());
-    const ring = singlePolygonRing(geojson);
-    if (ring) target.area = validateRing(ring).ring;
-    else target.plan = geojsonLine(geojson);
+    const ring = singlePolygonRing(JSON.parse(await file.text()));
+    if (!ring) throw new Error("Not a single task polygon.");
+    target.area = validateRing(ring).ring;
   }
 }
 
@@ -241,7 +242,7 @@ map.on("click", "photos", (event) => {
     .setLngLat(event.lngLat)
     .setHTML(
       `<img src="${url}" alt="" style="width: 100%" />
-       <p><strong>${escapeHtml(photo.name)}</strong><br />${escapeHtml(photo.takenAt)}, ${height} above takeoff</p>`,
+       <p><strong>${escapeHtml(file.name)}</strong><br />${escapeHtml(photo.takenAt)}, ${height} above takeoff</p>`,
     )
     .on("close", () => URL.revokeObjectURL(url))
     .addTo(map);
@@ -250,14 +251,14 @@ map.on("click", "photos", (event) => {
 map.on("mouseenter", "photos", () => (map.getCanvas().style.cursor = "pointer"));
 map.on("mouseleave", "photos", () => (map.getCanvas().style.cursor = ""));
 
-for (const input of [filesInput, folderInput]) {
+for (const button of document.querySelectorAll<HTMLElement>("[data-input]")) {
+  const input = document.querySelector<HTMLInputElement>(`#${button.dataset.input}`)!;
+  button.addEventListener("click", () => input.click());
   input.addEventListener("change", () => {
     void addFiles([...(input.files ?? [])]);
     input.value = "";
   });
 }
-document.querySelector("#add-files")!.addEventListener("click", () => filesInput.click());
-document.querySelector("#add-folder")!.addEventListener("click", () => folderInput.click());
 document.querySelector("#next-task")!.addEventListener("click", () => {
   popup?.remove();
   state = emptyState();

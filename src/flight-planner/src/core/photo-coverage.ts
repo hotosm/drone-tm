@@ -1,4 +1,4 @@
-// Approximate coverage, to spot glaring gaps. Footprints use height above
+// Approximate coverage, to spot missed photos. Footprints use height above
 // takeoff, so they drift on slopes.
 
 import { ringAreaM2 } from "./aoi";
@@ -7,26 +7,28 @@ import type { PhotoInfo } from "./photos";
 type LonLat = [number, number];
 type Xy = [number, number];
 
-const PLANNED_OVERLAP = 0.75;
-// About 16 photos see each point at 75/75.
-const EXPECTED_PHOTOS = 1 / (1 - PLANNED_OVERLAP) ** 2;
-// Below half means about three neighbouring lines are missing.
-const LOW_PHOTO_COUNT = EXPECTED_PHOTOS / 2;
-
 const TARGET_CELLS = 10_000;
 const FULL_FRAME_WIDTH_MM = 36;
 const M_PER_DEG_LAT = 111_320;
-const GOOD_MAX_LOW_SHARE = 0.02;
 const REFLY_MIN_MISSING_SHARE = 0.1;
+// EXIF times are whole seconds, so a normal 2 s step can read as 3 s.
+const GAP_FACTOR = 1.75;
+const MAX_LINE_TURN_RAD = Math.PI / 6;
 
-export type CellStatus = "missing" | "low" | "ok";
+export type CellStatus = "missing" | "ok";
 /** "unknown": no photo had the height and lens data to size it. */
 export type Verdict = "good" | "gaps" | "refly" | "unknown";
+
+export interface PhotoGap {
+  from: PhotoInfo;
+  to: PhotoInfo;
+  missedCount: number;
+}
 
 export interface Coverage {
   cells: Array<{ ring: LonLat[]; status: CellStatus }>;
   missingShare: number;
-  lowShare: number;
+  gaps: PhotoGap[];
   verdict: Verdict;
   outsideCount: number;
   unsizedCount: number;
@@ -81,16 +83,66 @@ function covers(fp: Footprint, [x, y]: Xy): boolean {
   return Math.abs(across) <= fp.halfAcross && Math.abs(along) <= fp.halfAlong;
 }
 
-function statusFor(count: number): CellStatus {
-  if (count === 0) return "missing";
-  return count < LOW_PHOTO_COUNT ? "low" : "ok";
-}
-
-function verdictFor(missingShare: number, lowShare: number, sizedCount: number): Verdict {
+function verdictFor(missingShare: number, gapCount: number, sizedCount: number): Verdict {
   if (sizedCount === 0) return "unknown";
   if (missingShare > REFLY_MIN_MISSING_SHARE) return "refly";
-  // At 75/75 overlap any hole inside the task is real.
-  return missingShare > 0 || lowShare > GOOD_MAX_LOW_SHARE ? "gaps" : "good";
+  return missingShare > 0 || gapCount > 0 ? "gaps" : "good";
+}
+
+/** EXIF "2026:11:20 10:00:00", in camera local time. */
+function exifSeconds(text: string): number | null {
+  const match = /^(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d):(\d\d)/.exec(text);
+  if (!match) return null;
+  const [year, month, day, hour, minute, second] = match.slice(1).map(Number);
+  return Date.UTC(year, month - 1, day, hour, minute, second) / 1000;
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)] ?? 0;
+}
+
+function angleBetween(a: number, b: number): number {
+  const diff = Math.abs(a - b) % (2 * Math.PI);
+  return Math.min(diff, 2 * Math.PI - diff);
+}
+
+/** Turns change heading and battery swaps keep normal spacing, so neither counts. */
+function findGaps(photos: PhotoInfo[], centres: Xy[]): PhotoGap[] {
+  const shots = photos
+    .flatMap((photo, i) => {
+      const seconds = exifSeconds(photo.takenAt);
+      return seconds === null ? [] : [{ photo, xy: centres[i], seconds }];
+    })
+    .sort((a, b) => a.seconds - b.seconds || a.photo.name.localeCompare(b.photo.name));
+  const steps = shots.slice(1).map((shot, i) => {
+    const dx = shot.xy[0] - shots[i].xy[0];
+    const dy = shot.xy[1] - shots[i].xy[1];
+    return {
+      seconds: shot.seconds - shots[i].seconds,
+      metres: Math.hypot(dx, dy),
+      heading: Math.atan2(dx, dy),
+    };
+  });
+  const usualSeconds = median(steps.map((step) => step.seconds));
+  const usualMetres = median(steps.map((step) => step.metres));
+
+  const gaps: PhotoGap[] = [];
+  steps.forEach((step, i) => {
+    const late = step.seconds > usualSeconds * GAP_FACTOR;
+    const far = step.metres > usualMetres * GAP_FACTOR;
+    const onLine = [steps[i - 1], steps[i + 1]].some(
+      (neighbour) =>
+        neighbour && angleBetween(neighbour.heading, step.heading) <= MAX_LINE_TURN_RAD,
+    );
+    if (!late || !far || !onLine) return;
+    gaps.push({
+      from: shots[i].photo,
+      to: shots[i + 1].photo,
+      missedCount: Math.max(1, Math.round(step.metres / usualMetres) - 1),
+    });
+  });
+  return gaps;
 }
 
 export function assessCoverage(area: LonLat[], photos: PhotoInfo[]): Coverage {
@@ -110,7 +162,7 @@ export function assessCoverage(area: LonLat[], photos: PhotoInfo[]): Coverage {
   for (let x = Math.min(...xs) + half; x < Math.max(...xs); x += step) {
     for (let y = Math.min(...ys) + half; y < Math.max(...ys); y += step) {
       if (!insideRing(ring, [x, y])) continue;
-      const count = footprints.filter((fp) => covers(fp, [x, y])).length;
+      const covered = footprints.some((fp) => covers(fp, [x, y]));
       const corners: Xy[] = [
         [x - half, y - half],
         [x + half, y - half],
@@ -118,20 +170,19 @@ export function assessCoverage(area: LonLat[], photos: PhotoInfo[]): Coverage {
         [x - half, y + half],
         [x - half, y - half],
       ];
-      cells.push({ ring: corners.map(projection.toLonLat), status: statusFor(count) });
+      cells.push({ ring: corners.map(projection.toLonLat), status: covered ? "ok" : "missing" });
     }
   }
 
-  const share = (statuses: CellStatus[]) =>
-    cells.filter((cell) => statuses.includes(cell.status)).length / Math.max(cells.length, 1);
-  const missingShare = share(["missing"]);
-  const lowShare = share(["low"]);
+  const missingCount = cells.filter((cell) => cell.status === "missing").length;
+  const missingShare = missingCount / Math.max(cells.length, 1);
+  const gaps = findGaps(photos, centres);
 
   return {
     cells,
     missingShare,
-    lowShare,
-    verdict: verdictFor(missingShare, lowShare, footprints.length),
+    gaps,
+    verdict: verdictFor(missingShare, gaps.length, footprints.length),
     outsideCount: centres.filter((centre) => !insideRing(ring, centre)).length,
     unsizedCount: photos.length - footprints.length,
   };

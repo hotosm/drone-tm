@@ -19,33 +19,48 @@
         <strong class="brand-text">Photo Check</strong>
       </div>
       <div class="header-actions">
-        <wa-button href="./" appearance="plain" size="s">Plan a flight</wa-button>
+        <wa-button href="./" appearance="plain" size="s">
+          <wa-icon slot="start" name="arrow-left"></wa-icon>Back to planner
+        </wa-button>
       </div>
     </header>
 
     <main class="app-body">
-      <section class="map-pane"><div id="map"></div></section>
+      <section class="map-pane">
+        <div id="map"></div>
 
-      <aside class="check-panel">
-        <p class="muted">
-          Add one task's area (the .geojson from its task page), its photos, and the flight plan
-          (.kmz) if you have it. Internet isn't needed.
-        </p>
-        <div class="check-actions">
-          <wa-button id="add-files" variant="brand" size="s">Add files</wa-button>
-          <wa-button id="add-folder" appearance="outlined" size="s">Add a folder</wa-button>
-          <wa-button id="next-task" appearance="plain" size="s">Next task</wa-button>
-        </div>
-        <!-- No accept="image/*": some browsers then strip GPS tags. -->
-        <input id="files-input" type="file" multiple hidden />
-        <input id="folder-input" type="file" webkitdirectory hidden />
-        <div id="check-status"></div>
-        <div class="check-legend muted">
-          <span><i class="swatch swatch-missing"></i> no photos</span>
-          <span><i class="swatch swatch-low"></i> low overlap</span>
-          <span><i class="swatch swatch-ok"></i> covered</span>
-        </div>
-      </aside>
+        <aside class="check-panel">
+          <p class="muted">
+            Check one task at a time. Internet isn't needed, and you can also drop files on the map.
+          </p>
+          <ul class="check-uploads">
+            <li>
+              <wa-button data-input="photos-input" appearance="outlined" size="s">
+                <wa-icon slot="start" name="images"></wa-icon>Upload photos
+              </wa-button>
+              <span id="photos-summary" class="muted"></span>
+            </li>
+            <li>
+              <wa-button data-input="area-input" appearance="outlined" size="s">
+                <wa-icon slot="start" name="draw-polygon"></wa-icon>Upload task area
+              </wa-button>
+              <span id="area-summary" class="muted"></span>
+            </li>
+          </ul>
+          <!-- No accept="image/*": some browsers then strip GPS tags. -->
+          <input id="photos-input" type="file" multiple hidden />
+          <input id="area-input" type="file" accept=".geojson,.json" hidden />
+          <div id="check-status"></div>
+          <wa-button id="next-task" variant="brand" appearance="outlined" size="s">
+            <wa-icon slot="start" name="rotate-left"></wa-icon>Clear and check another task
+          </wa-button>
+          <div class="check-legend muted">
+            <span><i class="swatch swatch-missing"></i> no photos</span>
+            <span><i class="swatch swatch-gap"></i> missed photos</span>
+            <span><i class="swatch swatch-ok"></i> covered</span>
+          </div>
+        </aside>
+      </section>
     </main>
 
     <script type="module" src="/src/check/main.ts"></script>

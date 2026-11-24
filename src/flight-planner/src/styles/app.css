@@ -14,7 +14,7 @@
   --dtm-map-static: var(--wa-color-gray-30);
   --dtm-map-white: #ffffff;
   --dtm-map-missing: var(--wa-color-red-50);
-  --dtm-map-low: var(--wa-color-yellow-70);
+  --dtm-map-gap: var(--wa-color-yellow-70);
   --dtm-map-ok: var(--wa-color-success-fill-loud);
 }
 
@@ -562,6 +562,20 @@ wa-details::part(content) {
   color: var(--wa-color-text-normal);
   box-shadow: var(--wa-shadow-l);
   font-size: var(--wa-font-size-s);
+}
+
+/* Keep it above photo previews. */
+.maplibregl-popup-close-button {
+  z-index: 1;
+  top: var(--wa-space-2xs);
+  right: var(--wa-space-2xs);
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--wa-color-surface-raised);
+  box-shadow: var(--wa-shadow-s);
+  font-size: var(--wa-font-size-l);
+  line-height: 1;
 }
 
 .maplibregl-popup-tip {
@@ -1215,7 +1229,30 @@ wa-details::part(content) {
   margin: 0;
 }
 
-.check-actions,
+.check-uploads {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wa-space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* @hotosm/ui sets display: block on file inputs, which beats [hidden]. */
+.check-panel input[type="file"][hidden] {
+  display: none;
+}
+
+.check-uploads li {
+  display: flex;
+  gap: var(--wa-space-s);
+  align-items: center;
+}
+
+.check-uploads wa-button {
+  flex: 0 0 11rem;
+}
+
 .check-legend {
   display: flex;
   flex-wrap: wrap;
@@ -1226,8 +1263,8 @@ wa-details::part(content) {
 .swatch-missing {
   background: var(--dtm-map-missing);
 }
-.swatch-low {
-  background: var(--dtm-map-low);
+.swatch-gap {
+  background: var(--dtm-map-gap);
 }
 .swatch-ok {
   background: var(--dtm-map-ok);
