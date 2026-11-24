@@ -1,5 +1,6 @@
 import json
 import uuid
+import zipfile
 from datetime import datetime, timezone
 from io import BytesIO
 from types import SimpleNamespace
@@ -514,15 +515,70 @@ async def test_head_project_odm_assets_returns_404_when_missing(app, monkeypatch
 
 
 @pytest.mark.asyncio
+async def test_project_odm_assets_zip_skips_undistorted_images(app, monkeypatch):
+    project_id = uuid.uuid4()
+    prefix = f"projects/{project_id}/odm/"
+    objects = [
+        SimpleNamespace(
+            object_name=f"{prefix}odm_orthophoto/odm_orthophoto.tif",
+            size=project_routes.MIN_ARCHIVABLE_BYTES,
+            is_dir=False,
+            last_modified=datetime.now(timezone.utc),
+        ),
+        SimpleNamespace(
+            object_name=f"{prefix}opensfm/undistorted/images/a.JPG.tif",
+            size=project_routes.MIN_ARCHIVABLE_BYTES,
+            is_dir=False,
+            last_modified=datetime.now(timezone.utc),
+        ),
+    ]
+
+    class FakeS3Client:
+        def list_objects(self, bucket_name, prefix, recursive=False):
+            return iter(objects)
+
+        def stat_object(self, bucket_name, object_name):
+            return SimpleNamespace(metadata={})
+
+        def get_object(self, bucket_name, object_name):
+            assert "undistorted" not in object_name
+            chunks = iter([b"tif", b""])
+            return SimpleNamespace(
+                read=lambda size: next(chunks),
+                close=lambda: None,
+                release_conn=lambda: None,
+            )
+
+    monkeypatch.setattr(project_routes, "s3_client", lambda: FakeS3Client())
+    app.dependency_overrides[project_deps.get_project_by_id] = lambda: SimpleNamespace(
+        id=project_id
+    )
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+        ) as test_client:
+            response = await test_client.get(f"/api/projects/odm/export/{project_id}/")
+    finally:
+        app.dependency_overrides.pop(project_deps.get_project_by_id, None)
+
+    assert response.status_code == 200
+    with zipfile.ZipFile(BytesIO(response.content)) as zf:
+        assert zf.namelist() == ["odm_orthophoto/odm_orthophoto.tif"]
+
+
+@pytest.mark.asyncio
 async def test_head_project_odm_assets_reports_archived_imagery(app, monkeypatch):
     project_id = uuid.uuid4()
     # Small files never archive, so the check must look past them.
     small_readable = SimpleNamespace(
-        object_name=f"projects/{project_id}/odm/cameras.json", size=1024
+        object_name=f"projects/{project_id}/odm/cameras.json", size=1024, is_dir=False
     )
     large_archived = SimpleNamespace(
         object_name=f"projects/{project_id}/odm/odm_georeferencing/model.laz",
         size=project_routes.MIN_ARCHIVABLE_BYTES,
+        is_dir=False,
     )
 
     class FakeS3Client:

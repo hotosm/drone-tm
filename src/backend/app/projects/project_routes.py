@@ -93,12 +93,24 @@ def _odm_assets_prefix(project_id: uuid.UUID, task_id: uuid.UUID | None) -> str:
     return f"projects/{project_id}/{task_segment}odm/"
 
 
-def _require_downloadable_odm_assets(prefix: str) -> None:
-    objects = s3_client().list_objects(
+# Undistorted copies of every input photo; ScaleODM no longer uploads them,
+# but older runs did, and they bloat the zip.
+ODM_ZIP_EXCLUDED_DIR = "opensfm/undistorted/"
+
+
+def _odm_zip_objects(prefix: str):
+    for obj in s3_client().list_objects(
         settings.S3_BUCKET_NAME, prefix=prefix, recursive=True
-    )
+    ):
+        name = obj.object_name[len(prefix) :]
+        if obj.is_dir or name.startswith(ODM_ZIP_EXCLUDED_DIR):
+            continue
+        yield obj
+
+
+def _require_downloadable_odm_assets(prefix: str) -> None:
     found_any = False
-    for obj in objects:
+    for obj in _odm_zip_objects(prefix):
         found_any = True
         if obj.size < MIN_ARCHIVABLE_BYTES:
             continue
@@ -1590,11 +1602,7 @@ async def export_odm_assets(
     filename = _odm_assets_filename(project_id, task_id)
 
     def member_files():
-        for obj in s3_client().list_objects(
-            settings.S3_BUCKET_NAME, prefix=prefix, recursive=True
-        ):
-            if obj.is_dir:
-                continue
+        for obj in _odm_zip_objects(prefix):
             name = obj.object_name[len(prefix) :]
             modified = obj.last_modified
 
