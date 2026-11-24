@@ -1,3 +1,9 @@
+## 2026.14.1 (2026-11-24)
+
+### Fix
+
+- **planner**: improve ui/ux of the task image checker
+
 ## 2026.14.0 (2026-11-23)
 
 ### Feat
