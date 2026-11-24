@@ -151,39 +151,28 @@ services:
       timeout: 5s
 
   s3-init:
-    image: "docker.io/python:3.13-slim-bookworm"
+    image: ghcr.io/hotosm/drone-tm/backend:debug
     entrypoint:
-      - /bin/sh
-      - -eu
+      - python
       - -c
       - |
-        python -m pip install --no-cache-dir boto3 >/dev/null
-        python - <<'PY'
         import json
         import os
-        import boto3
-        import botocore.config
-        import botocore.exceptions
+        from minio import Minio
 
-        s3 = boto3.client(
-            "s3",
-            endpoint_url=os.environ["AWS_ENDPOINT_URL"],
-            region_name="us-east-1",
-            aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
-            aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
-            config=botocore.config.Config(s3={"addressing_style": "path"}),
+        client = Minio(
+            os.environ["S3_ENDPOINT"],
+            access_key=os.environ["S3_ACCESS_KEY"],
+            secret_key=os.environ["S3_SECRET_KEY"],
+            secure=False,
         )
 
         bucket = os.environ["S3_BUCKET_NAME"]
-        try:
-            s3.create_bucket(Bucket=bucket)
+        if client.bucket_exists(bucket):
+            print(f"Bucket '{bucket}' already exists")
+        else:
+            client.make_bucket(bucket)
             print(f"Created bucket '{bucket}'")
-        except botocore.exceptions.ClientError as e:
-            code = e.response.get("Error", {}).get("Code", "")
-            if code in ("BucketAlreadyOwnedByYou", "BucketAlreadyExists"):
-                print(f"Bucket '{bucket}' already exists")
-            else:
-                raise
 
         policy = json.dumps({
             "Version": "2012-10-17",
@@ -197,13 +186,12 @@ services:
                 ],
             }],
         })
-        s3.put_bucket_policy(Bucket=bucket, Policy=policy)
+        client.set_bucket_policy(bucket, policy)
         print("Anonymous download policy set for publicuploads/ and tutorials/.")
-        PY
     environment:
-      AWS_ENDPOINT_URL: http://localhost:9000
-      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-admin}
-      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-somelongpassword}
+      S3_ENDPOINT: localhost:9000
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-admin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-somelongpassword}
       S3_BUCKET_NAME: ${S3_BUCKET_NAME:-dtm-bucket}
     depends_on:
       s3:
