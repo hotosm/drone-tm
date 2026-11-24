@@ -72,7 +72,8 @@ packs as backup options.
 #### Setting Up WebODM on Windows
 
 Install WebODM with the native [Windows installer](https://webodm.org/download).
-It doesn't need Docker or WSL, and can use all of your RAM.
+It doesn't need Docker or WSL, and can use all of your RAM. A supported NVIDIA
+GPU is detected and used by default, with no setup needed.
 
 As a rough guide, a 32 GB RAM laptop handles up to ~800 images in one run.
 For more, split the job using the `split` and `split-overlap` options.
