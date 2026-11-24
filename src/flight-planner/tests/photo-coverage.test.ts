@@ -583,6 +583,12 @@ describe("assessCoverage on a real flight", () => {
   ) as { area: Array<[number, number]>; photos: PhotoInfo[] };
   const { area, photos } = fixture;
   const LINE_DRIFT_M = 2;
+  const PAUSE_S = 5 * 60;
+  const shiftedExifTime = (takenAt: string, seconds: number) => {
+    const [date, time] = takenAt.split(" ");
+    const iso = `${date.replace(/:/g, "-")}T${time}Z`;
+    return exifTime((Date.parse(iso) - Date.UTC(2026, 10, 20, 10)) / 1000 + seconds);
+  };
   const FOUND_WITHIN_M = 25;
   const EDGE_DEPTH_M = 5;
 
@@ -658,6 +664,33 @@ describe("assessCoverage on a real flight", () => {
     // The unflown lines are about a fifth of the task, so red must not spread far beyond them.
     expect(coverage.missingShare).toBeGreaterThan(0.1);
     expect(coverage.missingShare).toBeLessThan(0.3);
+  });
+
+  it.each([
+    ["a turn and the start of the next line", 34, 41],
+    ["a whole line with the turns either side", 97, 117],
+  ])("keeps shots lost across %s on the flight lines", (_, first, last) => {
+    const isLost = (i: number) => i >= first && i <= last;
+    const lostNorthings = photos.flatMap((p, i) => (isLost(i) && onLine(i) ? [at(p)[1]] : []));
+    const coverage = assessCoverage(
+      area,
+      photos.filter((_, i) => !isLost(i)),
+    );
+    const missed = (coverage.gaps ?? []).flatMap((gap) => gap.missed).map(metres);
+
+    expect(missed.length).toBeGreaterThan(0);
+    for (const [, northing] of missed) {
+      const offLine = Math.min(...lostNorthings.map((line) => Math.abs(line - northing)));
+      expect(offLine).toBeLessThan(LINE_DRIFT_M * 2);
+    }
+  });
+
+  it("does not read a pause away from the flight lines as lost shots", () => {
+    const paused = photos.map((p, i) =>
+      i < 2 ? p : { ...p, takenAt: shiftedExifTime(p.takenAt, PAUSE_S) },
+    );
+
+    expect(assessCoverage(area, paused).gaps).toEqual([]);
   });
 
   it("finds lost shots in the overlap buffer and the climb-out", () => {

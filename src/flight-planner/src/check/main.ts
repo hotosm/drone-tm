@@ -94,7 +94,7 @@ map.on("load", () => {
     type: "circle",
     source: "photos",
     paint: {
-      "circle-radius": 3,
+      "circle-radius": 4.5,
       "circle-color": mapColor("photo"),
       "circle-stroke-color": mapColor("white"),
       "circle-stroke-width": 1,

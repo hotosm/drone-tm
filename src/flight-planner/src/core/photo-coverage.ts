@@ -30,6 +30,8 @@ const CRUISE_PERCENTILE = 0.75;
 const EXIF_TIME_SLACK_S = 1;
 /** Over lost shots the drone keeps near its usual pace, unlike a pause where time passes but it barely moves. */
 const MIN_PACE_SHARE = 0.4;
+/** A turn's path is longer than the straight step across it, so less pace is needed there. */
+const TURN_PACE_SHARE = 0.2;
 /** A step that is only possibly late must also be this much longer than the usual step. */
 const LOST_SHOT_STRETCH = 1.5;
 /** A real line sits a whole number of line spacings from a neighbour, give or take this. */
@@ -428,6 +430,66 @@ function missedAlongLine(survey: Survey, line: FlightLine): MissedRun[] {
 }
 
 /**
+ * Rounding can make a normal step read one second long, so distance decides
+ * those. Otherwise the step must fit the shots its time implies, so a pause is
+ * not read as many lost shots.
+ */
+function neededMetres(step: ShotStep, lateAfter: number, usual: number, count: number): number {
+  if (step.seconds <= lateAfter) return usual * LOST_SHOT_STRETCH;
+  const pace = step.onLine ? MIN_PACE_SHARE : TURN_PACE_SHARE;
+  return usual * pace * (count + 1);
+}
+
+interface ShotStep {
+  previous: Shot;
+  shot: Shot;
+  vector: Xy;
+  metres: number;
+  seconds: number;
+  onLine: boolean;
+}
+
+function stepsFrom(from: Xy, direction: Xy, spacing: number, count: number): Xy[] {
+  const length = Math.hypot(direction[0], direction[1]);
+  return Array.from({ length: count }, (_, k): Xy => {
+    const offset = ((k + 1) * spacing) / length;
+    return [from[0] + offset * direction[0], from[1] + offset * direction[1]];
+  });
+}
+
+/**
+ * Lost shots along a line sit evenly between the shots either side. Across a
+ * turn the curve is unknown, so they are placed only where they would carry on
+ * the flight line before or after it, at the planned spacing; the reach check
+ * then drops those that fall in the turn.
+ */
+function lostPositions(
+  survey: Survey,
+  count: number,
+  before: ShotStep | undefined,
+  step: ShotStep,
+  after: ShotStep | undefined,
+): Xy[] {
+  const between = stepsFrom(step.previous.xy, step.vector, step.metres / (count + 1), count);
+  if (step.onLine) return between;
+  // Follow the flight lines themselves, as the step next to a turn is often already curving.
+  const alongLine = (vector: Xy, sign: number): Xy => {
+    const [x, y] = survey.axis.along;
+    const direction = Math.sign(dot(vector, survey.axis.along)) * sign;
+    return [x * direction, y * direction];
+  };
+  const lineEnds = [
+    before?.onLine
+      ? stepsFrom(step.previous.xy, alongLine(before.vector, 1), survey.forward, count)
+      : [],
+    after?.onLine
+      ? stepsFrom(step.shot.xy, alongLine(after.vector, -1), survey.forward, count)
+      : [],
+  ].flat();
+  return lineEnds.length > 0 ? lineEnds : between;
+}
+
+/**
  * Shots come at a steady interval, so a late shot along a line means shots
  * were lost in between, even where the drone slows and spacing alone looks
  * normal. Hovering and resuming after a pause are late too but barely move.
@@ -462,17 +524,9 @@ function lostShots(survey: Survey): MissedRun[] {
     const usual =
       neighbours.reduce((sum, other) => sum + other.metres, 0) / (neighbours.length || 1);
     const count = Math.max(1, Math.round(step.seconds / interval) - 1);
-    // Rounding can make a normal step read one second long, so distance decides those.
-    const needed =
-      step.seconds > lateAfter ? usual * MIN_PACE_SHARE * (count + 1) : usual * LOST_SHOT_STRETCH;
+    const needed = neededMetres(step, lateAfter, usual, count);
     if (step.metres < needed) return [];
-    const missed = Array.from({ length: count }, (_, k): Xy => {
-      const share = (k + 1) / (count + 1);
-      return [
-        step.previous.xy[0] + share * step.vector[0],
-        step.previous.xy[1] + share * step.vector[1],
-      ];
-    })
+    const missed = lostPositions(survey, count, steps[i - 1], step, steps[i + 1])
       .filter((xy) => wellInside(survey.reach, xy))
       // An untimed photo may be the "lost" shot itself.
       .filter((xy) => untimed.every((photo) => distance(xy, photo) >= survey.forward / 2));
