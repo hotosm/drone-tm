@@ -50,6 +50,11 @@ export const toWgs84 = geometry.toWgs84 as (x: number, y: number) => { lon: numb
 export const polygonCentroid = geometry.polygonCentroid as (
   coords: MercatorPoint[],
 ) => MercatorPoint;
+/** Mitred, so corners reach a little further than the planner's distance check. */
+export const bufferPolygon = geometry.bufferPolygon as (
+  coords: MercatorPoint[],
+  distance: number,
+) => MercatorPoint[];
 
 export const DroneType = specs.DroneType as Record<DroneTypeKey, DroneTypeKey>;
 export const FlightMode = specs.FlightMode as {

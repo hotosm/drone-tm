@@ -16,6 +16,7 @@
   --dtm-map-missing: var(--wa-color-red-50);
   --dtm-map-gap: var(--wa-color-yellow-70);
   --dtm-map-ok: var(--wa-color-success-fill-loud);
+  --dtm-map-buffer: var(--wa-color-purple-50);
 }
 
 [data-sheet="peek"] {
@@ -1268,4 +1269,7 @@ wa-details::part(content) {
 }
 .swatch-ok {
   background: var(--dtm-map-ok);
+}
+.swatch-buffer {
+  border: 2px dashed var(--dtm-map-buffer);
 }

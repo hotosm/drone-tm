@@ -12,6 +12,7 @@ const FALLBACK = {
   missing: "#d43f3f",
   gap: "#f2a31b",
   ok: "#00883c",
+  buffer: "#8a4fd1",
 } as const;
 
 export type MapColor = keyof typeof FALLBACK;

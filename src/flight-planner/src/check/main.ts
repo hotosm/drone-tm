@@ -16,6 +16,7 @@ import {
   errorPanel,
   escapeHtml,
   infoPanel,
+  stat,
   successPanel,
   warningPanel,
 } from "../steps/ui";
@@ -53,7 +54,7 @@ map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-ri
 map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
 map.on("load", () => {
-  for (const id of ["cells", "area", "gaps", "photos"]) {
+  for (const id of ["cells", "buffer", "area", "gaps", "photos"]) {
     map.addSource(id, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
   }
   map.addLayer({
@@ -62,8 +63,14 @@ map.on("load", () => {
     source: "cells",
     paint: {
       "fill-color": ["match", ["get", "status"], "missing", mapColor("missing"), mapColor("ok")],
-      "fill-opacity": 0.45,
+      "fill-opacity": ["case", ["get", "inBuffer"], 0.25, 0.45],
     },
+  });
+  map.addLayer({
+    id: "buffer",
+    type: "line",
+    source: "buffer",
+    paint: { "line-color": mapColor("buffer"), "line-width": 2, "line-dasharray": [2, 2] },
   });
   map.addLayer({
     id: "area",
@@ -73,9 +80,14 @@ map.on("load", () => {
   });
   map.addLayer({
     id: "gaps",
-    type: "line",
+    type: "circle",
     source: "gaps",
-    paint: { "line-color": mapColor("gap"), "line-width": 4 },
+    paint: {
+      "circle-radius": 5,
+      "circle-color": mapColor("gap"),
+      "circle-stroke-color": mapColor("white"),
+      "circle-stroke-width": 1,
+    },
   });
   map.addLayer({
     id: "photos",
@@ -104,6 +116,51 @@ function percent(share: number): string {
   return `${Math.ceil(share * 100)}%`;
 }
 
+function plural(count: number, word: string): string {
+  return `${count} ${word}${count === 1 ? "" : "s"}`;
+}
+
+function verdictPanel(coverage: Coverage): string {
+  const gaps = coverage.gaps ?? [];
+  const missedCount = gaps.reduce((sum, gap) => sum + gap.missed.length, 0);
+  const uncovered =
+    coverage.missingShare > 0
+      ? `${percent(coverage.missingShare)} of the task has no photo close enough to map it.`
+      : "";
+  const inBuffer = coverage.bufferMissedCount
+    ? `${coverage.bufferMissedCount} of them in the overlap buffer, which neighbouring tasks need.`
+    : "";
+  const missing = `About ${plural(missedCount, "photo")} missing.`;
+  const detail = [inBuffer, "Amber points mark where they should be.", uncovered]
+    .filter(Boolean)
+    .join(" ");
+
+  const unchecked =
+    "Missing photos could not be checked. That needs capture times and at least two regular flight lines.";
+  if (!coverage.gaps && coverage.verdict === "refly") {
+    return errorPanel("Refly this task.", `${uncovered} ${unchecked}`);
+  }
+  if (!coverage.gaps) return warningPanel("Missing photos could not be checked.", uncovered);
+  if (coverage.verdict === "good") {
+    return successPanel("No missing photos found.", "Every part of the task is covered.");
+  }
+  if (coverage.verdict === "refly") return errorPanel("Refly this task.", `${missing} ${detail}`);
+  if (missedCount === 0) return warningPanel("Part of the task has no photos.", uncovered);
+  return warningPanel(missing, detail);
+}
+
+function photoStats(coverage: Coverage): string {
+  const outside = coverage.bufferCount + coverage.outsideCount;
+  const missedCount = (coverage.gaps ?? []).reduce((sum, gap) => sum + gap.missed.length, 0);
+  return `
+    <div class="stat-row">
+      ${stat("In the task", String(state.photos.length - outside))}
+      ${coverage.buffer ? stat("Overlap buffer", String(coverage.bufferCount)) : ""}
+      ${stat("Outside", String(coverage.outsideCount))}
+      ${stat("Missing", coverage.gaps ? `~${missedCount}` : "?")}
+    </div>`;
+}
+
 function statusPanel(coverage: Coverage | null): string {
   const unreadable = state.unreadable.length
     ? `${state.unreadable.length} unreadable (${state.unreadable.slice(0, 3).join(", ")})`
@@ -115,36 +172,29 @@ function statusPanel(coverage: Coverage | null): string {
     );
   }
 
-  const notes = [
-    `${state.photos.length} photos placed`,
-    state.noGpsCount && `${state.noGpsCount} without GPS`,
+  const skipped = [
+    state.noGpsCount && `${plural(state.noGpsCount, "photo")} without GPS`,
     unreadable,
-    coverage?.outsideCount && `${coverage.outsideCount} outside the task`,
-    coverage?.unsizedCount && `${coverage.unsizedCount} without height or lens data`,
+    coverage?.unsizedCount &&
+      `${plural(coverage.unsizedCount, "photo")} without height or lens data`,
   ].filter(Boolean);
-  const read = `${notes.join(", ")}.`;
+  const notes = skipped.length
+    ? `<p class="muted">Skipped: ${escapeHtml(skipped.join(", "))}.</p>`
+    : "";
 
   if (!coverage) {
-    if (notes.length === 1) return infoPanel("Add the photos from the SD card.");
-    return warningPanel("No photos could be placed on the map.", read);
+    if (!notes) return infoPanel("Add the photos from the SD card.");
+    return warningPanel("No photos could be placed on the map.") + notes;
   }
   if (coverage.verdict === "unknown") {
-    return warningPanel(
-      "Coverage unavailable.",
-      `The photos have no height or lens data, so their footprints are unknown. Check the photo points by eye. ${read}`,
+    return (
+      warningPanel(
+        "Coverage unavailable.",
+        "The photos have no height or lens data, so their footprints are unknown. Check the photo points by eye.",
+      ) + notes
     );
   }
-
-  const missedCount = coverage.gaps.reduce((sum, gap) => sum + gap.missedCount, 0);
-  const findings = [
-    coverage.missingShare > 0 && `${percent(coverage.missingShare)} of the area has no photos.`,
-    missedCount > 0 &&
-      `About ${missedCount} photos missed in ${coverage.gaps.length} places along the flight lines.`,
-  ].filter(Boolean);
-  const detail = [...findings, read].join(" ");
-  if (coverage.verdict === "good") return successPanel("No gaps found.", detail);
-  if (coverage.verdict === "refly") return errorPanel("Refly this task.", detail);
-  return warningPanel("Check the red areas and amber lines.", detail);
+  return verdictPanel(coverage) + photoStats(coverage) + notes;
 }
 
 function render(): void {
@@ -153,20 +203,21 @@ function render(): void {
   setData(
     "cells",
     (coverage?.cells ?? []).map((cell) =>
-      feature({ type: "Polygon", coordinates: [cell.ring] }, { status: cell.status }),
+      feature(
+        { type: "Polygon", coordinates: [cell.ring] },
+        { status: cell.status, inBuffer: cell.inBuffer },
+      ),
     ),
   );
   setData("area", state.area ? [feature({ type: "Polygon", coordinates: [state.area] })] : []);
   setData(
+    "buffer",
+    coverage?.buffer ? [feature({ type: "LineString", coordinates: coverage.buffer })] : [],
+  );
+  setData(
     "gaps",
-    (coverage?.gaps ?? []).map(({ from, to }) =>
-      feature({
-        type: "LineString",
-        coordinates: [
-          [from.lon, from.lat],
-          [to.lon, to.lat],
-        ],
-      }),
+    (coverage?.gaps ?? []).flatMap((gap) =>
+      gap.missed.map((position) => feature({ type: "Point", coordinates: position })),
     ),
   );
   setData(
