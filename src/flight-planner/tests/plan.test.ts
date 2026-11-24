@@ -204,15 +204,33 @@ describe("buildOutputs", () => {
 
     const waypoints = JSON.parse(files[0].data as string) as Array<Record<string, unknown>>;
     expect(Object.keys(waypoints[0]!)).toEqual([
-      "global_speed", "snapshootFile", "wp_speed", "wp_speed_type", "wp_yaw_custom",
-      "wp_gimbal_type", "wp_yaw_type", "wp_hover_time", "wp_action", "wp_zoom_type",
-      "wp_height", "wp_yaw_interest", "isHaveAltitude", "wp_zoom_ratio", "isFromSave",
-      "wp_gimbal_pitch_custom", "wp_lon", "wp_lat", "wp_altitude", "addPointWay",
+      "global_speed",
+      "snapshootFile",
+      "wp_speed",
+      "wp_speed_type",
+      "wp_yaw_custom",
+      "wp_gimbal_type",
+      "wp_yaw_type",
+      "wp_hover_time",
+      "wp_action",
+      "wp_zoom_type",
+      "wp_height",
+      "wp_yaw_interest",
+      "isHaveAltitude",
+      "wp_zoom_ratio",
+      "isFromSave",
+      "wp_gimbal_pitch_custom",
+      "wp_lon",
+      "wp_lat",
+      "wp_altitude",
+      "addPointWay",
     ]);
     expect(waypoints[0].global_speed).toBe(result.parameters.ground_speed);
     expect(waypoints[0].snapshootFile).toBe("");
 
-    const photoIndex = result.waypoints.features.findIndex((feature) => feature.properties.take_photo);
+    const photoIndex = result.waypoints.features.findIndex(
+      (feature) => feature.properties.take_photo,
+    );
     expect(photoIndex).toBeGreaterThanOrEqual(0);
     const source = result.waypoints.features[photoIndex]!;
     const exported = waypoints[photoIndex]!;
@@ -225,7 +243,11 @@ describe("buildOutputs", () => {
   });
 
   it("keeps the Android Atom 2 ZIP output unchanged when Android is selected", () => {
-    const android = params({ droneType: "POTENSIC_ATOM_2", potensicApp: "android", terrainFollow: false });
+    const android = params({
+      droneType: "POTENSIC_ATOM_2",
+      potensicApp: "android",
+      terrainFollow: false,
+    });
     const result = buildPlan(SMALL, android, null);
     const files = buildOutputs(result, android, meta);
     expect(files[0].name).toMatch(/_potensic\.zip$/);

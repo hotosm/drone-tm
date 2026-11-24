@@ -57,12 +57,13 @@ function flightSetup(params: PlanParams): string {
   const takeoff = params.takeoffPoint
     ? `${params.takeoffPoint.lat.toFixed(5)}, ${params.takeoffPoint.lon.toFixed(5)}`
     : "Not set. Take off at the green ring, in the middle of the area.";
-  const potensicApp = params.droneType === "POTENSIC_ATOM_2"
-    ? `<wa-select id="potensic-app" label="Potensic app" value="${escapeHtml(params.potensicApp)}">
+  const potensicApp =
+    params.droneType === "POTENSIC_ATOM_2"
+      ? `<wa-select id="potensic-app" label="Potensic app" value="${escapeHtml(params.potensicApp)}">
         ${option("android", "Potensic (Android)", params.potensicApp === "android")}
         ${option("eve", "Potensic Eve (iOS)", params.potensicApp === "eve")}
       </wa-select>`
-    : "";
+      : "";
   return `
     <wa-select id="drone-type" label="Drone" value="${escapeHtml(params.droneType)}">
       ${DRONE_CHOICES.map((c) => option(c.value, c.label, c.value === params.droneType)).join("")}
@@ -297,7 +298,10 @@ export const step4: Step = {
     drone?.addEventListener("change", () => {
       const nextDroneType = drone.value as DroneTypeKey;
       ctx.state.params.droneType = nextDroneType;
-      ctx.state.params.potensicApp = potensicAppForDrone(nextDroneType, ctx.state.params.potensicApp);
+      ctx.state.params.potensicApp = potensicAppForDrone(
+        nextDroneType,
+        ctx.state.params.potensicApp,
+      );
       void run();
     });
     const potensicApp = root.querySelector<HTMLElement & { value: string }>("#potensic-app");

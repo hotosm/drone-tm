@@ -19,7 +19,10 @@ const POTENSIC_APPS = new Set(["android", "eve"]);
 
 // Eve is an app choice for the Atom 2, not a separate drone type. Clear it
 // whenever another drone is selected so it cannot leak into a later plan.
-export function potensicAppForDrone(droneType: DroneTypeKey, requested: PotensicAppKey): PotensicAppKey {
+export function potensicAppForDrone(
+  droneType: DroneTypeKey,
+  requested: PotensicAppKey,
+): PotensicAppKey {
   return droneType === "POTENSIC_ATOM_2" ? requested : "android";
 }
 
