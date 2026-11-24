@@ -309,6 +309,13 @@ To avoid this:
 If you add more imagery to a task that was already processed, check for this
 button again and re-process the task afterwards.
 
+### Q. How much RAM do I need to process my imagery myself?
+
+It depends mostly on the number of images. As a rough guide, 16 GB of RAM
+handles about 250 images and 64 GB about 1500. See the
+[ScaleODM memory sizing table](https://hotosm.github.io/ScaleODM/system-requirements/)
+for the full table, how swap helps, and what to do past 5000 images.
+
 ### Help! I'm having trouble managing my collected imagery
 
 - Sometimes you may have to deal with factors such as limited hard drive,

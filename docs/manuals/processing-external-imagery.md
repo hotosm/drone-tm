@@ -56,12 +56,26 @@ workstations set up with multicore CPUs, at least 16 GB of RAM, and fast
 solid-state drives (SSDs). Some key processing steps employ computer vision (CV)
 algorithms that benefit from graphics processing units (GPUs).
 
-A valid alternative for small to medium-size projects (100-5,000 frames) is
+RAM is usually the limit on how many images you can process at once. See the
+[ScaleODM memory sizing table](https://hotosm.github.io/ScaleODM/system-requirements/)
+for how much RAM (and swap) a given number of images needs. It applies to
+ODM and WebODM too.
+
+A valid alternative for small to medium-size projects (a few hundred to ~1,500
+frames, depending on RAM) is
 offered by gaming laptops, which are often already equipped with configurations
 similar to those needed for drone image processing (advanced CPU, SSDs, sizable
 RAM, a dedicated video card). If processing is to be conducted in the field, it
 is advisable to use ruggedised equipment and to have several charged battery
 packs as backup options.
+
+#### Setting Up WebODM on Windows
+
+Install WebODM with the native [Windows installer](https://webodm.org/download).
+It doesn't need Docker or WSL, and can use all of your RAM.
+
+As a rough guide, a 32 GB RAM laptop handles up to ~800 images in one run.
+For more, split the job using the `split` and `split-overlap` options.
 
 ### What the Software Does
 
