@@ -1,3 +1,10 @@
+## 2026.14.4 (2026-11-24)
+
+### Fix
+
+- **checker**: improve image qa/gc logic to include loading all tasks as a featcol
+- **backend**: omit the opensfm undistorted dir already omitted by scaleodm for legacy projects
+
 ## 2026.14.3 (2026-11-24)
 
 ### Fix
