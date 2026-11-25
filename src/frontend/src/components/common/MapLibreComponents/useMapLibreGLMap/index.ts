@@ -34,35 +34,20 @@ export default function useMapLibreGLMap({
     mapInstance.addControl(new ScaleControl({ unit: "metric" }), "bottom-right");
 
     mapInstance.on("load", () => {
-      setIsMapLoaded(true);
-    });
-    // return () => mapInstance.setTarget(undefined);
-  }, []); // eslint-disable-line
-
-  // add terrain source for 3D
-  useEffect(() => {
-    if (!map) return;
-    map.on("load", () => {
-      map.addSource("terrainSource", {
+      // Mapterhorn: global open terrain (terrarium-encoded), orthos drape on top
+      mapInstance.addSource("terrainSource", {
         type: "raster-dem",
-        tiles: ["https://vtc-cdn.maptoolkit.net/terrainrgb/{z}/{x}/{y}.webp"],
-        encoding: "mapbox",
-        maxzoom: 14,
-        minzoom: 4,
+        url: "https://tiles.mapterhorn.com/tilejson.json",
       });
       setIsMapLoaded(true);
     });
-  }, [map]);
+  }, []); // eslint-disable-line
 
-  // add 3D terrain
+  // toggle 3D terrain
   useEffect(() => {
     if (!map || !isMapLoaded) return;
-    if (enable3D) {
-      map.setTerrain({ source: "terrainSource", exaggeration: 0.6 });
-    } else {
-      // @ts-ignore
-      map.setTerrain();
-    }
+    // @ts-ignore
+    map.setTerrain(enable3D ? { source: "terrainSource", exaggeration: 1 } : null);
   }, [map, isMapLoaded, enable3D]);
 
   // disable map pane rotation
