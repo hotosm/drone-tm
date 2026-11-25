@@ -276,11 +276,10 @@ export const step3: Step = {
 
       ${coachTips("dem")}
 
-      <wa-details summary="No internet, or flat ground?" appearance="outlined">
+      <wa-details summary="Flying over flat ground?" appearance="outlined">
         <p class="muted">
-          You can skip this and fly at one fixed altitude above your takeoff
-          point. On a hill that means flying too low on the way up and too high
-          on the way down, so only skip it on flat ground.
+          Skip terrain data only if your entire route is over flat ground.
+          The drone will hold a fixed altitude relative to takeoff.
         </p>
         <div class="step-actions">
           <wa-button id="dem-skip" appearance="outlined" size="s">

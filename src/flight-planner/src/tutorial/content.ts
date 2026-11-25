@@ -67,7 +67,7 @@ export const COACH: Record<string, CoachCard> = {
       "This is the only step that needs internet. Do it before you leave.",
       "It also covers the ground around your flight, usually a whole DroneTM project.",
       "Other areas inside that coverage use it automatically, without internet.",
-      "Flat site, or no internet? You can skip this and fly at a fixed altitude.",
+      "Skip terrain data only if your entire route is over flat ground.",
     ],
     why:
       "Without terrain data the drone flies at one altitude above its takeoff " +
