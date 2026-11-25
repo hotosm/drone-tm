@@ -95,7 +95,8 @@ export const HINTS = {
     "How much each photo overlaps the next one along a line. 75% is safe. Below 60% may leave gaps.",
   sideOverlap: "How much side-by-side lines overlap. 75% is safe. Below 60% may leave gaps.",
   flightMode:
-    "Waylines uses fewer waypoints and flies more smoothly. Waypoints sends every point to the controller.",
+    "Waylines flies more smoothly, but you start the photos by hand with a 2 second Timed Shot. " +
+    "Every waypoint stops at each photo point and takes the photos automatically.",
   gimbalAngle: "How far the camera tilts down.",
   autoRotation: "Aligns the flight lines with the longest edge of your area.",
   rotationAngle: "Grid angle in degrees, clockwise from north.",

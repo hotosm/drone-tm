@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { IN_FLIGHT_STEPS, STAGES } from "../src/checklist/content";
+import { STAGES } from "../src/checklist/content";
 import {
   departComplete,
+  inFlightSteps,
   readChecklist,
   stageByKey,
   stageProgress,
@@ -45,15 +46,15 @@ describe("checklist content", () => {
     expect(dji).not.toContain("beginner-mode");
   });
 
-  it("only tells DJI pilots to start the photos by hand", () => {
-    const lines = IN_FLIGHT_STEPS;
-    const potensic = visibleItems(lines, POTENSIC).map((line) => line.text);
-    expect(potensic.join()).not.toMatch(/Timed Shot/);
-    expect(
-      visibleItems(lines, DJI)
+  it("only tells DJI pilots flying waylines to start the photos by hand", () => {
+    const steps = (drone: typeof DJI | typeof POTENSIC, mode: "waylines" | "waypoints") =>
+      inFlightSteps(drone, mode)
         .map((line) => line.text)
-        .join(),
-    ).toMatch(/Timed Shot/);
+        .join();
+    expect(steps(DJI, "waylines")).toMatch(/Timed Shot/);
+    expect(steps(DJI, "waypoints")).not.toMatch(/Timed Shot/);
+    expect(steps(DJI, "waypoints")).toMatch(/automatically/);
+    expect(steps(POTENSIC, "waypoints")).not.toMatch(/Timed Shot/);
   });
 
   it("checks the plan is on the controller at the site, after it can be downloaded", () => {

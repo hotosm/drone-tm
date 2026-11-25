@@ -3,10 +3,12 @@ import {
   type ChecklistItem,
   type ChecklistStage,
   type DroneSpecific,
+  type ReferenceLine,
   type StageKey,
+  IN_FLIGHT_STEPS,
 } from "../checklist/content";
 import { outputFormatFor } from "./qfield";
-import type { DroneTypeKey } from "./types";
+import type { DroneTypeKey, FlightModeKey } from "./types";
 
 export type Answer = "ok" | "not_ok";
 /** Worst first. "caution" means only image quality advice failed. */
@@ -99,6 +101,11 @@ export function stageByKey(key: StageKey): ChecklistStage {
 export function visibleItems<T extends DroneSpecific>(items: T[], droneType: DroneTypeKey): T[] {
   const format = outputFormatFor(droneType);
   return items.filter((item) => !item.only || item.only === format);
+}
+
+export function inFlightSteps(droneType: DroneTypeKey, flightMode: FlightModeKey): ReferenceLine[] {
+  const steps = visibleItems(IN_FLIGHT_STEPS, droneType);
+  return steps.filter((line) => !line.mode || line.mode === flightMode);
 }
 
 export function stageItems(stage: ChecklistStage, droneType: DroneTypeKey): ChecklistItem[] {

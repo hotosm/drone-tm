@@ -1,4 +1,5 @@
 import type { OutputFormat } from "../core/qfield";
+import type { FlightModeKey } from "../core/types";
 import { BEST_LIGHT_END_HOUR, BEST_LIGHT_START_HOUR, WIND_LIMIT_KMH } from "../core/weather";
 
 export type Severity = "stop" | "advise";
@@ -18,6 +19,8 @@ export interface ChecklistItem extends DroneSpecific {
 
 export interface ReferenceLine extends DroneSpecific {
   text: string;
+  /** Photos are taken at waypoints, or on the camera timer along waylines. */
+  mode?: FlightModeKey;
 }
 
 export interface ChecklistGroup {
@@ -271,9 +274,13 @@ export const IN_FLIGHT = { title: "During the flight", hint: "Read this before t
 /** In the order they happen. */
 export const IN_FLIGHT_STEPS: ReferenceLine[] = [
   { text: 'After takeoff, wait for the "Home point updated" message' },
-  { text: "Set the photo mode to Timed Shot, 2 seconds", only: "dji" },
-  { text: "Start taking photos at the first waypoint, and stop at the last", only: "dji" },
-  { text: "Photos are taken automatically at each waypoint", only: "potensic" },
+  { text: "Set the photo mode to Timed Shot, 2 seconds", only: "dji", mode: "waylines" },
+  {
+    text: "Start taking photos at the first waypoint, and stop at the last",
+    only: "dji",
+    mode: "waylines",
+  },
+  { text: "Photos are taken automatically at each waypoint", mode: "waypoints" },
   { text: "Keep the drone in sight at all times" },
   { text: "Watch the battery level, altitude, error messages and zoom (1x)" },
 ];

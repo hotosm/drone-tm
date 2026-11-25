@@ -2,6 +2,7 @@ import type { AppState, StepContext } from "../app";
 import {
   departComplete,
   failedItems,
+  inFlightSteps,
   stageByKey,
   stageItems,
   stageProgress,
@@ -20,7 +21,6 @@ import { tutorialEnabled } from "../tutorial";
 import {
   EMERGENCIES,
   IN_FLIGHT,
-  IN_FLIGHT_STEPS,
   NOT_OK_MESSAGE,
   STAGES,
   type ChecklistGroup,
@@ -265,7 +265,7 @@ function groupPage(group: ChecklistGroup, state: AppState): string {
 }
 
 function referencePage(state: AppState): string {
-  const steps = visibleItems(IN_FLIGHT_STEPS, state.params.droneType);
+  const steps = inFlightSteps(state.params.droneType, state.params.flightMode);
   const emergencies = EMERGENCIES.map(
     ({ situation, action }) =>
       `<tr><th scope="row">${escapeHtml(situation)}</th><td>${escapeHtml(action)}</td></tr>`,
