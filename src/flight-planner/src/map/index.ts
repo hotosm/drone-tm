@@ -1,10 +1,19 @@
 import maplibregl, { type Map as MlMap, type LngLatBoundsLike } from "maplibre-gl";
 import MapboxDraw from "@mapbox/mapbox-gl-draw";
-import type { Bbox } from "../core/dem";
+import type { Bbox, DemSampler } from "../core/dem";
 import type { FlightpathCollection, WaypointCollection } from "../core/types";
 import { BasemapToggle, basemapStyle } from "./basemap";
 import { drawStyles } from "./draw-styles";
 import { mapColor } from "./palette";
+import {
+  DEM_MAX_ZOOM,
+  DEM_PROTOCOL,
+  DEM_TILE_SIZE,
+  flightExtrusions,
+  groundSampler,
+  registerDemProtocol,
+  Terrain3dToggle,
+} from "./terrain";
 
 export type DrawMode = "draw" | "takeoff" | "idle";
 
@@ -23,7 +32,12 @@ export interface MapController {
   setMode(mode: DrawMode): void;
   takeoff(): { lon: number; lat: number } | null;
   setTakeoff(point: { lon: number; lat: number } | null): void;
-  showPlan(waypoints: WaypointCollection | null, path: FlightpathCollection | null): void;
+  /** `dem` is the terrain the plan was made over, which enables the 3D view. */
+  showPlan(
+    waypoints: WaypointCollection | null,
+    path: FlightpathCollection | null,
+    dem?: DemSampler | null,
+  ): void;
   showTasks(tasks: TaskOutline[]): void;
   showNoFlyZones(rings: Array<Array<[number, number]>>): void;
   onTaskClick(handler: (planId: string) => void): () => void;
@@ -47,6 +61,11 @@ function ringCentre(ring: Array<[number, number]>): [number, number] {
   return [(minx + maxx) / 2, (miny + maxy) / 2];
 }
 
+const TERRAIN_SOURCE = "plan-dem-terrain";
+// MapLibre recommends a separate source for hillshade, so it can pick its own tiles.
+const HILLSHADE_SOURCE = "plan-dem-hillshade";
+const PITCH_3D = 60;
+
 export function createMap(container: HTMLElement): MapController {
   const map = new maplibregl.Map({
     container,
@@ -66,6 +85,8 @@ export function createMap(container: HTMLElement): MapController {
     }),
     "top-right",
   );
+  const terrainToggle = new Terrain3dToggle((on) => set3d(on));
+  map.addControl(terrainToggle, "top-right");
   map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
   // Web components can resize the container after MapLibre's initial layout.
@@ -103,6 +124,14 @@ export function createMap(container: HTMLElement): MapController {
   let taskMarkers: maplibregl.Marker[] = [];
   let tasks: TaskOutline[] = [];
   let noFlyZones: Array<Array<[number, number]>> = [];
+  let plan: { waypoints: WaypointCollection; path: FlightpathCollection } | null = null;
+  let planDem: DemSampler | null = null;
+  let terrainDem: DemSampler | null = null;
+  let terrainVersion = 0;
+  let is3d = false;
+  let styleReady = false;
+
+  registerDemProtocol(() => terrainDem);
 
   function paintNoFlyZones(): void {
     const source = map.getSource("no-fly-zones") as maplibregl.GeoJSONSource | undefined;
@@ -239,8 +268,67 @@ export function createMap(container: HTMLElement): MapController {
       if (mode === "idle") map.getCanvas().style.cursor = "";
     });
 
+    map.addSource("plan-3d", { type: "geojson", data: emptyCollection() });
+    map.addLayer({
+      id: "plan-3d-posts",
+      type: "fill-extrusion",
+      source: "plan-3d",
+      filter: ["==", ["get", "kind"], "post"],
+      layout: { visibility: "none" },
+      paint: {
+        "fill-extrusion-color": mapColor("turn"),
+        "fill-extrusion-base": ["get", "base"],
+        "fill-extrusion-height": ["get", "top"],
+        "fill-extrusion-opacity": 0.6,
+      },
+    });
+    map.addLayer({
+      id: "plan-3d-caps",
+      type: "fill-extrusion",
+      source: "plan-3d",
+      filter: ["==", ["get", "kind"], "cap"],
+      layout: { visibility: "none" },
+      paint: {
+        "fill-extrusion-color": [
+          "case",
+          ["get", "take_photo"],
+          mapColor("photo"),
+          mapColor("turn"),
+        ],
+        "fill-extrusion-base": ["get", "base"],
+        "fill-extrusion-height": ["get", "top"],
+      },
+    });
+    map.on("click", "plan-3d-caps", (event) => {
+      const properties = event.features?.[0]?.properties;
+      if (mode !== "idle" || !properties) return;
+      const coordinates = [properties.lon, properties.lat];
+      showWaypointPopup({ geometry: { coordinates }, properties });
+    });
+    map.on("mouseenter", "plan-3d-caps", () => {
+      if (mode === "idle") map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", "plan-3d-caps", () => {
+      if (mode === "idle") map.getCanvas().style.cursor = "";
+    });
+
+    map.addLayer({
+      id: "plan-3d-ribbon",
+      type: "fill-extrusion",
+      source: "plan-3d",
+      filter: ["==", ["get", "kind"], "ribbon"],
+      layout: { visibility: "none" },
+      paint: {
+        "fill-extrusion-color": ["case", ["get", "clear"], mapColor("path"), mapColor("missing")],
+        "fill-extrusion-base": ["get", "base"],
+        "fill-extrusion-height": ["get", "top"],
+      },
+    });
+
     if (tasks.length > 0) paintTasks();
     paintNoFlyZones();
+    styleReady = true;
+    applyTerrain();
 
     notify();
   });
@@ -344,6 +432,81 @@ export function createMap(container: HTMLElement): MapController {
     return { ...uniform, bottom };
   }
 
+  // Terrain only exists alongside a plan, so the 3D view always has something to show.
+  function applyTerrain(): void {
+    if (!styleReady) return;
+    if (planDem !== terrainDem) swapTerrainSource(planDem);
+    const available = plan !== null && terrainDem !== null;
+    if (!available && is3d) set3d(false);
+    if (is3d) paintExtrusions();
+    terrainToggle.setState({ available, on: is3d });
+  }
+
+  function swapTerrainSource(dem: DemSampler | null): void {
+    if (is3d) map.setTerrain(null);
+    if (map.getLayer("plan-hillshade")) map.removeLayer("plan-hillshade");
+    for (const id of [TERRAIN_SOURCE, HILLSHADE_SOURCE]) {
+      if (map.getSource(id)) map.removeSource(id);
+    }
+    terrainDem = dem;
+    if (!dem) return;
+
+    // A new URL per DEM stops MapLibre reusing tiles cached from the last one.
+    terrainVersion++;
+    const source = {
+      type: "raster-dem" as const,
+      tiles: [`${DEM_PROTOCOL}://${terrainVersion}/{z}/{x}/{y}`],
+      tileSize: DEM_TILE_SIZE,
+      maxzoom: DEM_MAX_ZOOM,
+      encoding: "terrarium" as const,
+    };
+    map.addSource(TERRAIN_SOURCE, source);
+    map.addSource(HILLSHADE_SOURCE, source);
+    // Below the tasks and the plan, above the basemap.
+    map.addLayer(
+      {
+        id: "plan-hillshade",
+        type: "hillshade",
+        source: HILLSHADE_SOURCE,
+        layout: { visibility: is3d ? "visible" : "none" },
+        paint: { "hillshade-exaggeration": 0.4 },
+      },
+      "project-tasks-fill",
+    );
+    if (is3d) map.setTerrain({ source: TERRAIN_SOURCE, exaggeration: 1 });
+  }
+
+  function paintExtrusions(): void {
+    const source = map.getSource("plan-3d") as maplibregl.GeoJSONSource | undefined;
+    const data =
+      plan && terrainDem
+        ? flightExtrusions(groundSampler(terrainDem), plan.waypoints, plan.path)
+        : emptyCollection();
+    source?.setData(data as never);
+  }
+
+  function set3d(on: boolean): void {
+    is3d = on && plan !== null && terrainDem !== null;
+    const shown3d = is3d ? "visible" : "none";
+    const shown2d = is3d ? "none" : "visible";
+    for (const id of ["plan-hillshade", "plan-3d-posts", "plan-3d-ribbon", "plan-3d-caps"]) {
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", shown3d);
+    }
+    for (const id of ["plan-waypoints-photo", "plan-waypoints-hit"]) {
+      map.setLayoutProperty(id, "visibility", shown2d);
+    }
+    map.setTerrain(is3d ? { source: TERRAIN_SOURCE, exaggeration: 1 } : null);
+    paintExtrusions();
+    // Without freezeElevation, MapLibre 4 keeps the camera at the elevation it read
+    // before the terrain tiles loaded, which can leave it underground.
+    map.easeTo({
+      pitch: is3d ? PITCH_3D : 0,
+      bearing: is3d ? map.getBearing() : 0,
+      freezeElevation: true,
+    });
+    terrainToggle.setState({ available: plan !== null && terrainDem !== null, on: is3d });
+  }
+
   function currentRing(): Array<[number, number]> | null {
     const polygon = draw.getAll().features.find((feature) => feature.geometry.type === "Polygon");
     if (!polygon || polygon.geometry.type !== "Polygon") return null;
@@ -407,7 +570,7 @@ export function createMap(container: HTMLElement): MapController {
       return () => taskHandlers.delete(handler);
     },
 
-    showPlan(waypoints, path) {
+    showPlan(waypoints, path, dem = null) {
       const pathSource = map.getSource("plan-path") as maplibregl.GeoJSONSource | undefined;
       const wpSource = map.getSource("plan-waypoints") as maplibregl.GeoJSONSource | undefined;
       pathSource?.setData((path ?? emptyCollection()) as never);
@@ -420,6 +583,10 @@ export function createMap(container: HTMLElement): MapController {
       // Editing the area under a finished plan silently invalidates it, so the
       // AOI is locked for exactly as long as a plan is displayed.
       if (!waypoints) waypointPopup?.remove();
+      plan = waypoints && path ? { waypoints, path } : null;
+      planDem = plan ? dem : null;
+      applyTerrain();
+
       const wanted = waypoints ? "static" : "simple_select";
       if (draw.getMode() !== wanted) draw.changeMode(wanted as never);
     },

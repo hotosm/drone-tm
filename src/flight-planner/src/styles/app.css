@@ -1280,3 +1280,12 @@ wa-details::part(content) {
 .swatch-buffer {
   border: 2px dashed var(--dtm-map-buffer);
 }
+
+.maplibregl-ctrl-group button.terrain-toggle {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.maplibregl-ctrl-group button.terrain-toggle[aria-pressed="true"] {
+  color: var(--wa-color-brand-fill-loud);
+}

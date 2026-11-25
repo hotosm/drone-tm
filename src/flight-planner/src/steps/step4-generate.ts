@@ -243,7 +243,7 @@ export const step4: Step = {
         ctx.state.meta.generatedAt ??= new Date().toISOString();
         outputs = buildOutputs(result, params, ctx.state.meta);
 
-        ctx.map.showPlan(result.waypoints, result.flightpath);
+        ctx.map.showPlan(result.waypoints, result.flightpath, dem.sampler);
         ctx.map.fitBbox(aoi.bbox);
 
         await ctx.save();
@@ -315,7 +315,8 @@ export const step4: Step = {
     });
 
     if (ctx.state.result) {
-      ctx.map.showPlan(ctx.state.result.waypoints, ctx.state.result.flightpath);
+      const { result, dem } = ctx.state;
+      ctx.map.showPlan(result.waypoints, result.flightpath, dem.sampler);
     }
   },
 };
