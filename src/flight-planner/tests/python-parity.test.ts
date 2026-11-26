@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { generate } from "../src/core/qfield";
-import type { FlightModeKey, GenerateConfig } from "../src/core/types";
+import type { DroneTypeKey, FlightModeKey, GenerateConfig } from "../src/core/types";
 
 const fixtures = new URL("./fixtures/", import.meta.url);
 const read = (name: string) =>
@@ -112,3 +112,23 @@ for (const [aoiName, refName] of [
     }
   });
 }
+
+describe("ground speed matches drone_flightplan.calculate_parameters", () => {
+  const SPEED_CASES: Array<[DroneTypeKey, number, number]> = [
+    ["POTENSIC_ATOM_1", 60, 6.98],
+    ["POTENSIC_ATOM_1", 120, 8.0],
+    ["DJI_MINI_4_PRO", 95, 11.5],
+  ];
+
+  it.each(SPEED_CASES)("%s at %d m AGL flies at %d m/s", (droneType, agl, speed) => {
+    const result = generate(ring("aoi-small.geojson"), {
+      ...BASE,
+      gsd: null,
+      agl,
+      droneType,
+      autoRotation: true,
+      flightMode: "waylines",
+    });
+    expect(result.parameters.ground_speed).toBe(speed);
+  });
+});

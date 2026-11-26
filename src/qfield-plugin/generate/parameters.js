@@ -46,15 +46,14 @@ function calculateParameters(forwardOverlap, sideOverlap, agl, gsd, imageInterva
     var groundSpeed = forwardSpacing / imageInterval;
 
     // Cap ground speed per drone type
-    if (groundSpeed > 12 &&
-        (droneType === Specs.DroneType.DJI_MINI_5_PRO ||
-         droneType === Specs.DroneType.DJI_MINI_4_PRO ||
-         droneType === Specs.DroneType.DJI_AIR_3)) {
-        groundSpeed = 11.5;
+    if (droneType === Specs.DroneType.DJI_MINI_5_PRO ||
+        droneType === Specs.DroneType.DJI_MINI_4_PRO ||
+        droneType === Specs.DroneType.DJI_AIR_3) {
+        groundSpeed = Math.min(groundSpeed, 11.5);
     } else if (droneType === Specs.DroneType.POTENSIC_ATOM_1) {
-        groundSpeed = 8.0;
-    } else if (groundSpeed > 12) {
-        groundSpeed = 11.5;
+        groundSpeed = Math.min(groundSpeed, 8.0);
+    } else {
+        groundSpeed = Math.min(groundSpeed, 11.5);
     }
 
     var adjustedBattery = calculateAdjustedBatteryLife(droneType, groundSpeed);
