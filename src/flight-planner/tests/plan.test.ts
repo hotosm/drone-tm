@@ -85,19 +85,13 @@ describe("buildPlan", () => {
     const waypoints = buildPlan(SMALL, params({ flightMode: "waypoints" }), dem);
     const waylines = buildPlan(SMALL, params({ flightMode: "waylines" }), dem);
 
-    expect(waylines.waypoints.features.length).toBeLessThan(
-      waypoints.waypoints.features.length,
-    );
+    expect(waylines.waypoints.features.length).toBeLessThan(waypoints.waypoints.features.length);
   });
 
   it("counts the same photos in waylines mode as in waypoints mode", () => {
     const waypoints = buildPlan(SMALL, params({ flightMode: "waypoints" }), dem);
     const terrain = buildPlan(SMALL, params({ flightMode: "waylines" }), dem);
-    const flat = buildPlan(
-      SMALL,
-      params({ flightMode: "waylines", terrainFollow: false }),
-      null,
-    );
+    const flat = buildPlan(SMALL, params({ flightMode: "waylines", terrainFollow: false }), null);
 
     expect(waypoints.photos).toBeGreaterThan(0);
     expect(terrain.photos).toBe(waypoints.photos);
@@ -143,11 +137,7 @@ describe("buildPlan", () => {
   });
 
   it("warns about the battery on an area too big for one flight", () => {
-    const result = buildPlan(
-      ring("aoi-kathmandu.geojson"),
-      params({ terrainFollow: false }),
-      null,
-    );
+    const result = buildPlan(ring("aoi-kathmandu.geojson"), params({ terrainFollow: false }), null);
 
     expect(result.batteryWarning).toBe(true);
     expect(result.estimatedFlightTimeMinutes).toBeGreaterThan(30);

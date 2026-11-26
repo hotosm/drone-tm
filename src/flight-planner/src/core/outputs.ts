@@ -41,18 +41,13 @@ export function baseName(meta: PlanMeta): string {
   return `${scope.replace(/[^\w.-]+/g, "_")}_${stamp()}`;
 }
 
-export function buildOutputs(
-  result: PlanResult,
-  params: PlanParams,
-  meta: PlanMeta,
-): OutputFile[] {
+export function buildOutputs(result: PlanResult, params: PlanParams, meta: PlanMeta): OutputFile[] {
   const base = baseName(meta);
   const files: OutputFile[] = [];
 
   if (outputFormatFor(params.droneType) === "potensic") {
     if (params.potensicApp === "ios") {
-      const exceedsWaypointLimit =
-        result.waypoints.features.length > POTENSIC_EVE_MAX_WAYPOINTS;
+      const exceedsWaypointLimit = result.waypoints.features.length > POTENSIC_EVE_MAX_WAYPOINTS;
       files.push({
         name: "waypoints.json",
         data: createPotensicV2IosJson(result.waypoints, result.parameters.ground_speed),

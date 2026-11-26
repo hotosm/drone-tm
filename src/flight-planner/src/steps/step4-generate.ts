@@ -204,8 +204,8 @@ export const step4: Step = {
           <span class="stat-value">${result.waypoints.features.length}</span></div>
         <div class="stat"><span class="stat-label">Photos</span>
           <span class="stat-value">${params.flightMode === "waylines" ? "~" : ""}${
-      result.photos
-    }</span></div>
+            result.photos
+          }</span></div>
         <div class="stat"><span class="stat-label">Flight time</span>
           <span class="stat-value">${escapeHtml(
             minutes(result.estimatedFlightTimeMinutes),
@@ -220,9 +220,7 @@ export const step4: Step = {
         <div class="stat"><span class="stat-label">Speed</span>
           <span class="stat-value">${result.parameters.ground_speed} m/s</span></div>
         <div class="stat"><span class="stat-label">Terrain</span>
-          <span class="stat-value">${
-            result.terrainFollowing ? "Following" : "Fixed"
-          }</span></div>
+          <span class="stat-value">${result.terrainFollowing ? "Following" : "Fixed"}</span></div>
       </div>
 
       ${batteryCallout}
@@ -312,14 +310,11 @@ export const step4: Step = {
         drone.value === "POTENSIC_ATOM_2_ios"
           ? "ios"
           : drone.value === "POTENSIC_ATOM_2_android"
-          ? "android"
-          : null;
+            ? "android"
+            : null;
       const nextDroneType = atom2Platform ? "POTENSIC_ATOM_2" : (drone.value as DroneTypeKey);
       ctx.state.params.droneType = nextDroneType;
-      ctx.state.params.potensicApp = potensicAppForDrone(
-        nextDroneType,
-        atom2Platform ?? "android",
-      );
+      ctx.state.params.potensicApp = potensicAppForDrone(nextDroneType, atom2Platform ?? "android");
       void run();
     });
 
