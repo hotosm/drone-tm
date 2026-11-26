@@ -1,3 +1,17 @@
+## 2026.15.0 (2026-11-26)
+
+### Feat
+
+- **planner**: add option to generate infill flightplan (#942)
+- **planner**: add simple 3d extrusion of flightplans + input DEM as base terrain (#940)
+- **frontend**: use mapterhorn for terrain data (#939)
+
+### Fix
+
+- **planner**: show timed shot guidance for potensic in waylines mode
+- **planner**: explain manual photo timer for waylines mode in hint and checklist
+- **planner**: do not recommend flying without terrain following if no internet
+
 ## 2026.14.4 (2026-11-24)
 
 ### Fix
