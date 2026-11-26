@@ -7,6 +7,8 @@ export type DroneTypeKey =
   | "POTENSIC_ATOM_1"
   | "POTENSIC_ATOM_2";
 
+export type PotensicAppKey = "android" | "ios";
+
 export type FlightModeKey = "waylines" | "waypoints";
 
 export type GimbalAngleKey = "-80" | "-90" | "-45";

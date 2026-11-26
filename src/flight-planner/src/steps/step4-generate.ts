@@ -7,6 +7,7 @@ import { DRONE_CHOICES } from "../core/qfield";
 import {
   buildOutputs,
   buildPlanBundle,
+  POTENSIC_EVE_MAX_WAYPOINTS,
   byteSize,
   planLabel,
   download,
@@ -15,6 +16,7 @@ import {
 } from "../core/outputs";
 import type { PlanDem } from "../core/storage";
 import type { DroneTypeKey } from "../core/types";
+import { potensicAppForDrone } from "../core/params";
 import { coachLead } from "../tutorial";
 import { errorPanel, escapeHtml, infoPanel, option } from "./ui";
 
@@ -55,9 +57,21 @@ function flightSetup(params: PlanParams): string {
   const takeoff = params.takeoffPoint
     ? `${params.takeoffPoint.lat.toFixed(5)}, ${params.takeoffPoint.lon.toFixed(5)}`
     : "Not set. Take off at the green ring, in the middle of the area.";
+  const droneChoice =
+    params.droneType === "POTENSIC_ATOM_2"
+      ? `${params.droneType}_${params.potensicApp}`
+      : params.droneType;
+  const droneChoices = DRONE_CHOICES.flatMap((choice) =>
+    choice.value === "POTENSIC_ATOM_2"
+      ? [
+          { value: "POTENSIC_ATOM_2_android", label: "Atom 2 (Android)" },
+          { value: "POTENSIC_ATOM_2_ios", label: "Atom 2 (iOS)" },
+        ]
+      : [choice],
+  );
   return `
-    <wa-select id="drone-type" label="Drone" value="${escapeHtml(params.droneType)}">
-      ${DRONE_CHOICES.map((c) => option(c.value, c.label, c.value === params.droneType)).join("")}
+    <wa-select id="drone-type" label="Drone" value="${escapeHtml(droneChoice)}">
+      ${droneChoices.map((c) => option(c.value, c.label, c.value === droneChoice)).join("")}
     </wa-select>
     <div class="downloads">
       <div class="download-row">
@@ -79,13 +93,14 @@ function minutes(value: number): string {
 
 // The first output is the mission for this drone. The rest are for checking or editing it.
 function downloadRow(file: OutputFile, index: number): string {
+  const disabled = file.disabled ? "disabled" : "";
   return `
     <div class="download-row">
       <div class="download-meta">
         <strong>${escapeHtml(file.label)}</strong>
         <span class="muted">${escapeHtml(file.hint)}</span>
       </div>
-      <wa-button data-download="${index}" appearance="outlined" size="s">
+      <wa-button data-download="${index}" appearance="outlined" size="s" ${disabled}>
         <wa-icon slot="start" name="download"></wa-icon>
         ${escapeHtml(formatBytes(byteSize(file.data)))}
       </wa-button>
@@ -167,6 +182,19 @@ export const step4: Step = {
            </wa-callout>`
         : "";
 
+    const eveWaypointCount = result.waypoints.features.length;
+    const exceedsEveWaypointLimit =
+      params.droneType === "POTENSIC_ATOM_2" &&
+      params.potensicApp === "ios" &&
+      eveWaypointCount > POTENSIC_EVE_MAX_WAYPOINTS;
+    const eveWaypointWarning = exceedsEveWaypointLimit
+      ? `<wa-callout variant="warning" appearance="outlined">
+           <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
+           <strong>Atom 2 (iOS) download disabled: ${eveWaypointCount} waypoints exceeds the ${POTENSIC_EVE_MAX_WAYPOINTS}-waypoint limit.</strong>
+           <p>Split the area into smaller missions. The Eve mission file is disabled below; the GeoJSON review files remain available.</p>
+         </wa-callout>`
+      : "";
+
     return `
       ${coachLead("generate")}
       ${flightSetup(params)}
@@ -175,14 +203,20 @@ export const step4: Step = {
         <div class="stat"><span class="stat-label">Waypoints</span>
           <span class="stat-value">${result.waypoints.features.length}</span></div>
         <div class="stat"><span class="stat-label">Photos</span>
-          <span class="stat-value">${params.flightMode === "waylines" ? "~" : ""}${result.photos}</span></div>
+          <span class="stat-value">${params.flightMode === "waylines" ? "~" : ""}${
+            result.photos
+          }</span></div>
         <div class="stat"><span class="stat-label">Flight time</span>
-          <span class="stat-value">${escapeHtml(minutes(result.estimatedFlightTimeMinutes))}</span></div>
+          <span class="stat-value">${escapeHtml(
+            minutes(result.estimatedFlightTimeMinutes),
+          )}</span></div>
       </div>
 
       <div class="stat-row">
         <div class="stat"><span class="stat-label">Altitude</span>
-          <span class="stat-value">${altMin === altMax ? `${altMin} m` : `${altMin}-${altMax} m`}</span></div>
+          <span class="stat-value">${
+            altMin === altMax ? `${altMin} m` : `${altMin}-${altMax} m`
+          }</span></div>
         <div class="stat"><span class="stat-label">Speed</span>
           <span class="stat-value">${result.parameters.ground_speed} m/s</span></div>
         <div class="stat"><span class="stat-label">Terrain</span>
@@ -192,6 +226,7 @@ export const step4: Step = {
       ${batteryCallout}
       ${noFlyReturnCallout}
       ${missingCallout}
+      ${eveWaypointWarning}
 
       ${checklistCard(ctx.state)}
 
@@ -271,7 +306,15 @@ export const step4: Step = {
 
     const drone = root.querySelector<HTMLElement & { value: string }>("#drone-type");
     drone?.addEventListener("change", () => {
-      ctx.state.params.droneType = drone.value as DroneTypeKey;
+      const atom2Platform =
+        drone.value === "POTENSIC_ATOM_2_ios"
+          ? "ios"
+          : drone.value === "POTENSIC_ATOM_2_android"
+            ? "android"
+            : null;
+      const nextDroneType = atom2Platform ? "POTENSIC_ATOM_2" : (drone.value as DroneTypeKey);
+      ctx.state.params.droneType = nextDroneType;
+      ctx.state.params.potensicApp = potensicAppForDrone(nextDroneType, atom2Platform ?? "android");
       void run();
     });
 
@@ -282,7 +325,7 @@ export const step4: Step = {
     for (const button of root.querySelectorAll<HTMLElement>("[data-download]")) {
       button.addEventListener("click", () => {
         const file = outputs[Number(button.dataset.download)];
-        if (!file) return;
+        if (!file || file.disabled) return;
         download(file);
         promptSiteChecks(ctx);
       });

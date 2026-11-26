@@ -1,6 +1,6 @@
 import { DEFAULT_PARAMS, type PlanParams } from "./flightplan";
 import { DRONE_CHOICES } from "./qfield";
-import type { DroneTypeKey, FlightModeKey, GimbalAngleKey } from "./types";
+import type { DroneTypeKey, FlightModeKey, GimbalAngleKey, PotensicAppKey } from "./types";
 import { dtmFetch } from "./http";
 
 export class ParamsError extends Error {
@@ -15,6 +15,16 @@ export class ParamsError extends Error {
 const DRONE_KEYS = new Set<string>(DRONE_CHOICES.map((choice) => choice.value));
 const GIMBAL_KEYS = new Set(["-80", "-90", "-45"]);
 const FLIGHT_MODES = new Set(["waylines", "waypoints"]);
+const POTENSIC_APPS = new Set(["android", "ios"]);
+
+// The app platform is an Atom 2 export setting, not a separate drone type. Clear it
+// whenever another drone is selected so it cannot leak into a later plan.
+export function potensicAppForDrone(
+  droneType: DroneTypeKey,
+  requested: PotensicAppKey,
+): PotensicAppKey {
+  return droneType === "POTENSIC_ATOM_2" ? requested : "android";
+}
 
 function num(
   raw: unknown,
@@ -93,6 +103,18 @@ export function parseParams(raw: unknown): PlanParams {
     );
   }
 
+  const requestedPotensicApp = String(input.potensicApp ?? DEFAULT_PARAMS.potensicApp);
+  if (droneType === "POTENSIC_ATOM_2" && !POTENSIC_APPS.has(requestedPotensicApp)) {
+    throw new ParamsError(
+      `Unknown Potensic app "${requestedPotensicApp}".`,
+      "Choose Atom 2 (Android) or Atom 2 (iOS).",
+    );
+  }
+  const potensicApp = potensicAppForDrone(
+    droneType as DroneTypeKey,
+    requestedPotensicApp as PotensicAppKey,
+  );
+
   const gimbalAngle = String(input.gimbalAngle ?? DEFAULT_PARAMS.gimbalAngle);
   if (!GIMBAL_KEYS.has(gimbalAngle)) {
     throw new ParamsError(`Unknown gimbal angle "${gimbalAngle}".`, "Use -80, -90 or -45.");
@@ -120,6 +142,7 @@ export function parseParams(raw: unknown): PlanParams {
 
   return {
     droneType: droneType as DroneTypeKey,
+    potensicApp,
     gimbalAngle: gimbalAngle as GimbalAngleKey,
     flightMode: flightMode as FlightModeKey,
     useGsd: bool(input.useGsd, DEFAULT_PARAMS.useGsd),

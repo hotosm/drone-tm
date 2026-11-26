@@ -18,6 +18,7 @@ import type {
   FlightpathCollection,
   GenerateConfig,
   GimbalAngleKey,
+  PotensicAppKey,
   WaypointCollection,
 } from "./types";
 import type { DemSampler } from "./dem";
@@ -32,6 +33,7 @@ export interface TakeoffPoint {
 
 export interface PlanParams {
   droneType: DroneTypeKey;
+  potensicApp: PotensicAppKey;
   gimbalAngle: GimbalAngleKey;
   flightMode: FlightModeKey;
   useGsd: boolean;
@@ -50,6 +52,7 @@ export interface PlanParams {
 
 export const DEFAULT_PARAMS: PlanParams = {
   droneType: "DJI_MINI_4_PRO",
+  potensicApp: "android",
   gimbalAngle: "-80",
   flightMode: "waylines",
   useGsd: true,

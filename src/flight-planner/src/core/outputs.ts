@@ -1,4 +1,10 @@
-import { createKmz, createPotensicZip, createWpml, outputFormatFor } from "./qfield";
+import {
+  createKmz,
+  createPotensicV2IosJson,
+  createPotensicZip,
+  createWpml,
+  outputFormatFor,
+} from "./qfield";
 import { binaryEntry, buildBinaryZip, textEntry, type ZipEntry } from "./zip";
 import type { PlanResult } from "./flightplan";
 import type { PlanParams } from "./flightplan";
@@ -12,7 +18,10 @@ export interface OutputFile {
   mime: string;
   label: string;
   hint: string;
+  disabled?: boolean;
 }
+
+export const POTENSIC_EVE_MAX_WAYPOINTS = 200;
 
 function stamp(): string {
   return new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
@@ -37,14 +46,31 @@ export function buildOutputs(result: PlanResult, params: PlanParams, meta: PlanM
   const files: OutputFile[] = [];
 
   if (outputFormatFor(params.droneType) === "potensic") {
-    const bundle = createPotensicZip(result.waypoints, result.parameters.ground_speed);
-    files.push({
-      name: `${base}_potensic.zip`,
-      data: bundle.zipData,
-      mime: "application/zip",
-      label: "Potensic mission (.zip)",
-      hint: "Unzip onto the controller's storage, then pick the mission in the app.",
-    });
+    if (params.potensicApp === "ios") {
+      const exceedsWaypointLimit = result.waypoints.features.length > POTENSIC_EVE_MAX_WAYPOINTS;
+      files.push({
+        name: "waypoints.json",
+        data: createPotensicV2IosJson(result.waypoints, result.parameters.ground_speed),
+        mime: "application/json",
+        label: "Atom 2 (iOS) mission (waypoints.json)",
+        hint: exceedsWaypointLimit
+          ? `Download disabled: this plan has ${result.waypoints.features.length} waypoints; Eve allows at most ${POTENSIC_EVE_MAX_WAYPOINTS}. Split the plan into smaller missions.`
+          : "Replace waypoints.json in Eve's TrajectoryFlight folder. Keep this exact filename.",
+        disabled: exceedsWaypointLimit,
+      });
+    } else {
+      const bundle = createPotensicZip(result.waypoints, result.parameters.ground_speed);
+      files.push({
+        name: `${base}_potensic.zip`,
+        data: bundle.zipData,
+        mime: "application/zip",
+        label:
+          params.droneType === "POTENSIC_ATOM_2"
+            ? "Atom 2 (Android) mission (.zip)"
+            : "Potensic mission (.zip)",
+        hint: "Unzip onto the controller's storage, then pick the mission in the app.",
+      });
+    }
   } else {
     const first = result.waypoints.features[0]?.geometry.coordinates;
     const globalHeight = first && first.length > 2 ? (first[2] as number) : 100;
@@ -99,6 +125,7 @@ export function buildPlanBundle(
   ];
 
   for (const file of outputs) {
+    if (file.disabled) continue;
     entries.push(
       typeof file.data === "string"
         ? textEntry(file.name, file.data)
@@ -115,7 +142,9 @@ export function buildPlanBundle(
         "==========================\n\n" +
         `Plan:      ${planLabel(meta)}\n` +
         `Created:   ${meta.createdAt}\n` +
-        `DEM:       ${meta.dem ? `${meta.dem.source}, ${meta.dem.width}x${meta.dem.height} px` : "none"}\n\n` +
+        `DEM:       ${
+          meta.dem ? `${meta.dem.source}, ${meta.dem.width}x${meta.dem.height} px` : "none"
+        }\n\n` +
         "aoi.geojson    the flight area\n" +
         "params.json    the flight parameters, re-uploadable to the flight planner\n" +
         "dem.tif        the terrain the altitudes were sampled from, cropped to this area\n" +
@@ -128,6 +157,7 @@ export function buildPlanBundle(
 }
 
 export function download(file: OutputFile): void {
+  if (file.disabled) return;
   const blob = new Blob([file.data], { type: file.mime });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");

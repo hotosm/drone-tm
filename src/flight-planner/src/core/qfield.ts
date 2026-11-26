@@ -4,6 +4,7 @@ import * as placemarks from "@qfield/generate/placemarks.js";
 import * as specs from "@qfield/generate/drone_specs.js";
 import * as dji from "@qfield/output/dji.js";
 import * as kmz from "@qfield/output/kmz.js";
+import * as potensicIos from "@qfield/output/potensic_v2_ios.js";
 import * as potensic from "@qfield/output/potensic_v2.js";
 
 import type {
@@ -80,6 +81,11 @@ export const createPotensicZip = potensic.createPotensicZip as (
   defaultSpeed: number,
   timestampMs?: number,
 ) => PotensicBundle;
+
+export const createPotensicV2IosJson = potensicIos.createPotensicV2IosJson as (
+  featcol: WaypointCollection,
+  defaultSpeed: number,
+) => string;
 
 export const buildZip = potensic.buildZip as (
   entries: Array<{ name: string; data: string }>,
