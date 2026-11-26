@@ -3,6 +3,7 @@ import { binaryEntry, buildBinaryZip, textEntry, type ZipEntry } from "./zip";
 import type { PlanResult } from "./flightplan";
 import type { PlanParams } from "./flightplan";
 import type { PlanMeta } from "./storage";
+import type { FlightParameters } from "./types";
 import { formatArea } from "./aoi";
 import { bboxSizeKm, type Bbox } from "./dem";
 
@@ -32,7 +33,16 @@ export function baseName(meta: PlanMeta): string {
   return `${scope.replace(/[^\w.-]+/g, "_")}_${stamp()}`;
 }
 
-export function buildOutputs(result: PlanResult, params: PlanParams, meta: PlanMeta): OutputFile[] {
+/** Just the parts of a plan needed to export it, so infill flights can use it too. */
+export interface MissionRoute extends Pick<PlanResult, "waypoints" | "flightpath"> {
+  parameters: Pick<FlightParameters, "ground_speed">;
+}
+
+export function buildOutputs(
+  result: MissionRoute,
+  params: Pick<PlanParams, "droneType">,
+  meta: PlanMeta,
+): OutputFile[] {
   const base = baseName(meta);
   const files: OutputFile[] = [];
 

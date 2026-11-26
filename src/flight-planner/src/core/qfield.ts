@@ -28,7 +28,7 @@ export const generate = core.generate as (
 
 export const applyTerrainFollowing = core.applyTerrainFollowing as (
   geojson: WaypointCollection,
-  parameters: FlightParameters,
+  parameters: Pick<FlightParameters, "ground_speed" | "altitude_above_ground_level">,
   flightMode: FlightModeKey,
   takeoffElevation: number | null,
   threshold?: number,
