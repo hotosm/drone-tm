@@ -274,12 +274,8 @@ export const IN_FLIGHT = { title: "During the flight", hint: "Read this before t
 /** In the order they happen. */
 export const IN_FLIGHT_STEPS: ReferenceLine[] = [
   { text: 'After takeoff, wait for the "Home point updated" message' },
-  { text: "Set the photo mode to Timed Shot, 2 seconds", only: "dji", mode: "waylines" },
-  {
-    text: "Start taking photos at the first waypoint, and stop at the last",
-    only: "dji",
-    mode: "waylines",
-  },
+  { text: "Set the photo mode to Timed Shot, 2 seconds", mode: "waylines" },
+  { text: "Start taking photos at the first waypoint, and stop at the last", mode: "waylines" },
   { text: "Photos are taken automatically at each waypoint", mode: "waypoints" },
   { text: "Keep the drone in sight at all times" },
   { text: "Watch the battery level, altitude, error messages and zoom (1x)" },

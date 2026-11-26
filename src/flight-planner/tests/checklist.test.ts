@@ -46,7 +46,7 @@ describe("checklist content", () => {
     expect(dji).not.toContain("beginner-mode");
   });
 
-  it("only tells DJI pilots flying waylines to start the photos by hand", () => {
+  it("only tells pilots flying waylines to start the photos by hand", () => {
     const steps = (drone: typeof DJI | typeof POTENSIC, mode: "waylines" | "waypoints") =>
       inFlightSteps(drone, mode)
         .map((line) => line.text)
@@ -54,6 +54,7 @@ describe("checklist content", () => {
     expect(steps(DJI, "waylines")).toMatch(/Timed Shot/);
     expect(steps(DJI, "waypoints")).not.toMatch(/Timed Shot/);
     expect(steps(DJI, "waypoints")).toMatch(/automatically/);
+    expect(steps(POTENSIC, "waylines")).toMatch(/Timed Shot/);
     expect(steps(POTENSIC, "waypoints")).not.toMatch(/Timed Shot/);
   });
 
