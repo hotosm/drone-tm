@@ -15,7 +15,7 @@ import {
   type OutputFile,
 } from "../core/outputs";
 import type { PlanDem } from "../core/storage";
-import type { DroneTypeKey, PotensicAppKey } from "../core/types";
+import type { DroneTypeKey } from "../core/types";
 import { potensicAppForDrone } from "../core/params";
 import { coachLead } from "../tutorial";
 import { errorPanel, escapeHtml, infoPanel, option } from "./ui";
@@ -57,18 +57,22 @@ function flightSetup(params: PlanParams): string {
   const takeoff = params.takeoffPoint
     ? `${params.takeoffPoint.lat.toFixed(5)}, ${params.takeoffPoint.lon.toFixed(5)}`
     : "Not set. Take off at the green ring, in the middle of the area.";
-  const potensicApp =
+  const droneChoice =
     params.droneType === "POTENSIC_ATOM_2"
-      ? `<wa-select id="potensic-app" label="Potensic app" value="${escapeHtml(params.potensicApp)}">
-        ${option("android", "Potensic (Android)", params.potensicApp === "android")}
-        ${option("eve", "Potensic Eve (iOS)", params.potensicApp === "eve")}
-      </wa-select>`
-      : "";
+      ? `${params.droneType}_${params.potensicApp}`
+      : params.droneType;
+  const droneChoices = DRONE_CHOICES.flatMap((choice) =>
+    choice.value === "POTENSIC_ATOM_2"
+      ? [
+          { value: "POTENSIC_ATOM_2_android", label: "Atom 2 (Android)" },
+          { value: "POTENSIC_ATOM_2_ios", label: "Atom 2 (iOS)" },
+        ]
+      : [choice],
+  );
   return `
-    <wa-select id="drone-type" label="Drone" value="${escapeHtml(params.droneType)}">
-      ${DRONE_CHOICES.map((c) => option(c.value, c.label, c.value === params.droneType)).join("")}
+    <wa-select id="drone-type" label="Drone" value="${escapeHtml(droneChoice)}">
+      ${droneChoices.map((c) => option(c.value, c.label, c.value === droneChoice)).join("")}
     </wa-select>
-    ${potensicApp}
     <div class="downloads">
       <div class="download-row">
         <div class="download-meta">
@@ -181,12 +185,12 @@ export const step4: Step = {
     const eveWaypointCount = result.waypoints.features.length;
     const exceedsEveWaypointLimit =
       params.droneType === "POTENSIC_ATOM_2" &&
-      params.potensicApp === "eve" &&
+      params.potensicApp === "ios" &&
       eveWaypointCount > POTENSIC_EVE_MAX_WAYPOINTS;
     const eveWaypointWarning = exceedsEveWaypointLimit
       ? `<wa-callout variant="warning" appearance="outlined">
            <wa-icon slot="icon" name="triangle-exclamation"></wa-icon>
-           <strong>Potensic Eve download disabled: ${eveWaypointCount} waypoints exceeds the ${POTENSIC_EVE_MAX_WAYPOINTS}-waypoint limit.</strong>
+           <strong>Atom 2 (iOS) download disabled: ${eveWaypointCount} waypoints exceeds the ${POTENSIC_EVE_MAX_WAYPOINTS}-waypoint limit.</strong>
            <p>Split the area into smaller missions. The Eve mission file is disabled below; the GeoJSON review files remain available.</p>
          </wa-callout>`
       : "";
@@ -199,18 +203,26 @@ export const step4: Step = {
         <div class="stat"><span class="stat-label">Waypoints</span>
           <span class="stat-value">${result.waypoints.features.length}</span></div>
         <div class="stat"><span class="stat-label">Photos</span>
-          <span class="stat-value">${params.flightMode === "waylines" ? "~" : ""}${result.photos}</span></div>
+          <span class="stat-value">${params.flightMode === "waylines" ? "~" : ""}${
+      result.photos
+    }</span></div>
         <div class="stat"><span class="stat-label">Flight time</span>
-          <span class="stat-value">${escapeHtml(minutes(result.estimatedFlightTimeMinutes))}</span></div>
+          <span class="stat-value">${escapeHtml(
+            minutes(result.estimatedFlightTimeMinutes),
+          )}</span></div>
       </div>
 
       <div class="stat-row">
         <div class="stat"><span class="stat-label">Altitude</span>
-          <span class="stat-value">${altMin === altMax ? `${altMin} m` : `${altMin}-${altMax} m`}</span></div>
+          <span class="stat-value">${
+            altMin === altMax ? `${altMin} m` : `${altMin}-${altMax} m`
+          }</span></div>
         <div class="stat"><span class="stat-label">Speed</span>
           <span class="stat-value">${result.parameters.ground_speed} m/s</span></div>
         <div class="stat"><span class="stat-label">Terrain</span>
-          <span class="stat-value">${result.terrainFollowing ? "Following" : "Fixed"}</span></div>
+          <span class="stat-value">${
+            result.terrainFollowing ? "Following" : "Fixed"
+          }</span></div>
       </div>
 
       ${batteryCallout}
@@ -296,18 +308,18 @@ export const step4: Step = {
 
     const drone = root.querySelector<HTMLElement & { value: string }>("#drone-type");
     drone?.addEventListener("change", () => {
-      const nextDroneType = drone.value as DroneTypeKey;
+      const atom2Platform =
+        drone.value === "POTENSIC_ATOM_2_ios"
+          ? "ios"
+          : drone.value === "POTENSIC_ATOM_2_android"
+          ? "android"
+          : null;
+      const nextDroneType = atom2Platform ? "POTENSIC_ATOM_2" : (drone.value as DroneTypeKey);
       ctx.state.params.droneType = nextDroneType;
       ctx.state.params.potensicApp = potensicAppForDrone(
         nextDroneType,
-        ctx.state.params.potensicApp,
+        atom2Platform ?? "android",
       );
-      void run();
-    });
-    const potensicApp = root.querySelector<HTMLElement & { value: string }>("#potensic-app");
-    potensicApp?.addEventListener("change", () => {
-      if (potensicApp.value !== "android" && potensicApp.value !== "eve") return;
-      ctx.state.params.potensicApp = potensicApp.value as PotensicAppKey;
       void run();
     });
 

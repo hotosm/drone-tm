@@ -56,17 +56,6 @@ function createPotensicV2IosJson(featcol, defaultSpeed) {
             throw new Error(at + " gimbal pitch must be between -90 and 20 degrees")
         }
 
-        var hoverValue = props.hover_time
-        if (hoverValue === undefined || hoverValue === null || hoverValue === "") {
-            hoverValue = props.hoverTime
-        }
-        var hoverTime = (hoverValue === undefined || hoverValue === null || hoverValue === "")
-            ? 0
-            : Number(hoverValue)
-        if (!isFinite(hoverTime) || hoverTime < 0 || hoverTime > 3600) {
-            throw new Error(at + " hover time must be between 0 and 3600 seconds")
-        }
-
         waypoints.push({
             global_speed: speed,
             snapshootFile: "",
@@ -75,7 +64,8 @@ function createPotensicV2IosJson(featcol, defaultSpeed) {
             wp_yaw_custom: 0,
             wp_gimbal_type: 2,
             wp_yaw_type: 0,
-            wp_hover_time: hoverTime,
+            // Keep the schema field, but never pause at survey waypoints.
+            wp_hover_time: 0,
             wp_action: props.take_photo ? 1 : 0,
             wp_zoom_type: 0,
             wp_height: Math.round(height * 10) / 10,

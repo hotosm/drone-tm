@@ -15,9 +15,9 @@ export class ParamsError extends Error {
 const DRONE_KEYS = new Set<string>(DRONE_CHOICES.map((choice) => choice.value));
 const GIMBAL_KEYS = new Set(["-80", "-90", "-45"]);
 const FLIGHT_MODES = new Set(["waylines", "waypoints"]);
-const POTENSIC_APPS = new Set(["android", "eve"]);
+const POTENSIC_APPS = new Set(["android", "ios"]);
 
-// Eve is an app choice for the Atom 2, not a separate drone type. Clear it
+// The app platform is an Atom 2 export setting, not a separate drone type. Clear it
 // whenever another drone is selected so it cannot leak into a later plan.
 export function potensicAppForDrone(
   droneType: DroneTypeKey,
@@ -107,7 +107,7 @@ export function parseParams(raw: unknown): PlanParams {
   if (droneType === "POTENSIC_ATOM_2" && !POTENSIC_APPS.has(requestedPotensicApp)) {
     throw new ParamsError(
       `Unknown Potensic app "${requestedPotensicApp}".`,
-      "Choose Potensic Android or Potensic Eve (iOS).",
+      "Choose Atom 2 (Android) or Atom 2 (iOS).",
     );
   }
   const potensicApp = potensicAppForDrone(

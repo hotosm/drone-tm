@@ -85,13 +85,19 @@ describe("buildPlan", () => {
     const waypoints = buildPlan(SMALL, params({ flightMode: "waypoints" }), dem);
     const waylines = buildPlan(SMALL, params({ flightMode: "waylines" }), dem);
 
-    expect(waylines.waypoints.features.length).toBeLessThan(waypoints.waypoints.features.length);
+    expect(waylines.waypoints.features.length).toBeLessThan(
+      waypoints.waypoints.features.length,
+    );
   });
 
   it("counts the same photos in waylines mode as in waypoints mode", () => {
     const waypoints = buildPlan(SMALL, params({ flightMode: "waypoints" }), dem);
     const terrain = buildPlan(SMALL, params({ flightMode: "waylines" }), dem);
-    const flat = buildPlan(SMALL, params({ flightMode: "waylines", terrainFollow: false }), null);
+    const flat = buildPlan(
+      SMALL,
+      params({ flightMode: "waylines", terrainFollow: false }),
+      null,
+    );
 
     expect(waypoints.photos).toBeGreaterThan(0);
     expect(terrain.photos).toBe(waypoints.photos);
@@ -137,7 +143,11 @@ describe("buildPlan", () => {
   });
 
   it("warns about the battery on an area too big for one flight", () => {
-    const result = buildPlan(ring("aoi-kathmandu.geojson"), params({ terrainFollow: false }), null);
+    const result = buildPlan(
+      ring("aoi-kathmandu.geojson"),
+      params({ terrainFollow: false }),
+      null,
+    );
 
     expect(result.batteryWarning).toBe(true);
     expect(result.estimatedFlightTimeMinutes).toBeGreaterThan(30);
@@ -193,7 +203,7 @@ describe("buildOutputs", () => {
   it("writes all Eve fields and preserves real waypoint values and photo actions", () => {
     const eve = params({
       droneType: "POTENSIC_ATOM_2",
-      potensicApp: "eve",
+      potensicApp: "ios",
       flightMode: "waypoints",
       terrainFollow: false,
     });
@@ -227,6 +237,7 @@ describe("buildOutputs", () => {
     ]);
     expect(waypoints[0].global_speed).toBe(result.parameters.ground_speed);
     expect(waypoints[0].snapshootFile).toBe("");
+    expect(waypoints.every((waypoint) => waypoint.wp_hover_time === 0)).toBe(true);
 
     const photoIndex = result.waypoints.features.findIndex(
       (feature) => feature.properties.take_photo,
@@ -256,7 +267,11 @@ describe("buildOutputs", () => {
   });
 
   it("blocks the Eve mission download above 200 waypoints", () => {
-    const eve = params({ droneType: "POTENSIC_ATOM_2", potensicApp: "eve", terrainFollow: false });
+    const eve = params({
+      droneType: "POTENSIC_ATOM_2",
+      potensicApp: "ios",
+      terrainFollow: false,
+    });
     const result = buildPlan(SMALL, eve, null);
     const first = result.waypoints.features[0]!;
     const oversized = {
@@ -272,7 +287,11 @@ describe("buildOutputs", () => {
   });
 
   it("rejects Eve speeds outside the inclusive 0.1 to 30 m/s range", () => {
-    const eve = params({ droneType: "POTENSIC_ATOM_2", potensicApp: "eve", terrainFollow: false });
+    const eve = params({
+      droneType: "POTENSIC_ATOM_2",
+      potensicApp: "ios",
+      terrainFollow: false,
+    });
     const result = buildPlan(SMALL, eve, null);
     expect(() => createPotensicV2IosJson(result.waypoints, 0)).toThrow(/0\.1 to 30 m\/s/);
     expect(() => createPotensicV2IosJson(result.waypoints, 30.1)).toThrow(/0\.1 to 30 m\/s/);
@@ -283,16 +302,16 @@ describe("buildOutputs", () => {
 
 describe("potensicAppForDrone", () => {
   it("keeps the Eve choice only for the Atom 2", () => {
-    expect(potensicAppForDrone("POTENSIC_ATOM_2", "eve")).toBe("eve");
+    expect(potensicAppForDrone("POTENSIC_ATOM_2", "ios")).toBe("ios");
     expect(potensicAppForDrone("POTENSIC_ATOM_2", "android")).toBe("android");
-    expect(potensicAppForDrone("DJI_MINI_4_PRO", "eve")).toBe("android");
-    expect(potensicAppForDrone("POTENSIC_ATOM_1", "eve")).toBe("android");
+    expect(potensicAppForDrone("DJI_MINI_4_PRO", "ios")).toBe("android");
+    expect(potensicAppForDrone("POTENSIC_ATOM_1", "ios")).toBe("android");
   });
 
   it("parseParams accepts Eve for the Atom 2 and rejects unknown apps", () => {
-    const eve = parseParams({ droneType: "POTENSIC_ATOM_2", potensicApp: "eve" });
-    expect(eve.potensicApp).toBe("eve");
-    const android = parseParams({ droneType: "DJI_MINI_4_PRO", potensicApp: "eve" });
+    const eve = parseParams({ droneType: "POTENSIC_ATOM_2", potensicApp: "ios" });
+    expect(eve.potensicApp).toBe("ios");
+    const android = parseParams({ droneType: "DJI_MINI_4_PRO", potensicApp: "ios" });
     expect(android.potensicApp).toBe("android");
     expect(() => parseParams({ droneType: "POTENSIC_ATOM_2", potensicApp: "desktop" })).toThrow(
       /Unknown Potensic app/,
