@@ -1256,6 +1256,21 @@ wa-details::part(content) {
   flex: 0 0 11rem;
 }
 
+/* Sits under the dot without resizing the marker, so the dot stays on the point. */
+.takeoff-label {
+  position: absolute;
+  top: calc(100% + var(--wa-space-2xs));
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.1rem var(--wa-space-xs);
+  border-radius: var(--wa-border-radius-pill, 999px);
+  background: var(--wa-color-surface-raised);
+  box-shadow: var(--wa-shadow-s);
+  font-size: var(--wa-font-size-xs);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 #check-status {
   display: flex;
   flex-direction: column;

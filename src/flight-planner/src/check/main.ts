@@ -7,8 +7,21 @@ import "../styles/app.css";
 
 import maplibregl, { type GeoJSONSource } from "maplibre-gl";
 import { taskAreas, type TaskArea } from "../core/aoi";
-import { assessCoverage, matchTask, type Coverage, type TaskMatch } from "../core/photo-coverage";
+import { areaCentre, DEFAULT_PARAMS } from "../core/flightplan";
+import { DemSampler, fetchDem, planDemBbox, ringBbox, type Bbox } from "../core/dem";
+import { buildInfillPlan, estimateAglM, InfillError } from "../core/infill";
+import { buildOutputs, download } from "../core/outputs";
+import {
+  assessCoverage,
+  matchTask,
+  type Coverage,
+  type PhotoGap,
+  type TaskMatch,
+} from "../core/photo-coverage";
 import { readPhoto, type PhotoInfo } from "../core/photos";
+import { DRONE_CHOICES, GIMBAL_CHOICES } from "../core/qfield";
+import { findCoveringDem, getDemBytes, glo30DemKey, putDem, type DemEntry } from "../core/storage";
+import type { DroneTypeKey, GimbalAngleKey } from "../core/types";
 import { BasemapToggle, basemapStyle } from "../map/basemap";
 import { mapColor } from "../map/palette";
 import {
@@ -16,6 +29,7 @@ import {
   errorPanel,
   escapeHtml,
   infoPanel,
+  option,
   stat,
   successPanel,
   warningPanel,
@@ -45,6 +59,12 @@ function emptyState(): CheckState {
 }
 
 let state = emptyState();
+let checked: { task: TaskArea; coverage: Coverage } | null = null;
+let terrain: { task: TaskArea; dem: DemSampler } | null = null;
+let terrainLookedUp: TaskArea | null = null;
+let takeoffPin: { task: TaskArea; marker: maplibregl.Marker } | null = null;
+/** What the pilot entered, kept when the panel redraws. */
+let infillDraft: { task: TaskArea; open: boolean; values: Record<string, string> } | null = null;
 let popup: maplibregl.Popup | null = null;
 const statusHost = document.querySelector<HTMLElement>("#check-status")!;
 const photosSummary = document.querySelector<HTMLElement>("#photos-summary")!;
@@ -139,9 +159,19 @@ function plural(count: number, word: string): string {
   return `${count} ${word}${count === 1 ? "" : "s"}`;
 }
 
+function missedTotal(coverage: Coverage): number {
+  return (coverage.gaps ?? []).reduce((sum, gap) => sum + gap.missed.length, 0);
+}
+
+function offersInfill(coverage: Coverage): boolean {
+  return coverage.missingShare > 0 && missedTotal(coverage) > 0;
+}
+
+const INFILL_OR_REFLY =
+  "Download an infill flight for the missing photos, or alternatively refly the whole task.";
+
 function verdictPanel(coverage: Coverage): string {
-  const gaps = coverage.gaps ?? [];
-  const missedCount = gaps.reduce((sum, gap) => sum + gap.missed.length, 0);
+  const missedCount = missedTotal(coverage);
   const uncovered =
     coverage.missingShare > 0
       ? `${percent(coverage.missingShare)} of the task has no photo close enough to map it.`
@@ -163,14 +193,17 @@ function verdictPanel(coverage: Coverage): string {
   if (coverage.verdict === "good") {
     return successPanel("No missing photos found.", "Every part of the task is covered.");
   }
-  if (coverage.verdict === "refly") return errorPanel("Refly this task.", `${missing} ${detail}`);
+  if (coverage.verdict === "refly") {
+    const title = offersInfill(coverage) ? INFILL_OR_REFLY : "Refly this task.";
+    return errorPanel(title, `${missing} ${detail}`);
+  }
   if (missedCount === 0) return warningPanel("Part of the task has no photos.", uncovered);
   return warningPanel(missing, detail);
 }
 
 function photoStats(coverage: Coverage): string {
   const outside = coverage.bufferCount + coverage.outsideCount;
-  const missedCount = (coverage.gaps ?? []).reduce((sum, gap) => sum + gap.missed.length, 0);
+  const missedCount = missedTotal(coverage);
   return `
     <div class="stat-row">
       ${stat("In the task", String(state.photos.length - outside))}
@@ -178,6 +211,193 @@ function photoStats(coverage: Coverage): string {
       ${stat("Outside", String(coverage.outsideCount))}
       ${stat("Missing", coverage.gaps ? `~${missedCount}` : "?")}
     </div>`;
+}
+
+function infillBbox(task: TaskArea, gaps: PhotoGap[]): Bbox {
+  return ringBbox([...task.ring, ...gaps.flatMap((gap) => gap.missed)]);
+}
+
+function terrainFor(task: TaskArea): DemSampler | null {
+  return terrain?.task === task ? terrain.dem : null;
+}
+
+function terrainPrompt(): string {
+  return `
+    <p>
+      An infill flight needs terrain data to take the missing photos at the same height above
+      ground as the first flight. Download it while you have internet.
+    </p>
+    <wa-button id="terrain-download" appearance="outlined" size="s">
+      <wa-icon slot="start" name="cloud-arrow-down"></wa-icon>Download terrain
+    </wa-button>
+    <div id="infill-note"></div>`;
+}
+
+const AGL_ESTIMATE_HINT =
+  "Estimated from the photos, if the first flight took off at the task centre. " +
+  "Change it if you know the first flight's height.";
+
+function draftFor(task: TaskArea): Record<string, string> {
+  return infillDraft?.task === task ? infillDraft.values : {};
+}
+
+function infillForm(task: TaskArea, dem: DemSampler): string {
+  const draft = draftFor(task);
+  const droneType = draft["infill-drone"] ?? DEFAULT_PARAMS.droneType;
+  const gimbalAngle = draft["infill-gimbal"] ?? DEFAULT_PARAMS.gimbalAngle;
+  // The planner's default takeoff, as the first flight most likely used it.
+  const estimate = estimateAglM(state.photos, dem, areaCentre(task.ring));
+  const aglM = draft["infill-agl"] ?? estimate ?? "";
+  return `
+    <div class="pair">
+      <wa-select id="infill-drone" label="Drone" value="${droneType}">
+        ${DRONE_CHOICES.map((c) => option(c.value, c.label, c.value === droneType)).join("")}
+      </wa-select>
+      <wa-select id="infill-gimbal" label="Camera angle" value="${gimbalAngle}">
+        ${GIMBAL_CHOICES.map((c) => option(c.value, c.label, c.value === gimbalAngle)).join("")}
+      </wa-select>
+    </div>
+    <wa-input id="infill-agl" type="number" label="Height above ground" value="${aglM}"
+      hint="${estimate ? AGL_ESTIMATE_HINT : "Use the same height as the first flight."}"
+      min="10" max="500" step="1"
+    ><span slot="end">m</span></wa-input>
+    <p class="muted">
+      Drag the takeoff marker to where you will launch. Every height is measured from there.
+    </p>
+    <wa-button id="infill-download" variant="brand" size="s">
+      <wa-icon slot="start" name="download"></wa-icon>Download infill flight
+    </wa-button>
+    <div id="infill-note"></div>`;
+}
+
+function infillPanel(coverage: Coverage, task: TaskArea): string {
+  if (!offersInfill(coverage)) return "";
+  const dem = terrainFor(task);
+  return `
+    <wa-details id="infill" summary="Create infill flight" appearance="outlined"
+      ${infillDraft?.task === task && infillDraft.open ? "open" : ""}>
+      ${dem ? infillForm(task, dem) : terrainPrompt()}
+    </wa-details>`;
+}
+
+function showInfillNote(html: string): void {
+  const note = statusHost.querySelector<HTMLElement>("#infill-note");
+  if (note) note.innerHTML = html;
+}
+
+function fieldValue(id: string): string | undefined {
+  return statusHost.querySelector<HTMLElement & { value: string }>(`#${id}`)?.value;
+}
+
+function selected<T extends string>(id: string): T {
+  return fieldValue(id) as T;
+}
+
+const DRAFT_FIELDS = ["infill-drone", "infill-gimbal", "infill-agl"];
+
+function saveInfillDraft(): void {
+  const details = statusHost.querySelector("#infill");
+  if (!checked || !details) return;
+  const values = Object.fromEntries(
+    DRAFT_FIELDS.flatMap((id) => {
+      const value = fieldValue(id);
+      return value === undefined ? [] : [[id, value]];
+    }),
+  );
+  infillDraft = { task: checked.task, open: details.hasAttribute("open"), values };
+}
+
+function downloadInfill(): void {
+  const gaps = checked?.coverage.gaps;
+  const dem = checked && terrainFor(checked.task);
+  if (!checked || !gaps || !dem || !takeoffPin) return;
+  const { task } = checked;
+  const aglM = Number(selected("infill-agl"));
+  if (!(aglM > 0)) {
+    showInfillNote(errorPanel("Enter the height above ground.", "Use the first flight's height."));
+    return;
+  }
+  const gimbalAngle = selected<GimbalAngleKey>("infill-gimbal");
+  try {
+    const { lng, lat } = takeoffPin.marker.getLngLat();
+    const takeoff = { lon: lng, lat };
+    const plan = buildInfillPlan(gaps, { gimbalAngle, dem, aglM, takeoff });
+    const now = new Date().toISOString();
+    const meta = { id: "", name: `${taskName(task.id)} infill`, createdAt: now, updatedAt: now };
+    const droneType = selected<DroneTypeKey>("infill-drone");
+    const [mission] = buildOutputs(plan, { droneType }, meta);
+    download(mission);
+  } catch (error) {
+    if (!(error instanceof InfillError)) throw error;
+    const hint = "Keep the takeoff marker near the task, or download the terrain again.";
+    showInfillNote(errorPanel(error.message, hint));
+  }
+}
+
+/** Starts at the task centre like the planner. The pilot drags it to where they launch. */
+function placeTakeoff(task: TaskArea | null): void {
+  if (takeoffPin?.task === task) return;
+  takeoffPin?.marker.remove();
+  takeoffPin = null;
+  if (!task) return;
+  const { lon, lat } = areaCentre(task.ring);
+  const label = document.createElement("span");
+  label.className = "takeoff-label";
+  label.textContent = "Drag me to your takeoff spot";
+  const element = document.createElement("div");
+  element.className = "takeoff-marker";
+  element.append(label);
+  const marker = new maplibregl.Marker({ element, draggable: true }).setLngLat([lon, lat]);
+  marker.on("dragend", () => (label.textContent = "Takeoff"));
+  takeoffPin = { task, marker: marker.addTo(map) };
+}
+
+function useTerrain(task: TaskArea, dem: DemSampler): void {
+  if (checked?.task !== task) return;
+  terrain = { task, dem };
+  render();
+}
+
+/** Reuses terrain the planner already downloaded on this device, so it works offline. */
+async function findStoredTerrain(task: TaskArea, gaps: PhotoGap[]): Promise<void> {
+  terrainLookedUp = task;
+  try {
+    const entry = await findCoveringDem(infillBbox(task, gaps));
+    const bytes = entry && (await getDemBytes(entry.key));
+    if (bytes) useTerrain(task, await DemSampler.fromBytes(bytes));
+  } catch (error) {
+    // The pilot can still download terrain, so only note it.
+    console.warn("Stored terrain could not be read", error);
+  }
+}
+
+async function downloadTerrain(): Promise<void> {
+  const gaps = checked?.coverage.gaps;
+  if (!checked || !gaps) return;
+  const { task } = checked;
+  showInfillNote(busyNote("Downloading terrain…"));
+  try {
+    const { bbox } = planDemBbox({ required: infillBbox(task, gaps) });
+    const { bytes, url } = await fetchDem(bbox);
+    const dem = await DemSampler.fromBytes(bytes);
+    const { width, height } = dem.size();
+    const entry: DemEntry = {
+      key: glo30DemKey(dem.bounds()),
+      bbox: dem.bounds(),
+      width,
+      height,
+      sourceUrl: url,
+      fetchedAt: new Date().toISOString(),
+      byteLength: bytes.byteLength,
+      source: "GLO30",
+    };
+    // Kept for later, but the flight doesn't need the save to succeed.
+    putDem(entry, bytes).catch((error) => console.warn("Terrain was not saved", error));
+    useTerrain(task, dem);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    showInfillNote(errorPanel("Terrain could not be downloaded.", message));
+  }
 }
 
 function taskName(id: number | null): string {
@@ -227,15 +447,21 @@ function statusPanel(match: TaskMatch, coverage: Coverage | null): string {
       ) + notes
     );
   }
-  return verdictPanel(coverage) + photoStats(coverage) + notes;
+  const infill = match.task ? infillPanel(coverage, match.task) : "";
+  return verdictPanel(coverage) + photoStats(coverage) + infill + notes;
 }
 
 function render(): TaskMatch {
+  saveInfillDraft();
   const match = matchTask(state.tasks, state.photos);
   const area = match.task?.ring ?? null;
   // Another task's photos break the flight-line tracing, which can hide real gaps.
   const checkable = area && state.photos.length > 0 && match.mixedWith.length === 0;
   const coverage = checkable ? assessCoverage(area, state.photos) : null;
+  checked = coverage && match.task ? { task: match.task, coverage } : null;
+  if (checked?.coverage.gaps && terrainLookedUp !== checked.task) {
+    void findStoredTerrain(checked.task, checked.coverage.gaps);
+  }
   setData(
     "cells",
     (coverage?.cells ?? []).map((cell) =>
@@ -267,6 +493,8 @@ function render(): TaskMatch {
     ),
   );
   statusHost.innerHTML = statusPanel(match, coverage);
+  const infillReady = checked && offersInfill(checked.coverage) && terrainFor(checked.task);
+  placeTakeoff(checked && infillReady ? checked.task : null);
   photosSummary.textContent = state.photos.length ? `${state.photos.length} placed` : "";
   areaSummary.textContent = areaSummaryText(match);
   return match;
@@ -361,6 +589,11 @@ for (const button of document.querySelectorAll<HTMLElement>("[data-input]")) {
     input.value = "";
   });
 }
+statusHost.addEventListener("click", (event) => {
+  const target = event.target as HTMLElement;
+  if (target.closest("#infill-download")) downloadInfill();
+  if (target.closest("#terrain-download")) void downloadTerrain();
+});
 document.querySelector("#next-task")!.addEventListener("click", () => {
   popup?.remove();
   const { tasks, skippedTasks } = state;
