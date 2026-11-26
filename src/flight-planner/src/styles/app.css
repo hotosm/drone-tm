@@ -1220,6 +1220,8 @@ wa-details::part(content) {
   flex-direction: column;
   gap: var(--wa-space-s);
   width: min(22rem, calc(100% - 2 * var(--wa-space-s)));
+  max-height: calc(100% - 2 * var(--wa-space-s));
+  overflow-y: auto;
   padding: var(--wa-space-m);
   background: var(--wa-color-surface-raised);
   border-radius: var(--wa-border-radius-l);
@@ -1252,6 +1254,12 @@ wa-details::part(content) {
 
 .check-uploads wa-button {
   flex: 0 0 11rem;
+}
+
+#check-status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wa-space-s);
 }
 
 .check-legend {
