@@ -1,13 +1,13 @@
 .pragma library
 
-// Potensic Eve (iOS) waypoint JSON format for the Atom 2.
+// Potensic Atom 2 waypoint JSON for the iOS version of the Potensic Eve app.
 // Keep this module compatible with the QField plugin's older JavaScript style.
 
 function finiteNumber(value) {
     return typeof value === "number" && isFinite(value)
 }
 
-function createPotensicEveJson(featcol, defaultSpeed) {
+function createPotensicV2IosJson(featcol, defaultSpeed) {
     if (!featcol || featcol.type !== "FeatureCollection" || !Array.isArray(featcol.features)) {
         throw new Error("Expected a GeoJSON FeatureCollection")
     }

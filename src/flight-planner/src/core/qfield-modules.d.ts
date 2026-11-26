@@ -9,5 +9,5 @@ declare module "@qfield/generate/grid.js";
 declare module "@qfield/generate/terrain.js";
 declare module "@qfield/output/dji.js";
 declare module "@qfield/output/kmz.js";
-declare module "@qfield/output/potensic_eve.js";
+declare module "@qfield/output/potensic_v2_ios.js";
 declare module "@qfield/output/potensic_v2.js";

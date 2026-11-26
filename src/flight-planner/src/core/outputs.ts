@@ -1,6 +1,6 @@
 import {
   createKmz,
-  createPotensicEveJson,
+  createPotensicV2IosJson,
   createPotensicZip,
   createWpml,
   outputFormatFor,
@@ -50,7 +50,7 @@ export function buildOutputs(result: PlanResult, params: PlanParams, meta: PlanM
       const exceedsWaypointLimit = result.waypoints.features.length > POTENSIC_EVE_MAX_WAYPOINTS;
       files.push({
         name: "waypoints.json",
-        data: createPotensicEveJson(result.waypoints, result.parameters.ground_speed),
+        data: createPotensicV2IosJson(result.waypoints, result.parameters.ground_speed),
         mime: "application/json",
         label: "Potensic Eve mission (waypoints.json)",
         hint: exceedsWaypointLimit

@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import { DemSampler } from "../src/core/dem";
 import { DEFAULT_PARAMS, areaCentre, buildPlan, type PlanParams } from "../src/core/flightplan";
-import { createPotensicEveJson } from "../src/core/qfield";
+import { createPotensicV2IosJson } from "../src/core/qfield";
 import { parseParams, potensicAppForDrone } from "../src/core/params";
 import { buildOutputs } from "../src/core/outputs";
 import type { PlanMeta } from "../src/core/storage";
@@ -274,10 +274,10 @@ describe("buildOutputs", () => {
   it("rejects Eve speeds outside the inclusive 0.1 to 30 m/s range", () => {
     const eve = params({ droneType: "POTENSIC_ATOM_2", potensicApp: "eve", terrainFollow: false });
     const result = buildPlan(SMALL, eve, null);
-    expect(() => createPotensicEveJson(result.waypoints, 0)).toThrow(/0\.1 to 30 m\/s/);
-    expect(() => createPotensicEveJson(result.waypoints, 30.1)).toThrow(/0\.1 to 30 m\/s/);
-    expect(() => createPotensicEveJson(result.waypoints, 0.1)).not.toThrow();
-    expect(() => createPotensicEveJson(result.waypoints, 30)).not.toThrow();
+    expect(() => createPotensicV2IosJson(result.waypoints, 0)).toThrow(/0\.1 to 30 m\/s/);
+    expect(() => createPotensicV2IosJson(result.waypoints, 30.1)).toThrow(/0\.1 to 30 m\/s/);
+    expect(() => createPotensicV2IosJson(result.waypoints, 0.1)).not.toThrow();
+    expect(() => createPotensicV2IosJson(result.waypoints, 30)).not.toThrow();
   });
 });
 
