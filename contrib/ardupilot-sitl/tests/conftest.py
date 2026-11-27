@@ -46,7 +46,7 @@ AOI = {
 TAKE_OFF_POINT = [85.3240, 27.7172]
 
 # Drone types whose flight plans are MAVLink missions, each flown in SITL
-MAVLINK_DRONE_TYPES = [DroneType.QGROUNDCONTROL]
+MAVLINK_DRONE_TYPES = [DroneType.QGROUNDCONTROL, DroneType.TRICAM]
 
 
 @pytest.fixture(scope="session")

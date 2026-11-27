@@ -9,6 +9,7 @@ from drone_flightplan.drone_type import (
     DroneType,
     drone_type_arg,
 )
+from drone_flightplan.output.tricam import PHOTO_INTERVAL_S as TRICAM_PHOTO_INTERVAL_S
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -169,6 +170,8 @@ def calculate_parameters(
 
     if gsd:
         agl = gsd * GSD_TO_AGL_CONST
+    if drone_type == DroneType.TRICAM:
+        image_interval = TRICAM_PHOTO_INTERVAL_S
 
     # Calculations
     forward_photo_height = agl * VERTICAL_FOV
@@ -193,6 +196,9 @@ def calculate_parameters(
         # NOTE This seems to be the max speed for the Potensic Atom 1
         # upon testing. This value could be updated if reported otherwise
         ground_speed = min(ground_speed, 8.0)
+    elif drone_type == DroneType.TRICAM:
+        # TODO placeholder until the airframe's max survey speed is known
+        ground_speed = min(ground_speed, 15.0)
     else:
         # FIXME is this default appropriate for all drones?
         ground_speed = min(ground_speed, 11.5)
@@ -207,6 +213,7 @@ def calculate_parameters(
         "forward_spacing": round(forward_spacing, 2),
         "side_spacing": round(side_spacing, 2),
         "ground_speed": round(ground_speed, 2),
+        "image_interval": image_interval,
         "altitude_above_ground_level": agl,
         "adjusted_max_battery_life": round(adjusted_max_battery_life, 2),
     }

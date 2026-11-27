@@ -29,6 +29,10 @@ FLIGHTPLAN_OUTPUTS = {
         "suffix": ".csv",
         "media_type": "text/csv",
     },
+    "TRICAM": {
+        "suffix": ".plan",
+        "media_type": "application/json",
+    },
 }
 
 

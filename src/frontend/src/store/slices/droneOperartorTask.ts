@@ -23,7 +23,8 @@ export interface IDroneOperatorTaskState {
     | "POTENSIC_ATOM_1"
     | "POTENSIC_ATOM_2"
     | "LITCHI"
-    | "QGROUNDCONTROL";
+    | "QGROUNDCONTROL"
+    | "TRICAM";
   gimbalAngle: "-80" | "-90" | "-45";
   taskAssetsInformation: Record<string, any>;
   rotatedFlightPlan: Record<string, any>;
